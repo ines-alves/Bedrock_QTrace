@@ -133,6 +133,38 @@
   usage: signature
   library: cryptography
 
+# ---- X25519, X448, ECDH -------------------------------------------------------------------------
+
+# Key agreement only. Generating or loading a private key, or loading a peer public key, is evidence.
+# X25519PrivateKey and friends are written bare (python_ast.BARE_MEMBERS), the module prefix is optional.
+- id: PY_X25519
+  language: python
+  pattern: >-
+    \b(?:x25519\.)?(?:X25519PrivateKey\.(?:generate|from_private_bytes)|X25519PublicKey\.from_public_bytes)\(
+  raw_name: X25519
+  kind_hint: algorithm
+  usage: key_exchange
+  library: cryptography
+
+- id: PY_X448
+  language: python
+  pattern: >-
+    \b(?:x448\.)?(?:X448PrivateKey\.(?:generate|from_private_bytes)|X448PublicKey\.from_public_bytes)\(
+  raw_name: X448
+  kind_hint: algorithm
+  usage: key_exchange
+  library: cryptography
+
+# private_key.exchange(ec.ECDH(), peer_public_key). The curve comes from the key, not from this call, so
+# none is reported here (the EC key rules carry it).
+- id: PY_ECDH
+  language: python
+  pattern: '\bec\.ECDH\(\)'
+  raw_name: ECDH
+  kind_hint: algorithm
+  usage: key_exchange
+  library: cryptography
+
 # ---- AES ----------------------------------------------------------------------------------------
 
 # Key source: os.urandom of a named or literal length. Never reported on its own.

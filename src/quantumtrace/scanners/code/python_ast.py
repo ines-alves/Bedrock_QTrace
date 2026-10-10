@@ -36,6 +36,7 @@ import ast
 QUALIFIERS = frozenset(
     {
         "algorithms",
+        "ec",
         "ed25519",
         "hashes",
         "hashlib",
@@ -45,11 +46,21 @@ QUALIFIERS = frozenset(
         "padding",
         "random",
         "rsa",
+        "x25519",
+        "x448",
     }
 )
 
 # Members the rules write without a module prefix even when their module is a qualifier.
-BARE_MEMBERS = frozenset({"Ed25519PrivateKey"})
+BARE_MEMBERS = frozenset(
+    {
+        "Ed25519PrivateKey",
+        "X25519PrivateKey",
+        "X25519PublicKey",
+        "X448PrivateKey",
+        "X448PublicKey",
+    }
+)
 
 # A binding of a name: ("as", dotted path), ("plain", root), ("from", module, object) or ("other",).
 _Binding = tuple[str, ...]
