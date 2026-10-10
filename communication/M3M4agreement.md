@@ -77,3 +77,10 @@ Fallback: M3 names the binary. M4 adds it to Docker.
 
 | ID | From | Hour | Status | Note |
 |---|---|---|---|---|
+| M3M4-01 | M3 | n/a | AGREED | Frontend split as stated. M3 touches only src/pages/CodeConfig.tsx and src/pages/code-config/. No npm dependency without telling M4. |
+| M3M4-02 | M3 | n/a | CHANGED | M3 lists the needed content. Code assets: RSA-1024 signature in Python, Java and Go (each file also uses SHA-1), MD5, SHA-1 checksum, Ed25519, AES-128-ECB with hard-coded key, AES-256-GCM, SHA-384, HMAC-SHA256, PBKDF2. Hygiene-only: insecure RNG in Python, Java and Go, hard-coded AES key. One asset whose occurrences are all in a test path (in_test_code true). One library finding cryptography==46.0.5. Use file paths from sample-repos. |
+| M3M4-03 | M3 | n/a | CHANGED | Language and in_test_code, the two hygiene flag strings (insecure_rng, hardcoded_key) and mode ECB as stated. Decoys: M3 emits findings for AES-256-GCM, SHA-384, HMAC-SHA256 and PBKDF2 and the engine assigns SAFE. SecureRandom, os.urandom and crypto/rand emit no finding, so no asset exists for them. |
+| M3M4-04 | M3 | n/a | CHANGED | Signatures as stated: render_markdown_summary(result) -> str, write_markdown_summary(result, path), sorted and deterministic. Delivered after the rules and the sample-repos diff test (M3D-08), not by an hour. Until then /api/report.md needs a not generated yet response. |
+| M3M4-05 | M3 | n/a | AGREED | M3 adds extra["resolved_from_line"] (int) when a size or transform came from a constant or parameter default (M3D-06). Library findings (manifests.py, P1) use kind_hint library with raw_name name==version. Hygiene-only findings stay off the CBOM as stated. |
+| M3M4-06 | M3 | n/a | AGREED | The redaction ships with the hard-coded key rule, which is held until M1M3-02 is settled. No key bytes in extra. |
+| M3M4-07 | M3 | n/a | CHANGED | No external binaries: as stated. The scanner takes one file per call, so exclude_dirs and path ordering are applied by M1's pipeline walk, not by M3. Within one file findings are sorted by line, rule id and raw name. |
