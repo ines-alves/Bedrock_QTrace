@@ -47,6 +47,9 @@ reached through call-site arguments of the enclosing function (same flow as inhe
 FLOW_DEPTH hops). The finding moves to the line of the literal. Keys that come from a generation, an
 import, a local assignment or an unresolvable call site never qualify. A literal reached through a
 call-site hop has confidence at most 0.8. The size of the literal is never reported.
+
+Python import aliases (import hashlib as h, from hashlib import md5) are rewritten to the canonical
+spelling in the masked text before any rule runs: see python_ast.py.
 """
 
 from __future__ import annotations
@@ -64,6 +67,7 @@ import yaml
 
 from quantumtrace.models import Finding, KindHint, Location, ScanError, SourceType, Usage
 from quantumtrace.scanners.base import finding_id, is_test_path, register
+from quantumtrace.scanners.code.python_ast import resolve_aliases
 
 LANGUAGE_BY_SUFFIX = {".py": "python", ".java": "java", ".go": "go"}
 RULES_DIR = Path(__file__).parent / "rules"
@@ -1048,6 +1052,8 @@ def _redact(snippet: str) -> str:
 def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | list[Rule]) -> list[Finding]:
     """Scan one file's text. `file` is the path relative to the scan root, in posix form."""
     masked = mask_comments(text, language)
+    if language == "python":
+        masked = resolve_aliases(text, masked)
     consts = Constants(masked, language)
     lines = masked.split("\n")
     original = text.split("\n")
