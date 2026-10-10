@@ -190,6 +190,20 @@ def test_key_size_literal_and_constant_reference(tmp_path):
     assert got == [(3, 1024, "literal", 1.0), (4, 3072, "constant", 1.0)]
 
 
+def test_byte_unit_applies_to_literal_sizes(tmp_path):
+    rule = """
+    - id: PY_URANDOM
+      language: python
+      pattern: 'os\\.urandom\\(\\s*(?P<key_size>\\d+)\\)'
+      raw_name: KEY
+      kind_hint: key
+      usage: encryption
+      key_size_unit: bytes
+    """
+    findings = scan(tmp_path, "python", rule, "k = os.urandom(32)\n")
+    assert [(f.key_size, f.extra["key_size_source"]) for f in findings] == [(256, "literal")]
+
+
 AES_PY = """
 - id: PY_AES
   language: python

@@ -1,0 +1,163 @@
+# Java rules for the code scanner. Field reference: the module docstring of engine.py.
+#
+# raw_name is the string as it appears in the code (M1M3-03): the algorithm or transformation
+# literal, never rewritten. A mode is set only from an explicit transformation string. A bare "AES"
+# or a call that names a provider leaves mode None (M1M3-06). Nothing here assigns a tier.
+#
+# Scope today: the starter-kit scenarios and their SAFE decoys. Wider library coverage comes later.
+
+# ---- hashes, MAC, KDF ---------------------------------------------------------------------------
+
+- id: JAVA_MESSAGE_DIGEST
+  language: java
+  pattern: '\bMessageDigest\.getInstance\(\s*"(?P<algo>[^"]+)"'
+  raw_name: '{algo}'
+  kind_hint: algorithm
+  usage: hash
+  library: java.security
+
+- id: JAVA_MAC
+  language: java
+  pattern: '\bMac\.getInstance\(\s*"(?P<algo>[^"]+)"'
+  raw_name: '{algo}'
+  kind_hint: algorithm
+  usage: mac
+  library: javax.crypto
+
+- id: JAVA_PBKDF2
+  language: java
+  pattern: '\bSecretKeyFactory\.getInstance\(\s*"(?P<algo>PBKDF2[^"]*)"'
+  raw_name: '{algo}'
+  kind_hint: algorithm
+  usage: kdf
+  library: javax.crypto
+
+# ---- asymmetric keys and signatures -------------------------------------------------------------
+
+# RSA generation carries the size, usually on the following initialize(N) call. The usage is not
+# known from a generation call.
+- id: JAVA_KEYPAIR_RSA
+  language: java
+  pattern: '\bKeyPairGenerator\.getInstance\(\s*"(?P<algo>RSA)"'
+  raw_name: '{algo}'
+  kind_hint: algorithm
+  usage: unknown
+  library: java.security
+  lookahead_pattern: '\.initialize\(\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*[,)]'
+  lookahead_lines: 5
+  provides_key_size: RSA
+
+- id: JAVA_KEYPAIR_OTHER
+  language: java
+  pattern: '\bKeyPairGenerator\.getInstance\(\s*"(?P<algo>(?!RSA")[^"]+)"'
+  raw_name: '{algo}'
+  kind_hint: algorithm
+  usage: unknown
+  library: java.security
+
+# RSA signature sites carry no size of their own. The size comes only through a demonstrated flow
+# link from the key passed to initSign or initVerify.
+- id: JAVA_SIGNATURE_RSA
+  language: java
+  pattern: '\bSignature\.getInstance\(\s*"(?P<algo>[^"]*RSA[^"]*)"'
+  raw_name: '{algo}'
+  kind_hint: algorithm
+  usage: signature
+  library: java.security
+  key_arg_pattern: '\.init(?:Sign|Verify)\(\s*(?P<key_arg>[A-Za-z_]\w*)\s*\)'
+  key_arg_lines: 5
+  inherit_key_size: RSA
+
+- id: JAVA_SIGNATURE_OTHER
+  language: java
+  pattern: '\bSignature\.getInstance\(\s*"(?P<algo>(?![^"]*RSA)[^"]+)"'
+  raw_name: '{algo}'
+  kind_hint: algorithm
+  usage: signature
+  library: java.security
+
+# ---- symmetric ciphers --------------------------------------------------------------------------
+
+# Key sources for AES: KeyGenerator.init(N) and SecretKeySpec over a constant of known length.
+# Never reported on their own.
+- id: JAVA_KEYGEN_AES
+  language: java
+  pattern: '\bKeyGenerator\.getInstance\(\s*"AES"'
+  kind_hint: key
+  usage: encryption
+  lookahead_pattern: '\.init\(\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*[,)]'
+  lookahead_lines: 5
+  provides_key_size: AES
+  emit: false
+
+- id: JAVA_SECRET_KEY_SPEC_AES
+  language: java
+  pattern: '\bnew\s+SecretKeySpec\(\s*(?P<key_size_ref>[A-Za-z_]\w*)\s*,\s*"AES"'
+  kind_hint: key
+  usage: encryption
+  key_size_from_length: true
+  provides_key_size: AES
+  emit: false
+
+# Cipher.getInstance with an AES literal. The transformation states mode and padding. A bare "AES"
+# states neither, so mode stays None. A second argument (a provider) does not change that.
+- id: JAVA_CIPHER_AES
+  language: java
+  pattern: '\bCipher\.getInstance\(\s*"(?P<transform>AES[^"]*)"'
+  raw_name: '{transform}'
+  kind_hint: algorithm
+  usage: encryption
+  mode: '{mode}'
+  padding: '{padding}'
+  library: javax.crypto
+  refine:
+    from: transform
+    pattern: '^(?P<algo>[^/]+)(?:/(?P<mode>[^/]+))?(?:/(?P<padding>[^/]+))?$'
+  key_arg_pattern: '\.init\(\s*[^,()]+,\s*(?P<key_arg>[A-Za-z_]\w*)'
+  key_arg_lines: 5
+  inherit_key_size: AES
+
+# Cipher.getInstance(CONSTANT). The constant is resolved at file scope. Limitation: a constant that
+# resolves to a non-AES transformation still looks for an AES key flow and ends unresolved.
+- id: JAVA_CIPHER_REF
+  language: java
+  pattern: '\bCipher\.getInstance\(\s*(?P<transform_ref>[A-Za-z_]\w*)\s*[,)]'
+  raw_name: '{transform}'
+  kind_hint: algorithm
+  usage: encryption
+  mode: '{mode}'
+  padding: '{padding}'
+  library: javax.crypto
+  refine:
+    from: transform
+    pattern: '^(?P<algo>(?!RSA)[^/]+)(?:/(?P<mode>[^/]+))?(?:/(?P<padding>[^/]+))?$'
+  key_arg_pattern: '\.init\(\s*[^,()]+,\s*(?P<key_arg>[A-Za-z_]\w*)'
+  key_arg_lines: 5
+  inherit_key_size: AES
+
+- id: JAVA_CIPHER_OTHER
+  language: java
+  pattern: '\bCipher\.getInstance\(\s*"(?P<transform>(?!AES)[^"]+)"'
+  raw_name: '{transform}'
+  kind_hint: algorithm
+  usage: encryption
+  mode: '{mode}'
+  padding: '{padding}'
+  library: javax.crypto
+  refine:
+    from: transform
+    pattern: '^(?P<algo>(?!RSA)[^/]+)(?:/(?P<mode>[^/]+))?(?:/(?P<padding>[^/]+))?$'
+
+# ---- insecure RNG -------------------------------------------------------------------------------
+
+# Hygiene warning, not a primitive (M1M3-04). SecureRandom is a decoy and has no rule.
+- id: JAVA_INSECURE_RNG
+  language: java
+  pattern: '\bnew\s+(?:java\.util\.)?Random\s*\('
+  raw_name: java.util.Random
+  kind_hint: algorithm
+  usage: rng
+  library: java.util
+  extra:
+    hygiene_only: true
+    hygiene_flags: [insecure_rng]

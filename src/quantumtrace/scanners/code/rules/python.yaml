@@ -1,0 +1,143 @@
+# Python rules for the code scanner. Field reference: the module docstring of engine.py.
+#
+# raw_name is the algorithm token as it appears in the code (M1M3-03). Where the call carries no
+# single token (module or class based APIs, composites) the scanner joins the observed tokens with
+# "-" and the engine normalizer maps the result. Nothing here assigns a tier.
+#
+# Scope today: the starter-kit scenarios and their SAFE decoys. Wider library coverage comes later.
+
+# ---- hashes -------------------------------------------------------------------------------------
+
+- id: PY_HASHLIB
+  language: python
+  pattern: '\bhashlib\.(?P<name>md5|sha1|sha224|sha256|sha384|sha512)\('
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: hash
+  library: hashlib
+
+# A hash class handed to PBKDF2HMAC as algorithm= is part of that composite and is not reported twice.
+- id: PY_CRYPTOGRAPHY_HASH
+  language: python
+  pattern: '(?<!algorithm=)(?<!algorithm= )\bhashes\.(?P<name>MD5|SHA1|SHA224|SHA256|SHA384|SHA512)\(\)'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: hash
+  library: cryptography
+
+# ---- MAC and KDF --------------------------------------------------------------------------------
+
+- id: PY_HMAC
+  language: python
+  pattern: >-
+    \bhmac\.new\((?:\s*(?:[^,()]|\([^()]*\))+,){1,2}\s*(?:digestmod\s*=\s*)?hashlib\.(?P<name>md5|sha1|sha224|sha256|sha384|sha512)\b
+  raw_name: 'HMAC-{name}'
+  kind_hint: algorithm
+  usage: mac
+  library: hmac
+
+- id: PY_PBKDF2
+  language: python
+  pattern: >-
+    \bPBKDF2HMAC\((?:[^()]|\([^()]*\))*?\balgorithm\s*=\s*hashes\.(?P<name>[A-Za-z0-9_]+)\(\)
+  raw_name: 'PBKDF2-HMAC-{name}'
+  kind_hint: algorithm
+  usage: kdf
+  library: cryptography
+
+# ---- RSA ----------------------------------------------------------------------------------------
+
+# Key generation carries the size. The usage is not known from a generation call.
+- id: PY_RSA_GENERATE
+  language: python
+  pattern: >-
+    \brsa\.generate_private_key\((?:[^()]|\([^()]*\))*?\bkey_size\s*=\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: unknown
+  library: cryptography
+  provides_key_size: RSA
+
+- id: PY_RSA_GENERATE_POSITIONAL
+  language: python
+  pattern: '\brsa\.generate_private_key\(\s*\d+\s*,\s*(?P<key_size>\d+)'
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: unknown
+  library: cryptography
+  provides_key_size: RSA
+
+# Sign and verify sites carry no size of their own. The padding argument separates RSA from ECDSA and
+# Ed25519, which have the same method names. The size comes only through a demonstrated flow link.
+- id: PY_RSA_SIGN_VERIFY
+  language: python
+  pattern: >-
+    (?P<key_arg>[A-Za-z_]\w*)\s*\.\s*(?:sign|verify)\((?:[^()]|\([^()]*\))*?\bpadding\.(?P<pad>PKCS1v15|PSS)\(
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: signature
+  padding: '{pad}'
+  library: cryptography
+  inherit_key_size: RSA
+
+# ---- Ed25519 ------------------------------------------------------------------------------------
+
+- id: PY_ED25519_GENERATE
+  language: python
+  pattern: '\b(?:ed25519\.)?Ed25519PrivateKey\.generate\(\)'
+  raw_name: Ed25519
+  kind_hint: algorithm
+  usage: signature
+  library: cryptography
+
+# ---- AES ----------------------------------------------------------------------------------------
+
+# Key source: os.urandom of a named or literal length. Never reported on its own.
+- id: PY_URANDOM_KEY
+  language: python
+  pattern: '\bos\.urandom\(\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*\)'
+  raw_name: AES-KEY
+  kind_hint: key
+  usage: encryption
+  key_size_unit: bytes
+  provides_key_size: AES
+  emit: false
+
+# Cipher(algorithms.AES(key), modes.X(...)). The mode is stated by the call. The key size comes from
+# a parameter default or constant directly, otherwise through a flow link.
+- id: PY_AES_CIPHER
+  language: python
+  pattern: >-
+    \bCipher\(\s*algorithms\.AES\(\s*(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*))\s*\)\s*,\s*modes\.(?P<mode>[A-Za-z0-9]+)\(
+  raw_name: AES
+  kind_hint: algorithm
+  usage: encryption
+  mode: '{mode}'
+  library: cryptography
+  key_size_from_length: true
+  inherit_key_size: AES
+
+- id: PY_AESGCM
+  language: python
+  pattern: '\bAESGCM\(\s*(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*))\s*\)'
+  raw_name: AESGCM
+  kind_hint: algorithm
+  usage: encryption
+  mode: GCM
+  library: cryptography
+  key_size_from_length: true
+  inherit_key_size: AES
+
+# ---- insecure RNG -------------------------------------------------------------------------------
+
+# Hygiene warning, not a primitive (M1M3-04). os.urandom and secrets are decoys and have no rule.
+- id: PY_INSECURE_RNG
+  language: python
+  pattern: '\brandom\.(?P<name>getrandbits|randbytes)\('
+  raw_name: 'random.{name}'
+  kind_hint: algorithm
+  usage: rng
+  library: random
+  extra:
+    hygiene_only: true
+    hygiene_flags: [insecure_rng]

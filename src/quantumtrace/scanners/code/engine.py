@@ -537,7 +537,8 @@ def _size_from(
         return rule.key_size, "literal", None
     literal = groups.get("key_size")
     if literal:
-        return _parse_int(literal), "literal", None
+        size = _parse_int(literal)
+        return (size * 8 if rule.key_size_unit == "bytes" else size), "literal", None
     ref = groups.get("key_size_ref")
     if not ref:
         return None, None, None
