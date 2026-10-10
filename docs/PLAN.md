@@ -1400,7 +1400,7 @@ dependencies. Classified mode strings are lowercase schema values, while raw
 Finding mode strings may remain uppercase.
 
 M3 communication follow-up: communication/M1M3agreement.md has M1 replies to
-all eight items. Key-size inheritance must remain unambiguous and retain bounded
+all nine items. Key-size inheritance must remain unambiguous and retain bounded
 confidence/provenance; unknown evidence is never merged into a known size based
 solely on sharing a file. Hard-coded-key starter warnings require observed AES
 sinks, with literals redacted. Known hand-rolled PBKDF2 kit evidence uses
@@ -1413,3 +1413,14 @@ Unknown AES size remains None and classifies MEDIUM. Golden seeding incorporates
 the verified M3 occurrence corrections, with PBKDF2 lines 19–44 anchored at 25
 and Ed25519 verification sites at 21/25. M3's local completion claim needs a
 published tested implementation reference before it is treated as available.
+
+M3 second-round clarifications (M1M3-01/06/09): linked inference may use
+key_size_source=flow, with confidence at most 0.8; validate argument bindings and
+retain unknowns for ambiguity. Missing provider/chaining declarations alone do not
+establish mode: verified provider context or affirmative independent-block evidence
+is required. Config raw names remain observed strings, with optional verified
+codepoint/iana_name metadata and namespace-specific kind_hint. Central normalization
+cross-checks these while preserving configured/offered/negotiated state and source.
+Shared canonical components do not collapse distinct usage/parameter groups. Code
+golden contributions go in tests/golden/expected.yaml; config/keyfile adapters stay
+P2. Unsupported coverage remains explicit. See the latest M1 reply rows.

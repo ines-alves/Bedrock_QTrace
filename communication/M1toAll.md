@@ -29,7 +29,7 @@ Contracts below are commitments for future tasks unless explicitly marked availa
 | ID | From | What | By |
 |---|---|---|---|
 | M1N-01 | M2 | Registered adapters, verified TLS/SSH registry aliases/codepoints, session evidence, parser count confirmation | H4 |
-| M1N-02 | M3 | Registered code/config adapters, SAFE-decoy tests, redacted evidence, Markdown writer | H6 |
+| M1N-02 | M3 | Registered code adapters, SAFE-decoy tests and redacted evidence; Markdown after M3D-04; config/keyfile adapters are P2 | H6 |
 | M1N-03 | M4 | Registered cloud adapters and verified registry, strict CBOM writer/validator, shared-model API/UI consumption | H6 |
 | M1N-04 | M2, M3, M4 | Owner-confirmed golden rows in documented format and tested branch commit references | H12 |
 | M1N-05 | M4 | Confirm changed M1M4 responses, especially raw-to-derived warning presentation and per-key CBOM material construction | H4 |
