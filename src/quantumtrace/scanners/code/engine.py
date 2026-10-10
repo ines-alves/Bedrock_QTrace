@@ -31,7 +31,10 @@ Rule fields (YAML list of mappings):
 
 Pattern groups: a group named X holds a literal; a group named X_ref holds an identifier that is
 resolved through file-scope constants and Python parameter defaults. key_size and key_size_ref are
-the size groups. A group named key_arg holds the identifier of the key a sink consumes.
+the size groups. A group named key_arg holds the identifier of the key a sink consumes. A group named
+key_literal holds an inline string or bytes literal passed as the key (Go []byte("...") included): with
+key_size_from_length the size is its decoded length in bits, key_size_source "literal". It never stays
+readable in a snippet.
 
 Key size flow (inherit_key_size): a sink takes a size only when its key argument traces, inside the
 file, to a source of the same family: the sized generation is in a function that returns it (the
@@ -628,6 +631,12 @@ def _size_from(
     if literal:
         size = _parse_int(literal)
         return (size * 8 if rule.key_size_unit == "bytes" else size), "literal", None
+    key_literal = groups.get("key_literal")
+    if key_literal and rule.key_size_from_length:
+        inline = _parse_value(key_literal, rule.language)
+        if isinstance(inline, (str, bytes)):
+            return _literal_length(inline) * 8, "literal", None
+        return None, None, None
     ref = groups.get("key_size_ref")
     if not ref:
         return None, None, None
@@ -1083,7 +1092,7 @@ def _conditions_hold(hits: list[_Hit], masked: str, language: str) -> list[_Hit]
     return kept
 
 
-_NEVER_VISIBLE = frozenset({"key_arg", "literal"})
+_NEVER_VISIBLE = frozenset({"key_arg", "literal", "key_literal"})
 
 
 def _visible_literals(groups: dict[str, str | None]) -> set[str]:

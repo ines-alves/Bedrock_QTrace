@@ -331,7 +331,8 @@
   emit: false
 
 # aes.NewCipher(key). The mode comes from what the enclosing function does with the block, the key
-# size from a constant directly, otherwise through a flow link.
+# size from an inline []byte("...") literal (group key_literal, its length) or a constant directly,
+# otherwise through a flow link.
 #
 # ECB needs affirmative evidence (M1M3-06): the function encrypts a block inside a loop and shows no
 # chaining state (no XOR, IV, previous block or cipher.New* mode wrapper). A regex cannot prove that
@@ -339,7 +340,8 @@
 # else leaves mode None.
 - id: GO_AES_NEWCIPHER
   language: go
-  pattern: '\baes\.NewCipher\(\s*(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*))\s*\)'
+  pattern: >-
+    \baes\.NewCipher\(\s*(?:(?P<key_literal>\[\]byte\(\s*(?:"(?:[^"\\]|\\.)*"|`[^`]*`)\s*\))|(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*)))\s*\)
   raw_name: AES
   kind_hint: algorithm
   usage: encryption

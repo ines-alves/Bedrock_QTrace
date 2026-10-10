@@ -244,13 +244,13 @@
   provides_key_size: AES
   emit: false
 
-# Cipher(algorithms.AES(key), modes.X(...)), algorithm and mode positional or keyword. The mode is
-# stated by the call. The key size comes from
-# a parameter default or constant directly, otherwise through a flow link.
+# Cipher(algorithms.AES(key), modes.X(...)), algorithm and mode positional or keyword, key positional
+# or key=. The mode is stated by the call. The key size comes from an inline literal (group
+# key_literal, its length), a parameter default or constant directly, otherwise through a flow link.
 - id: PY_AES_CIPHER
   language: python
   pattern: >-
-    \bCipher\(\s*(?:algorithm\s*=\s*)?algorithms\.AES\(\s*(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*))\s*\)\s*,\s*(?:mode\s*=\s*)?modes\.(?P<mode>[A-Za-z0-9]+)\(
+    \bCipher\(\s*(?:algorithm\s*=\s*)?algorithms\.AES\(\s*(?:key\s*=\s*)?(?:(?P<key_literal>[bB]?"(?:[^"\\]|\\.)*"|[bB]?'(?:[^'\\]|\\.)*')|(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*)))\s*\)\s*,\s*(?:mode\s*=\s*)?modes\.(?P<mode>[A-Za-z0-9]+)\(
   raw_name: AES
   kind_hint: algorithm
   usage: encryption
@@ -261,7 +261,8 @@
 
 - id: PY_AESGCM
   language: python
-  pattern: '\bAESGCM\(\s*(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*))\s*\)'
+  pattern: >-
+    \bAESGCM\(\s*(?:key\s*=\s*)?(?:(?P<key_literal>[bB]?"(?:[^"\\]|\\.)*"|[bB]?'(?:[^'\\]|\\.)*')|(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*)))\s*\)
   raw_name: AESGCM
   kind_hint: algorithm
   usage: encryption
@@ -276,7 +277,7 @@
 - id: PY_HARDCODED_AES_KEY
   language: python
   pattern: >-
-    \b(?:algorithms\.AES|AESGCM)\(\s*(?:(?P<literal>[bB]?"(?:[^"\\]|\\.)*"|[bB]?'(?:[^'\\]|\\.)*')|(?P<key_arg>[A-Za-z_]\w*))\s*\)
+    \b(?:algorithms\.AES|AESGCM)\(\s*(?:key\s*=\s*)?(?:(?P<literal>[bB]?"(?:[^"\\]|\\.)*"|[bB]?'(?:[^'\\]|\\.)*')|(?P<key_arg>[A-Za-z_]\w*))\s*\)
   raw_name: hard-coded symmetric key
   kind_hint: key
   usage: encryption
