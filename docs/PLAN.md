@@ -1300,9 +1300,9 @@ Lines are 1-based. **Bold = SAFE decoy (must not be flagged as MEDIUM/CRITICAL).
 | MD5 password hash | `legacy_accounts.py:5` | `CustomerDirectory.java:8` | `member-directory/main.go:10` | MD5 (hash) MEDIUM, classically broken |
 | SHA-1 checksum | `update_feed.py:5` | `PatchFeed.java:8` | `release-feed/main.go:10` | SHA-1 (hash) MEDIUM, classically broken |
 | RSA-1024 + SHA-1 signing | `license_token.py:6` (key_size=1024), `:11`, `:16` (SHA1) | `ReceiptSigner.java:12-13` (`initialize(1024)`), `:18`, `:25` (`SHA1withRSA`) | `invoice-service/main.go:13` (1024), `:17`,`:18`,`:22`,`:23` (SHA1) | RSA-1024 (signature) CRITICAL, classically broken (<2048) **+** SHA-1 MEDIUM broken |
-| Ed25519 signing | `webhook_signature.py:5` | `DeviceAttestation.java:12,17,24` | `agent-enrollment/main.go:4,11,20` | Ed25519 CRITICAL (Shor) — "modern ≠ quantum-safe" |
+| Ed25519 signing | `webhook_signature.py:5` | `DeviceAttestation.java:12,17,24` | `agent-enrollment/main.go:4,11,20,21,25` | Ed25519 CRITICAL (Shor) — "modern ≠ quantum-safe" |
 | **SHA-384 + HMAC-SHA256** | **`artifact_manifest.py:6` (sha384), `:14` (hmac sha256)** | **`ConfigSync.java:10` (SHA-384), `:20` (HmacSHA256)** | **`config-sync/main.go:13` (Sum384), `:22` (hmac+sha256)** | SHA-384 SAFE, HMAC-SHA256 SAFE |
-| **PBKDF2-HMAC-SHA256 (600k it.)** | **`member_credentials.py:13,18`** | **`IdentityVault.java:22`** | **`auth-gateway/main.go:20-35`** (hand-rolled, no pbkdf2 import; HMAC-SHA256 loop) | PBKDF2/KDF SAFE |
+| **PBKDF2-HMAC-SHA256 (600k it.)** | **`member_credentials.py:13,18`** | **`IdentityVault.java:22`** | **`auth-gateway/main.go:19-44`** (anchor L25) (hand-rolled, no pbkdf2 import; HMAC-SHA256 loop) | PBKDF2/KDF SAFE |
 | AES-128-ECB + insecure RNG | `report_export.py:11` — key = `EXPORT_KEY` (16-byte literal, L5) †; `:17` `random.getrandbits` | `BatchExporter.java:14` — `TRANSFORMATION="AES/ECB/PKCS5Padding"` (L10) † ; key 16-byte literal L9; `:21` `new Random()` | `batch-pipeline/main.go:22` — `exportKey` 16 bytes (L10) †; manual `block.Encrypt` loop ⇒ ECB; `:7,:36` `math/rand` | AES-128-ECB MEDIUM (+ ECB warning, hard-coded key); insecure-RNG warning (UNKNOWN tier, excluded from quantum score) |
 | **AES-256-GCM** | **`secure_transfer.py:16,21`** — `KEY_LEN=32` (L6) † | **`SessionCipher.java:18-19`** — `KEY_BITS=256` (L13) †; `:30,:39` `TRANSFORMATION="AES/GCM/NoPadding"` † | **`telemetry-relay/main.go:23,27,40,44`** — `keyLen=32` (L12) † ; `cipher.NewGCM` | AES-256-GCM SAFE |
 
@@ -1381,3 +1381,18 @@ block or invented fallback values. Roadmap dates are product planning targets.
 The CycloneDX json-validation extra is declared explicitly for strict validation
 dependencies. Classified mode strings are lowercase schema values, while raw
 Finding mode strings may remain uppercase.
+
+M3 communication follow-up: communication/M1M3agreement.md has M1 replies to
+all eight items. Key-size inheritance must remain unambiguous and retain bounded
+confidence/provenance; unknown evidence is never merged into a known size based
+solely on sharing a file. Hard-coded-key starter warnings require observed AES
+sinks, with literals redacted. Known hand-rolled PBKDF2 kit evidence uses
+PBKDF2-HMAC-SHA256 and hand_rolled metadata; SAFE is quantum policy, not a general
+implementation audit. Raw ECB/GCM modes are retained, with bare Java AES defaults
+conditioned on verified provider context. SunJCE/SunPKCS11 defaults are provider
+specific ([Oracle provider documentation](https://docs.oracle.com/en/java/javase/25/security/oracle-providers.html)).
+Go independent-block encryption must be distinguished from chained encryption.
+Unknown AES size remains None and classifies MEDIUM. Golden seeding incorporates
+the verified M3 occurrence corrections, with PBKDF2 lines 19–44 anchored at 25
+and Ed25519 verification sites at 21/25. M3's local completion claim needs a
+published tested implementation reference before it is treated as available.

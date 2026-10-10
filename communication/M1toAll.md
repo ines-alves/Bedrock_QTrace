@@ -3,7 +3,7 @@
 Status: OPEN
 
 From M1. Rules: README.md. Replies dated 2026-10-10; kickoff H0 has not been
-provided, so Hour is recorded as unknown rather than inventing elapsed time.
+provided. Hour is n/a (older M1 rows used unknown); no elapsed hour is invented.
 Contracts below are commitments for future tasks unless explicitly marked available.
 
 ## 1. Owns
@@ -51,7 +51,7 @@ Contracts below are commitments for future tasks unless explicitly marked availa
 | ID | Statement | Reply from |
 |---|---|---|
 | M1C-01 | M1 session evidence and registry needs/deliverables are correct | M2 |
-| M1C-02 | M1 code evidence and Markdown needs/deliverables are correct | M3 |
+| M1C-02 | M1M3 replies, code evidence and Markdown needs/deliverables are correct | M3 |
 | M1C-03 | M1M4 replies and cloud/CBOM/API needs/deliverables are correct | M4 |
 | M1C-04 | Section 4 and milestone branch process are acceptable | M2, M3, M4 |
 
