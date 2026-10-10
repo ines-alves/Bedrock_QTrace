@@ -20,7 +20,7 @@ Unchecked means not verified as integrated; consult the status tracker for progr
 
 | Integrated | Task | Deliverable | Plan |
 |---|---|---|---|
-| [ ] | M1-00 | Repository instructions, skills, task plans, workflow | [M1-00](tasks/M1-00.md) |
+| [x] | M1-00 | Repository instructions, skills, task plans, workflow | [M1-00](tasks/M1-00.md) |
 | [ ] | 1.1 | Project foundation and Python 3.12 environment | [1.1](tasks/1.1.md) |
 | [ ] | 1.2 | Shared contracts and scanner base; initial freeze | [1.2](tasks/1.2.md) |
 | [ ] | 1.3 | Algorithm/scoring KB and validated loader | [1.3](tasks/1.3.md) |
