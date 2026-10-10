@@ -5,6 +5,7 @@ ownership and record further changes here with date, member, and affected behavi
 
 | Date | Member | Decision |
 |---|---|---|
+| 2026-10-10 | M1 / user | Keep coding-agent guidance in the shared plan and optional local root instructions; remove the redundant root guidance file and its scaffolding requirement from all plans. |
 | 2026-10-10 | M1 / user | Keep root `AGENTS.md` and the entire `agents/` directory local-only and Git-ignored. Remove them from current Git tracking while preserving local files; do not rewrite history. Shared docs must not require these files in teammates' checkouts. |
 | 2026-10-10 | M1 / user | Use existing `main`, not a new `master`, as integration branch. Use per-task `m1/<task-id>-<topic>` branches and verified green integration. |
 | 2026-10-10 | M1 / user | Use configured David Correia author/committer identity; add no Codex co-author trailers. |

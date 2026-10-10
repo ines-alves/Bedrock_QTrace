@@ -25,10 +25,9 @@ This document is the **single source of truth** for the team and every coding-ag
 12. [Working with coding agents](#12-working-with-coding-agents)
 13. [Demo & Pitch](#13-demo--pitch)
 14. [Risks & Mitigations](#14-risks--mitigations)
-15. [Appendix A — CLAUDE.md (copy to repo root)](#appendix-a--claudemd)
-16. [Appendix B — Starter prompts for each member's Claude Code](#appendix-b--starter-prompts)
-17. [Appendix C — Reference links](#appendix-c--reference-links)
-18. [Appendix D — Starter-kit analysis & golden ground truth](#appendix-d--starter-kit-analysis--golden-ground-truth)
+15. [Appendix B — Starter prompts for each member](#appendix-b--starter-prompts)
+16. [Appendix C — Reference links](#appendix-c--reference-links)
+17. [Appendix D — Starter-kit analysis & golden ground truth](#appendix-d--starter-kit-analysis--golden-ground-truth)
 
 ---
 
@@ -191,6 +190,15 @@ docker run --rm -p 8000:8000 -v $PWD/out:/out quantumtrace   # dashboard at http
 
 Dev loop (no Docker): `make api` (uvicorn --reload on :8000) and `npm --prefix frontend run dev` (Vite on :5173, proxies `/api` to :8000).
 
+**Foundation development (task 1.1):** run `make install` with uv to sync the
+committed `uv.lock` and dev extra into a local Python 3.12 `.venv`. Alternatively,
+create a Python 3.12 environment and use `pip install -e '.[dev]'` (pip does not
+consume the uv lock). Run `make test`, `make lint` (Ruff lint and format checks),
+and `make check`. `make help` lists all targets. YAML package data is included
+for future KB and scanner rule files. The `qtrace` console entry point is added
+with the CLI in task 1.10. Evaluation, scan-demo, API, UI, and Docker targets fail
+explicitly until their owning implementations exist.
+
 ---
 
 ---
@@ -205,7 +213,6 @@ quantumtrace/
 ├── Makefile                       [M1]   install, test, lint, eval, scan-demo, api, ui, docker
 ├── Dockerfile  .dockerignore      [M4]
 ├── README.md                      [M4]
-├── CLAUDE.md                      [M1]   (Appendix A)
 ├── sample-repos/ cloud-posture/ network-capture/   starter kit (provided, read-only)
 ├── docs/
 │   ├── PLAN.md                    (this file)
@@ -831,11 +838,11 @@ All four are generalists, so the split is by **module ownership** with balanced 
 
 ### M1 — Core, Knowledge Base & Risk Engine (+ CLI, integration, native report)
 
-**Owns:** `models.py`, `pipeline.py`, `cli.py`, `kb/algorithms.yaml`, `kb/scoring.yaml`, `kb/loader.py`, `engine/**`, `scanners/base.py`, `output/report_json.py`, `scripts/eval.py`, `Makefile`, `CLAUDE.md`.
+**Owns:** `models.py`, `pipeline.py`, `cli.py`, `kb/algorithms.yaml`, `kb/scoring.yaml`, `kb/loader.py`, `engine/**`, `scanners/base.py`, `output/report_json.py`, `scripts/eval.py`, `Makefile`.
 
 | # | Task | Priority | Done when |
 |---|---|---|---|
-| 1.1 | Repo skeleton, pyproject, Makefile, ruff, pytest, CLAUDE.md | P0 | `make install test lint` pass on empty project (H0.5) |
+| 1.1 | Repo skeleton, pyproject, Makefile, ruff, pytest | P0 | `make install test lint` pass on empty project (H0.5) |
 | 1.2 | `models.py` exactly as section 6 + `scanners/base.py` (protocol, registry, `finding_id`, `is_test_path`) | P0 | committed & announced at **H1** (contract freeze) |
 | 1.3 | `algorithms.yaml` full family list (7.2) incl. SSH names + `loader.py` with validation | P0 | loader test checks every entry has tier/threat/replacement |
 | 1.4 | `normalize.py` (aliases + regex patterns, param extraction) | P0 | ≥ 60 parametrised tests incl. tricky ones (`prime256v1`, `P-256`, `secp256r1` → same; `Kyber768` → ML-KEM-768; `ssh-rsa` → RSA + SHA-1; `diffie-hellman-group14-sha1`) |
@@ -921,7 +928,7 @@ All four are generalists, so the split is by **module ownership** with balanced 
 
 | Block | M1 | M2 | M3 | M4 |
 |---|---|---|---|---|
-| **H0–H1** Kickoff | Skeleton, `models.py`, `base.py`, CLAUDE.md → **contract freeze H1** | Install tshark; verify Appendix D numbers | Verify Appendix D.4 on the 24 files; seed golden list | Sample `ScanResult` JSON; Vite + FastAPI skeleton |
+| **H0–H1** Kickoff | Skeleton, `models.py`, `base.py` → **contract freeze H1** | Install tshark; verify Appendix D numbers | Verify Appendix D.4 on the 24 files; seed golden list | Sample `ScanResult` JSON; Vite + FastAPI skeleton |
 | **H1–H4** MVP | KB core families, normalise, decompose | `purepy.py` + `tshark.py`; hellos → Findings; SSH KEXINIT | Rule engine + **constant resolution**; Python & Java rules | KMS / LB / ACM adapters + registry; Overview page on sample data |
 | **H4–H6** Close loop | Classify, aggregate, score, pipeline, CLI | Sessions, STARTTLS/pgsql, GREASE, `service` labels | Go rules, import/call dedupe, SAFE decoys, test-path | CBOM builder + validation; `/api/scan` |
 | **H6 ✅ Checkpoint 1** | **End-to-end: `qtrace scan .` → report.json + cbom → React dashboard.** Everyone fixes integration bugs before continuing. |||
@@ -971,7 +978,9 @@ The starter kit's "intentional patterns" are what judges will check. **Appendix 
 
 ### 10.3 CI-lite
 
-`make check` = ruff + pytest + eval. Run before every push to `main`. (Optional GitHub Action running the same.)
+`make check` runs Ruff lint/format checks and pytest during foundation development.
+Task 1.12 adds evaluation to this gate once it exists. Run before every push to
+`main`. (Optional GitHub Action running the same.)
 
 ---
 
@@ -1050,59 +1059,21 @@ Members retain their ownership boundaries. M1 uses a fresh session for each task
 
 ---
 
-## Appendix A — CLAUDE.md
-
-Copy this into the repo root as `CLAUDE.md`.
-
-```markdown
-# QuantumTrace — instructions for Claude Code
-
-You are helping a 4-person hackathon team build QuantumTrace, a post-quantum readiness scanner.
-The full plan is in docs/PLAN.md. Read sections 3, 5, 6 and 7 before making changes.
-
-## Hard rules
-- Python 3.12, type hints everywhere, Pydantic v2 models from `quantumtrace.models`. Never redefine or shadow these models.
-- Do NOT edit `src/quantumtrace/models.py` unless the user explicitly says the team agreed. Only additive optional fields are allowed.
-- Stay inside the files owned by the current member (ownership tags in docs/PLAN.md §5). If another module needs a change, write a note in docs/DECISIONS.md and tell the user.
-- Scanners only DETECT: they yield `Finding` objects with raw names and hints. They never assign tiers or scores. Classification lives only in `engine/` + `kb/*.yaml`.
-- Never invent TLS codepoints, OIDs, KMS key-spec names or standard numbers. Use kb/ YAML and IANA CSVs; mark anything unsure with `# verify`.
-- Ignore GREASE values and TLS signalling suites (0x00FF, 0x5600).
-- Never print or store private key material.
-- The starter kit (`sample-repos/`, `cloud-posture/`, `network-capture/`) is read-only test input; never modify it.
-- Every change comes with tests. Run `make test` (and `make lint`) before declaring a task done.
-- Tests must not use the network. Use files under tests/fixtures/.
-- Keep outputs deterministic (sorted, hash-based IDs).
-
-## Commands
-- `make install` — editable install with dev extras
-- `make test` / `make lint` / `make eval`
-- `qtrace scan <paths...> --out out/` — run a scan
-- `make api` (uvicorn, :8000) and `npm --prefix frontend run dev` (Vite, :5173) — dashboard
-
-## Classification cheat sheet
-CRITICAL (Shor): RSA, DSA, DH/FFDHE, ECDH(E), X25519/X448, ECDSA, EdDSA, SM2, ElGamal
-MEDIUM (Grover): AES-128/192, unknown-size AES, 3DES, DES, RC4, MD5, SHA-1, SHA-224
-SAFE: AES-256, ChaCha20-Poly1305, SHA-256+, SHA3, HMAC-SHA256+, ML-KEM (FIPS 203), ML-DSA (FIPS 204), SLH-DSA (FIPS 205), LMS/XMSS, hybrids like X25519MLKEM768
-HNDL exposure = Shor-vulnerable key exchange observed in transit.
-```
-
----
-
 ## Appendix B — Starter prompts
 
-Paste at the beginning of each Claude Code session (adjust the task number).
+Paste at the beginning of each coding-agent session (adjust the task number).
 
 **M1**
 > I am M1 (Core & Risk Engine) on QuantumTrace. Read AGENTS.md, agents/STATUS.md, agents/IMPLEMENTATION.md, the previous task handoff, and agents/tasks/1.1.md. Read the task-cycle skill and relevant docs/PLAN.md sections. Start only task 1.1: refresh its written plan, create its branch from current origin/main, implement the project foundation, and validate it. Use my configured Git profile without Codex co-author trailers; push and integrate when green, save the 1.2 handoff, and end the session. Establish contracts in a separate fresh 1.2 session.
 
 **M2**
-> I am M2 (Network Layer) on QuantumTrace. Read CLAUDE.md and docs/PLAN.md sections 6, 7.1, 7.3, 7.4, Appendix D.2/D.3 and my work package §8-M2. I own scanners/network/**, kb/tls_registry.yaml, kb/iana/, scripts/gen_pcaps.sh. First run `tshark -G fields | grep "tls.handshake"` and `tshark -r network-capture/network.pcap -Y tls.handshake -T json | head -200`, and confirm the counts in Appendix D.2 (97 TLS sessions: 54 TLS1.2 static-RSA, 36 TLS1.3 x25519, 7 X25519MLKEM768; 24 SSH sessions). Then implement 2.2 (pure-Python parser), 2.4 (tshark runner) and 2.5 (session assembly) producing Findings per §6. Use numeric codepoints and filter GREASE.
+> I am M2 (Network Layer) on QuantumTrace. Read docs/PLAN.md sections 6, 7.1, 7.3, 7.4, Appendix D.2/D.3 and my work package §8-M2. I own scanners/network/**, kb/tls_registry.yaml, kb/iana/, scripts/gen_pcaps.sh. First run `tshark -G fields | grep "tls.handshake"` and `tshark -r network-capture/network.pcap -Y tls.handshake -T json | head -200`, and confirm the counts in Appendix D.2 (97 TLS sessions: 54 TLS1.2 static-RSA, 36 TLS1.3 x25519, 7 X25519MLKEM768; 24 SSH sessions). Then implement 2.2 (pure-Python parser), 2.4 (tshark runner) and 2.5 (session assembly) producing Findings per §6. Use numeric codepoints and filter GREASE.
 
 **M3**
-> I am M3 (Code inspection) on QuantumTrace. Read CLAUDE.md and docs/PLAN.md sections 6, 7.1–7.3, Appendix D.4 and my work package §8-M3. I own scanners/code/**, scanners/config/**, output/markdown.py, output/sarif.py. First read the 24 files in sample-repos/ and check Appendix D.4 line by line — report any correction. Then implement 3.2 (YAML regex rule engine **with file-scope constant resolution**) and the Python + Java rule files with fixtures and tests. Every SAFE decoy in D.4 must have a test asserting it is NOT flagged as MEDIUM/CRITICAL.
+> I am M3 (Code inspection) on QuantumTrace. Read docs/PLAN.md sections 6, 7.1–7.3, Appendix D.4 and my work package §8-M3. I own scanners/code/**, scanners/config/**, output/markdown.py, output/sarif.py. First read the 24 files in sample-repos/ and check Appendix D.4 line by line — report any correction. Then implement 3.2 (YAML regex rule engine **with file-scope constant resolution**) and the Python + Java rule files with fixtures and tests. Every SAFE decoy in D.4 must have a test asserting it is NOT flagged as MEDIUM/CRITICAL.
 
 **M4**
-> I am M4 (Cloud, CBOM, API, React dashboard, packaging, demo) on QuantumTrace. Read CLAUDE.md and docs/PLAN.md sections 6, 7.5, 7.6, 13, Appendix D.5 and my work package §8-M4. I own scanners/cloud/**, kb/cloud_registry.yaml, output/cyclonedx.py, api/**, frontend/**, Dockerfile, README.md, scripts/demo.sh, tests/fixtures/scan_result_sample.json. First create scan_result_sample.json (~30 assets across pcap/ssh/code/kms/loadbalancer/acm and all tiers, 5 TLS sessions) that validates against ScanResult. Then scaffold FastAPI (api/main.py serving it at /api/result) and a Vite + React + TypeScript Overview page reading it; generate TS types from /openapi.json. Then the KMS/LB/ACM adapters against the real files in cloud-posture/.
+> I am M4 (Cloud, CBOM, API, React dashboard, packaging, demo) on QuantumTrace. Read docs/PLAN.md sections 6, 7.5, 7.6, 13, Appendix D.5 and my work package §8-M4. I own scanners/cloud/**, kb/cloud_registry.yaml, output/cyclonedx.py, api/**, frontend/**, Dockerfile, README.md, scripts/demo.sh, tests/fixtures/scan_result_sample.json. First create scan_result_sample.json (~30 assets across pcap/ssh/code/kms/loadbalancer/acm and all tiers, 5 TLS sessions) that validates against ScanResult. Then scaffold FastAPI (api/main.py serving it at /api/result) and a Vite + React + TypeScript Overview page reading it; generate TS types from /openapi.json. Then the KMS/LB/ACM adapters against the real files in cloud-posture/.
 
 ---
 
