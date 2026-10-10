@@ -12,7 +12,9 @@ from quantumtrace.models import Finding, KindHint, Usage
 AssetType = Literal["algorithm", "certificate", "protocol", "related-crypto-material"]
 MatchMethod = Literal["alias", "pattern", "unknown"]
 Value = str | int
-_TLS_KINDS = frozenset({KindHint.CIPHER_SUITE, KindHint.GROUP, KindHint.SIGNATURE_SCHEME})
+_TLS_KINDS = frozenset(
+    {KindHint.CIPHER_SUITE, KindHint.GROUP, KindHint.SIGNATURE_SCHEME, KindHint.PROTOCOL_VERSION}
+)
 _MODES = frozenset({"cbc", "ecb", "ccm", "gcm", "cfb", "ofb", "ctr", "other", "unknown"})
 
 
@@ -117,7 +119,15 @@ def _curve(value: str, kb: KnowledgeBase) -> str:
 
 def _padding(value: str) -> str:
     key = alias_key(value)
-    return {"nopadding": "none", "pkcs5padding": "pkcs5", "pkcs7padding": "pkcs7"}.get(key, key)
+    if re.fullmatch(r"oaepwithsha(?:1|224|256|384|512)andmgf1padding", key):
+        return "oaep"
+    return {
+        "nopadding": "none",
+        "pkcs5padding": "pkcs5",
+        "pkcs7padding": "pkcs7",
+        "pkcs1padding": "pkcs1v15",
+        "oaeppadding": "oaep",
+    }.get(key, key)
 
 
 def _lookup(name: str, kb: KnowledgeBase) -> tuple[Algorithm | None, MatchMethod, dict[str, str], bool]:
@@ -284,6 +294,14 @@ def normalize(
         if entry.id == "PBKDF2" and "sha256" in alias_key(name):
             inferred["underlying_hash"] = "SHA-256"
         if entry.id == "RSA":
+            if finding.padding:
+                oaep = re.fullmatch(
+                    r"oaepwith(?P<hash>sha(?:1|224|256|384|512))andmgf1padding", alias_key(finding.padding)
+                )
+                if oaep:
+                    digest = kb.by_alias(oaep["hash"])
+                    if digest:
+                        inferred["underlying_hash"] = digest.id
             for suffix, padding in (("pss", "pss"), ("oaep", "oaep"), ("pkcs1v15", "pkcs1v15")):
                 if alias_key(name).endswith(suffix):
                     inferred["padding"] = padding

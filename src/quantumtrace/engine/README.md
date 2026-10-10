@@ -43,7 +43,7 @@ validated owner adapter. Its `RegistryResolution` contains exactly the requested
 namespace/codepoint, an IANA name, `verified=True` and a nonempty source reference.
 The adapter owns file-schema and primary-source validation. Missing, mismatched
 or verify-only rows cannot resolve numeric evidence. Bare decimal values and hex
-outside GROUP/CIPHER_SUITE/SIGNATURE_SCHEME remain unknown. Observed
+outside GROUP/CIPHER_SUITE/SIGNATURE_SCHEME/PROTOCOL_VERSION remain unknown. Observed
 `extra.codepoint` and `extra.iana_name` are cross-checked with raw names and rows;
 conflicts retain evidence and prevent a resolved verdict. Unknown hex identity
 uses canonical uppercase four-digit spelling within its original namespace.
@@ -54,3 +54,100 @@ interfaces when available. The synthetic private codepoints in tests exercise
 resolver mechanics and make no real-world registry claims. SSH/composite names
 retain their KB identity/components for later decomposition; `ssh-rsa` is not
 rewritten to a bare RSA key, and fixed DH group/hash metadata remains in the KB.
+
+# Composite evidence trees
+
+`decompose(finding, kb, *, registry=None, named_registry=None,
+cloud_registry=None) -> Decomposition` runs before classification. It retains the
+original Finding, optional root, drop reason/issues, resource_id and sorted unique
+certificate_arns. Resource associations are raw links; joins and session verdicts
+remain later engine/pipeline work. No scanner, shared model or owner file changes.
+
+`EvidenceNode` contains a stable node_id, parent_id, semantic role, kind,
+NormalizedFinding, scoreable flag, children, forward_secrecy and notes. `walk()`
+returns preorder nodes. Every node's normalized.finding is the original Finding,
+not a generated scanner emission. Component parameters are normalized using
+private projections and scoped inheritance, with observed/recipe contradictions
+retained. Certificate issuer signatures never inherit subject key size or curve.
+A KMS key with observed signature metadata produces one signature/key algorithm
+atom and its digest, without a duplicate scored key atom. SHA-1 signature and
+HMAC-SHA1 MAC remain distinct usages and algorithms.
+
+Dispatch on node.kind before applying atomic KB policy:
+
+- `atom`: classify its normalized identity, checking conflicts/unknown reasons.
+- `container`: derive its summary from children; it is never scored. The original
+  composite need not match an atomic KB entry, so an unrecognized parent lookup
+  alone is not an unknown component. Actual resolution failures return an unknown
+  atom with explicit uncertainty, rather than partially pretending to resolve.
+- `hybrid`: classify the atomic combiner; its children are trace-only and cannot
+  override the combiner verdict. Do not score these halves or combiner hashes.
+
+`scoreable` describes eligibility, not assigned risk. Hygiene-only/library/plaintext/protocol-version observations
+and KB-excluded warnings are unscored. Classify trace nodes for explanation if
+useful, while retaining their parent relationship and exclusion. Duplicate recipe
+nodes with the same semantic ID are collapsed; provenance is retained. Node IDs
+hash Finding.id, parent ID, role and canonical identity; timestamps, confidence,
+source metadata and recipe traversal order do not enter IDs.
+
+Named IANA TLS suites are parsed structurally with anchored rules. TLS 1.2 static
+RSA supplies key transport and authentication mechanisms with unknown certificate
+key size; derived mechanisms do not establish an observed certificate. CBC suffix
+hashes become HMAC components; AEAD suffix hashes describe the PRF. TLS 1.3 suites
+supply only cipher and HKDF, with no guessed group/authentication. `ccm-8` variant
+retains truncated-tag construction. PSK compositions remain unknown as combiners;
+PSK/anonymous authentication and unspecified forward secrecy remain explicit.
+Session authentication observability and the approved UNKNOWN hybrid-session rule
+are handled later, not inferred from a cipher-suite tree.
+
+`NamedTLSResolver.resolve_name(kind, raw_name)` returns a verified RegistryResolution
+for an OpenSSL alias. No ad hoc OpenSSL-to-IANA table is supplied. Numeric TLS lookup
+uses the normalization RegistryResolver, preserving namespace and metadata conflict
+checks. PROTOCOL_VERSION uses the versions namespace only, retaining the original
+label and partial-session metadata; missing/null evidence is not replaced by
+invented negotiation or authentication. GREASE and SCSV are dropped only in relevant namespaces; conflicting
+metadata prevents dropping meaningful evidence. Decimal values are never guessed.
+
+`CloudResolver.resolve(Finding)` returns a CloudResolution with matching raw_name,
+source_type, nonempty primary-source reference, verified=True and nonempty tuple
+of ComponentSpec recipes. The owner adapter validates its schema and conditional
+provider/region/source mappings. ComponentSpec carries name, usage, role, kind,
+optional size/curve/mode/padding/parameter set/underlying hash/variant, parameter
+inheritance and source. KEY parameter scopes cannot silently override observed
+sizes. A policy may supply named CIPHER_SUITE components; these receive their own
+unscored container and linked children. These interfaces are internal injection
+boundaries, not new shared Finding requirements. Supplied signature_algorithm and
+key_algorithm metadata are observed evidence, not engine-selected defaults.
+
+The current checkout and integrated main lack TLS/cloud registries. M2 has now published a registry on
+its unintegrated owner branch; consumption awaits reviewed integration. Known
+key-spec aliases reuse the sourced KB; provider-specific SYMMETRIC_DEFAULT and
+unmapped policies retain explicit absent coverage. Verified fake adapters/private
+codes in tests exercise mechanics and make no production assignment claims.
+Real registry/file adapters await owner publication. Unknown/verify-only inputs
+never gain invented rows, key sizes, parameters, OIDs or standard compliance.
+
+# Decomposition fact references
+
+Primary sources checked 2026-10-10; these describe syntax/mechanisms, not repository
+risk tiers. The existing dated KB remains the source for algorithm policy/PQC facts.
+
+- [RFC 5246](https://www.rfc-editor.org/rfc/rfc5246.html), sections 6.2.3 and
+  7.4: TLS record MAC/AEAD and key exchange/authentication roles.
+- [RFC 5288](https://www.rfc-editor.org/rfc/rfc5288.html), section 3: AES-GCM
+  suite suffixes identify PRF hashes, not a separate record MAC.
+- [RFC 8446](https://www.rfc-editor.org/rfc/rfc8446.html), sections 4.1.2 and
+  7.1: TLS 1.3 suites and the suite-bound HKDF hash; authentication is separate.
+- [RFC 7518](https://www.rfc-editor.org/rfc/rfc7518.html), sections 3 and 4:
+  JOSE signature/MAC/curve/AEAD/OAEP names and parameters.
+- [RFC 8037](https://www.rfc-editor.org/rfc/rfc8037.html), section 3.1:
+  generic EdDSA supports Ed25519 and Ed448; it alone establishes neither variant.
+- [Oracle standard algorithm names](https://docs.oracle.com/en/java/javase/25/docs/specs/security/standard-names.html)
+  and [OAEPParameterSpec](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/javax/crypto/spec/OAEPParameterSpec.html):
+  JCA transformations and separate main/MGF digest parameters. Observed OAEP main
+  digest is retained, with MGF1 digest unresolved rather than assumed equal.
+- [RFC 5656](https://www.rfc-editor.org/rfc/rfc5656.html), section 6.2:
+  SSH named ECDH curves and SHA-256/384/512 exchange hashes. Other SSH fixed
+  groups/signature/hybrid facts reuse the sourced KB.
+- [RFC 8701](https://www.rfc-editor.org/rfc/rfc8701.html), section 2:
+  reserved GREASE structure. SCSV names/values follow RFC 5746 and RFC 7507.
