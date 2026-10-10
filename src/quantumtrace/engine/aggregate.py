@@ -54,7 +54,18 @@ def _key(row: ClassifiedNode) -> str:
     elif row.node.kind == "container" and (finding.session_id is not None or loc.flow is not None):
         scope = ("session", loc.source_type, loc.file, finding.session_id, loc.flow, loc.target)
     # Trace and warning records cannot absorb scored evidence, nor override hybrids.
-    return _json([asdict(row.node.normalized.identity), row.node.kind, row.scoreable, row.exclusions, scope])
+    parts: list[object] = [
+        asdict(row.node.normalized.identity),
+        row.node.kind,
+        row.scoreable,
+        row.exclusions,
+        scope,
+    ]
+    # A hand-rolled implementation is its own asset, so its advice never lands on library call sites.
+    # The marker is appended only when present, so every other asset id is unchanged.
+    if finding.extra.get("hand_rolled") is True:
+        parts.append("hand_rolled")
+    return _json(parts)
 
 
 @dataclass(frozen=True)

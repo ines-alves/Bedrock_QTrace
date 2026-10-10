@@ -342,9 +342,15 @@ def classify(
             advice.append(Advice("Use an operating-system cryptographic random generator.", priority=1))
         maintenance.extend(advice)
     elif node.kind == "container":
+        # Only a suite that encodes key exchange/authentication (TLS <= 1.2) answers for it; a
+        # TLS 1.3 suite takes its components' tier and the session verdict keeps authentication.
+        negotiates = any(
+            child.node.normalized.identity.usage in {Usage.KEY_EXCHANGE, Usage.AUTHENTICATION}
+            for child in children
+        )
         summary = summarize_verdict(
             children,
-            require_authentication=finding.kind_hint == KindHint.CIPHER_SUITE,
+            require_authentication=finding.kind_hint == KindHint.CIPHER_SUITE and negotiates,
             authentication_observable=finding.extra.get("authentication_observable") is True,
         )
         tier = summary.tier

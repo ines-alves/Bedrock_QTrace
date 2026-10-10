@@ -49,12 +49,12 @@ def test_real_starter_partial_scan_writes_all_requested_valid_reports(tmp_path):
     )
     assert invocation.exit_code == 2 and "Coverage incomplete: 3" in invocation.output
     result = ScanResult.model_validate_json((tmp_path / "report.json").read_text())
-    assert (len(result.findings), len(result.assets), len(result.sessions)) == (1056, 659, 121)
+    assert (len(result.findings), len(result.assets), len(result.sessions)) == (1056, 660, 121)
     assert result.roadmap and result.summary.score == 60
     assert len(result.errors) == 3
     cbom = json.loads((tmp_path / "cbom.json").read_text())
-    # 659 assets less 6 hygiene/library/plaintext wrappers that the CBOM leaves out (M3M4-05).
-    assert validate_cbom(cbom) == [] and len(cbom["components"]) == 664
+    # 660 assets less 6 hygiene/library/plaintext wrappers that the CBOM leaves out (M3M4-05).
+    assert validate_cbom(cbom) == [] and len(cbom["components"]) == 665
     markdown = (tmp_path / "summary.md").read_text()
     assert "cryptography" in markdown and "Phase 0" in markdown
 

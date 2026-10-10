@@ -438,7 +438,8 @@ def test_session_containers_stay_separate_shared_atoms_remain_linked(kb):
     ]
     result = aggregate(rows)
     protocols = [asset for asset in result.assets if asset.asset_type == "protocol"]
-    assert len(protocols) == 2 and all(asset.tier == Tier.UNKNOWN for asset in protocols)
+    # TLS 1.3 suites take their components' tier; sessions keep the authentication rule.
+    assert len(protocols) == 2 and all(asset.tier == Tier.SAFE for asset in protocols)
     cipher = next(asset for asset in result.assets if asset.canonical_name == "AES")
     assert cipher.tier == Tier.SAFE and len(cipher.component_of) == 2
     assert_graph(result)
@@ -503,3 +504,22 @@ def test_warning_records_remain_visible_unscored(kb, name, kind, usage, extra):
         for site in sites
         for row in site.records
     )
+
+
+def test_hand_rolled_sites_form_their_own_asset_and_keep_library_ids(kb):
+    library = finding("PBKDF2-HMAC-SHA256", usage=Usage.KDF, key_size=None)
+    custom = library.model_copy(
+        update={
+            "id": "b",
+            "extra": {"hand_rolled": True},
+            "location": Location(source_type=SourceType.CODE, file="b.go", line=3),
+        }
+    )
+    alone = aggregate([classified(kb, library)])
+    both = aggregate([classified(kb, library), classified(kb, custom)])
+    assert len(both.assets) == 2
+    assert alone.assets[0].asset_id in {asset.asset_id for asset in both.assets}
+    advice = {a.asset_id: [r.action for r in a.recommendations] for a in both.assets}
+    hand = [a for a in both.assets if a.asset_id != alone.assets[0].asset_id][0]
+    assert any("hand-rolled" in action for action in advice[hand.asset_id])
+    assert not any("hand-rolled" in action for action in advice[alone.assets[0].asset_id])
