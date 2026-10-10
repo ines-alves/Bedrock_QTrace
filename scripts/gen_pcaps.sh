@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate the M2 fixture captures (PLAN 2.8 / M2M4-06) from real OpenSSL handshakes on loopback.
+# Generate the M2 fixture captures (PLAN 2.8 / M2M4-06; tls10_3des was dropped by M4) from real OpenSSL handshakes on loopback.
 #
 #   scripts/gen_pcaps.sh [output-dir]      default: tests/fixtures/pcap
 #
@@ -9,7 +9,6 @@
 #
 # Output is NOT byte-reproducible (fresh keys and randoms each run). The pcaps are committed and
 # tests read the committed files; rerun only to replace them, then update expected.yaml.
-# Exit status 3: tls10_3des.pcap was skipped because this openssl has no DES-CBC3-SHA.
 set -euo pipefail
 
 OUT="${1:-$(cd "$(dirname "$0")/.." && pwd)/tests/fixtures/pcap}"
@@ -100,23 +99,10 @@ capture tls13_offer_hybrid_server_x25519 refuse.lab \
   --server -cert "$WORK/refuse.crt" -key "$WORK/refuse.key" -tls1_3 -groups X25519 \
   --client -tls1_3 -groups '*X25519MLKEM768:*X25519'
 
-# (c) TLS 1.0 with 3DES. Needs an OpenSSL built with weak ciphers (Homebrew's is not).
-STATUS=0
-if "$OPENSSL" ciphers 'DES-CBC3-SHA:@SECLEVEL=0' >/dev/null 2>&1; then
-  rsa_cert old old.lab
-  capture tls10_3des old.lab \
-    --server -cert "$WORK/old.crt" -key "$WORK/old.key" -tls1 -cipher 'DES-CBC3-SHA:@SECLEVEL=0' \
-    --client -tls1 -cipher 'DES-CBC3-SHA:@SECLEVEL=0'
-else
-  echo "SKIPPED tls10_3des: this openssl has no DES-CBC3-SHA (build with enable-weak-ssl-ciphers)" >&2
-  STATUS=3
-fi
-
-# (d) TLS 1.3 hybrid with an ECDSA certificate, plus the client keylog.
+# (c) TLS 1.3 hybrid with an ECDSA certificate, plus the client keylog.
 ecdsa_cert hybrid hybrid.lab
 capture tls13_hybrid_keylog hybrid.lab \
   --server -cert "$WORK/hybrid.crt" -key "$WORK/hybrid.key" -tls1_3 -groups X25519MLKEM768 \
   --client -tls1_3 -groups X25519MLKEM768 -keylogfile "$OUT/tls13_hybrid_keylog.keylog"
 
-echo "done: $(ls "$OUT"/*.pcap | wc -l | tr -d ' ') of 4 captures in $OUT"
-exit "$STATUS"
+echo "done: $(ls "$OUT"/*.pcap | wc -l | tr -d ' ') of 3 captures in $OUT"

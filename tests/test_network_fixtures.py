@@ -14,7 +14,6 @@ from quantumtrace.scanners.network.pcap_scanner import PcapScanner
 
 DIR = Path(__file__).resolve().parent / "fixtures" / "pcap"
 EXPECTED = yaml.safe_load((DIR / "expected.yaml").read_text())
-PRESENT = {n: e for n, e in EXPECTED.items() if (DIR / n).exists()}
 
 
 @pytest.fixture(params=["purepy", "tshark"] if shutil.which("tshark") else ["purepy"])
@@ -23,20 +22,18 @@ def parser(request, monkeypatch):
         monkeypatch.setattr(tshark, "tshark_available", lambda: False)
 
 
-def test_expected_yaml_covers_the_four_fixtures():
+def test_expected_yaml_covers_the_three_fixtures():
     assert sorted(EXPECTED) == [
-        "tls10_3des.pcap",
         "tls12_ecdhe_ecdsa_p256.pcap",
         "tls13_hybrid_keylog.pcap",
         "tls13_offer_hybrid_server_x25519.pcap",
     ]
-    for name, entry in EXPECTED.items():
-        assert (DIR / name).exists() or entry.get("status") == "missing"
+    assert all((DIR / name).exists() for name in EXPECTED)
 
 
-@pytest.mark.parametrize("name", sorted(PRESENT))
+@pytest.mark.parametrize("name", sorted(EXPECTED))
 def test_fixture_matches_expected(parser, name):
-    want = PRESENT[name]
+    want = EXPECTED[name]
     out = list(PcapScanner().scan(DIR / name, DIR))
     assert [x for x in out if isinstance(x, ScanError)] == []
     found = [x for x in out if isinstance(x, Finding)]
