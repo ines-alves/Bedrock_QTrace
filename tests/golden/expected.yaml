@@ -285,11 +285,11 @@
   source: sample-repos/java/ReceiptSigner.java
   source_type: code
   canonical: SHA-1
-  usage: hash
+  usage: signature
   line: 18
   tier: MEDIUM
   classically_broken: true
-  note: "SHA1withRSA, digest component; depends on composite decomposition (M1M3-03)"
+  note: "SHA1withRSA, digest component of the signature; M1 decomposition (M1M3-03) gives usage signature, verified by M1"
 - kind: asset
   source: sample-repos/java/ReceiptSigner.java
   source_type: code
@@ -303,11 +303,11 @@
   source: sample-repos/java/ReceiptSigner.java
   source_type: code
   canonical: SHA-1
-  usage: hash
+  usage: signature
   line: 25
   tier: MEDIUM
   classically_broken: true
-  note: "SHA1withRSA, digest component; depends on composite decomposition (M1M3-03)"
+  note: "SHA1withRSA, digest component of the signature; M1 decomposition (M1M3-03) gives usage signature, verified by M1"
 # java/SessionCipher.java
 - kind: asset
   source: sample-repos/java/SessionCipher.java

@@ -37,7 +37,7 @@ POLICY = {
 }
 
 # Golden spelling of the raw names the code scanner emits (PLAN D.4 names). SHA1withRSA is a composite:
-# RSA signature plus a SHA-1 digest component, as M1's decomposition (M1M3-03) produces it.
+# RSA signature plus a SHA-1 component with usage signature, as M1's decomposition (M1M3-03) produces it.
 HASHES = {"md5": "MD5", "sha1": "SHA-1", "sha-1": "SHA-1", "sha384": "SHA-384", "sha-384": "SHA-384"}
 MACS = {"hmac-sha256": "HMAC-SHA256", "hmacsha256": "HMAC-SHA256"}
 KDFS = {"pbkdf2-hmac-sha256", "pbkdf2withhmacsha256"}
@@ -91,7 +91,7 @@ def components(finding: Finding) -> list[tuple[str, str]]:
     if raw == "rsa":
         return [(f"RSA-{size}", usage)]
     if raw == "sha1withrsa":
-        return [(f"RSA-{size}", usage), ("SHA-1", "hash")]
+        return [(f"RSA-{size}", usage), ("SHA-1", "signature")]
     if raw in {"aes", "aesgcm"} or raw.startswith("aes/"):
         return [(f"AES-{size}", usage)]
     raise AssertionError(f"no golden spelling for raw_name {finding.raw_name!r}")
