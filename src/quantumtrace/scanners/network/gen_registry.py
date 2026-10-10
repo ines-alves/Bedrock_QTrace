@@ -81,12 +81,16 @@ SIGNATURE_PQC: dict[int, dict[str, Any]] = {
     0x0905: {"name": "mldsa65", "pqc": True, "verify": [DRAFT_VERIFY]},
     0x0906: {"name": "mldsa87", "pqc": True, "verify": [DRAFT_VERIFY]},
 }
-VERSIONS = {  # PLAN 7.4; labels follow M2M4-02
-    0x0300: "SSL 3.0",
-    0x0301: "TLS 1.0",
-    0x0302: "TLS 1.1",
-    0x0303: "TLS 1.2",
-    0x0304: "TLS 1.3",
+# code -> (label, ref). Labels follow M2M4-02. Each ref was checked against the RFC text, where the
+# version value is defined: RFC 6101 A.1 `{ 3, 0 }`; RFC 2246 6.2.1 `{ 3, 1 }`; RFC 4346 6.2.1
+# `{ 3, 2 }`; RFC 5246 6.2.1 `{ 3, 3 }`; RFC 8446 4.2.1 `supported_versions` carries 0x0304 (the
+# legacy_version field stays 0x0303). The engine only resolves a version row that has a ref.
+VERSIONS = {
+    0x0300: ("SSL 3.0", "[RFC6101]"),
+    0x0301: ("TLS 1.0", "[RFC2246]"),
+    0x0302: ("TLS 1.1", "[RFC4346]"),
+    0x0303: ("TLS 1.2", "[RFC5246]"),
+    0x0304: ("TLS 1.3", "[RFC8446]"),
 }
 
 _PLACEHOLDER = re.compile(r"^(reserved|unassigned)", re.IGNORECASE)
@@ -314,7 +318,9 @@ def build_registry(
         "cipher_suites": keyed(suites),
         "groups": keyed(groups),
         "signature_schemes": keyed(schemes),
-        "versions": {format_code(code): {"label": label} for code, label in sorted(VERSIONS.items())},
+        "versions": {
+            format_code(code): {"label": label, "ref": ref} for code, (label, ref) in sorted(VERSIONS.items())
+        },
     }
 
 
