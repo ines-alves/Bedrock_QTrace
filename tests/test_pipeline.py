@@ -403,3 +403,27 @@ def test_real_cbom_certificate_validity_and_policy_dependencies():
         assert dependencies[asset.asset_id] == asset.components
         assert "cipherSuites" not in components[asset.asset_id]["cryptoProperties"]["protocolProperties"]
     assert ScanResult.model_validate_json(result.model_dump_json()) == result
+
+
+def test_reports_keep_inputs_as_given_and_no_local_path_prefix(tmp_path, monkeypatch):
+    (tmp_path / "kit").mkdir()
+    (tmp_path / "kit" / "README.md").write_text("starter notes\n")
+    monkeypatch.chdir(tmp_path)
+    result = pipeline.run(["kit", "./kit/"])
+    assert result.inputs == ["kit"]
+    assert [error.path for error in result.errors if error.detector == "pipeline"] == ["kit/README.md"]
+    assert str(tmp_path) not in result.model_dump_json()
+    assert pipeline.run(["kit"]).scan_id == result.scan_id
+
+
+def test_inputs_outside_working_directory_stay_absolute(tmp_path, monkeypatch):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "README.md").write_text("notes\n")
+    (tmp_path / "work").mkdir()
+    monkeypatch.chdir(tmp_path / "work")
+    result = pipeline.run([outside])
+    assert result.inputs == [outside.as_posix()]
+    assert [error.path for error in result.errors if error.detector == "pipeline"] == [
+        (outside / "README.md").as_posix()
+    ]

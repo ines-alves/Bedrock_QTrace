@@ -201,6 +201,14 @@ def _replacement(ref: Replacement) -> str:
 BEYOND_2030 = datetime(2031, 1, 1, tzinfo=UTC)
 
 
+def _component_label(child: ClassifiedNode) -> str:
+    # A nested container (e.g. a policy's cipher suite) has no single algorithm; name it instead.
+    identity = child.node.normalized.identity.algorithm_id
+    if identity is None and child.node.kind == "container":
+        return child.to_asset().canonical_name
+    return identity or "unresolved"
+
+
 def _timestamp(value: object) -> datetime | None:
     if not isinstance(value, str):
         return None
@@ -346,7 +354,7 @@ def classify(
         notes.append(
             "Components: "
             + "; ".join(
-                f"{child.node.role}={child.node.normalized.identity.algorithm_id or 'unresolved'} "
+                f"{child.node.role}={_component_label(child)} "
                 f"({child.tier.value}{', classical weakness' if child.classically_broken else ''})"
                 for child in children
             )

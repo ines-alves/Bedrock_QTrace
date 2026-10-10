@@ -568,3 +568,14 @@ def test_beyond_2030_validity_is_migration_context_only(key, not_after, expected
         assert ("beyond 2030" in row.rationale) is expected
     assert early.tier == late.tier
     assert not any("before 2031" in advice.action for advice in early.maintenance)
+
+
+def test_policy_components_are_labelled_by_suite_not_unresolved():
+    from pathlib import Path
+
+    from quantumtrace.pipeline import run
+
+    path = Path(__file__).resolve().parents[1] / "cloud-posture/load_balancer_listeners.json"
+    policies = [a for a in run([path]).assets if a.canonical_name == "ELBSecurityPolicy-TLS13-1-2-2021-06"]
+    assert policies and all("unresolved" not in a.rationale for a in policies)
+    assert all("cipher_suite=TLS_AES_256_GCM_SHA384 (SAFE)" in a.rationale for a in policies)
