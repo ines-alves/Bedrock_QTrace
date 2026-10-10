@@ -26,11 +26,3 @@ tls13_hybrid_keylog.pcap:
   hello_frames: {client: 5, server: 7}
   certificate_in_capture: false
   keylog: tls13_hybrid_keylog.keylog     # P2 path; the scanner does not read it
-tls10_3des.pcap:
-  # NOT GENERATED: the available OpenSSL (Homebrew 3.6.4) is built without 3DES suites, so
-  # `DES-CBC3-SHA:@SECLEVEL=0` is rejected. Run scripts/gen_pcaps.sh on a host whose openssl
-  # lists DES-CBC3-SHA. Values to expect once generated:
-  status: missing
-  sni: old.lab
-  version: TLS 1.0
-  cipher_suite: "0x000A"      # TLS_RSA_WITH_3DES_EDE_CBC_SHA
