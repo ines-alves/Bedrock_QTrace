@@ -174,14 +174,14 @@ def _key_material(finding: Finding, owner: dict[str, str]) -> dict[str, Any]:
 
 
 def _library(finding: Finding) -> dict[str, Any]:
-    name, version = finding.raw_name.split("==", 1)
+    name, _, version = finding.raw_name.partition("==")
     purl_type = _PURL_TYPES.get(finding.language or "")
     return _present(
         type="library",
         **{"bom-ref": f"library-{finding.id}"},
         name=name,
-        version=version,
-        purl=None if purl_type is None else f"pkg:{purl_type}/{name}@{version}",
+        version=version or None,
+        purl=None if purl_type is None else f"pkg:{purl_type}/{name}" + (f"@{version}" if version else ""),
         evidence={"occurrences": _occurrences([finding.location], {})},
     )
 
