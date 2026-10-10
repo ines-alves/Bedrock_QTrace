@@ -94,9 +94,15 @@ def test_registry_rows_match_aws_documentation() -> None:
     assert t["ELBSecurityPolicy-TLS13-1-2-2021-06"]["pq_hybrid"] is False
 
 
-def test_groups_are_never_filled_in() -> None:
+def test_groups_only_where_aws_documents_them() -> None:
     t = yaml.safe_load(REGISTRY.read_text())["elb_policies"]
-    assert all(row["groups"] == [] and row["groups_verified"] is False for row in t.values())
+    hybrid = ["SecP256r1MLKEM768", "SecP384r1MLKEM1024", "X25519MLKEM768"]
+    for name, row in t.items():
+        assert row["groups_complete"] is False
+        if row["pq_hybrid"]:
+            assert "-PQ-" in name and row["groups"] == hybrid and row["groups_verified"] is True
+        else:
+            assert row["groups"] == [] and row["groups_verified"] is False
 
 
 def _dump(tmp_path: Path, listener: dict, scheme: str | None = "internal") -> Path:
