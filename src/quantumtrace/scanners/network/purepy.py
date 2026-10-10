@@ -171,6 +171,7 @@ class _Conn:
     server: tuple[str, int]
     c2s: _Dir = field(default_factory=_Dir)
     s2c: _Dir = field(default_factory=_Dir)
+    used: bool = False  # payload, FIN or RST seen: a later SYN on the same 4-tuple is a new connection
 
 
 def _ip(b: bytes) -> str:
@@ -199,6 +200,8 @@ def _iter_packets(data: bytes, res: PureResult):
             return
         yield sec + frac / tick, data[off : off + caplen]
         off += caplen
+    if off < len(data):
+        res.errors.append("truncated packet header at end of file")
 
 
 _V6_EXT_HEADERS = frozenset(
@@ -552,7 +555,8 @@ def read_flows(path: str | Path) -> PureResult:
     except OSError as e:
         res.errors.append(f"cannot read {path}: {e}")
         return res
-    conns: dict[frozenset, _Conn] = {}
+    conns: dict[frozenset, _Conn] = {}  # the current connection per 4-tuple
+    ordered: list[_Conn] = []  # every connection, in order of its first packet
     for ts, frame in _iter_packets(data, res):
         res.packets += 1
         seg = _parse_tcp(frame)
@@ -567,16 +571,23 @@ def read_flows(path: str | Path) -> PureResult:
         key = frozenset((a, b))
         syn, ack = bool(flags & 0x02), bool(flags & 0x10)
         conn = conns.get(key)
+        # A SYN without ACK after data or a close reuses the 4-tuple: a new connection, as tshark
+        # numbers it. A SYN retransmission arrives before any data and stays in its connection.
+        if conn is not None and syn and not ack and conn.used:
+            conn = None
         if conn is None:  # first packet seen decides the initiator unless a SYN-ACK arrives first
             client, server = (b, a) if syn and ack else (a, b)
-            conn = conns[key] = _Conn(len(conns), ts, client, server)
+            conn = conns[key] = _Conn(len(ordered), ts, client, server)
+            ordered.append(conn)
+        if payload or flags & 0x05:  # data, FIN or RST
+            conn.used = True
         d = conn.c2s if a == conn.client else conn.s2c
         if syn:
             d.isn = (seq + 1) & 0xFFFFFFFF
         if payload and d.size < MAX_STREAM_BYTES:
             d.segs.append(_Seg(seq, payload, res.packets))
             d.size += len(payload)
-    res.flows = [_classify(c) for c in conns.values()]
+    res.flows = [_classify(c) for c in ordered]
     if res.skipped_fragments:
         res.errors.append(
             f"{res.skipped_fragments} IP fragment(s) were not reassembled; "
