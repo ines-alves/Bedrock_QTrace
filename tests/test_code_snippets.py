@@ -114,6 +114,7 @@ def test_every_kept_literal_is_part_of_the_finding_evidence() -> None:
                             finding.padding,
                             finding.curve,
                             finding.library,
+                            finding.extra.get("source_constant"),
                         )
                         if v
                     )

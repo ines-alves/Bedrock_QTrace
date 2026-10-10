@@ -18,7 +18,9 @@ Rule fields (YAML list of mappings):
   requires, forbids: [regex]                                 the rule fires only if every requires regex
   scope: file | function                                     matches and no forbids regex matches, in the
                                                              whole file (default) or the enclosing function
-  extra: {key: json value}                                   static extra (hygiene_only, hand_rolled, ...)
+  extra: {key: json value}                                   static extra (hygiene_only, hand_rolled, ...);
+                                                             a string value may hold "{group}" (the
+                                                             source constant of a TLS version rule)
   redact: true                                               redact every string literal in the snippet
   literal_key: <family>                                      hard-coded key rule: see below
   values_must_match: {group: regex}                          drop the hit unless each named group's value,
@@ -697,6 +699,7 @@ class _Hit:
     call_paren: int | None = None
     iterations: int | None = None
     parameter_source: str | None = None
+    extra: dict[str, Any] | None = None
 
 
 def _literal_length(value: str | bytes) -> int:
@@ -742,6 +745,14 @@ def _render(template: str | None, values: dict[str, str]) -> str | None:
     if template is None:
         return None
     return template.format_map(_Template(values)).strip() or None
+
+
+def _render_extra(extra: dict[str, Any], values: dict[str, str]) -> dict[str, Any]:
+    """Static extra with "{group}" filled in the string values that name a group."""
+    return {
+        key: _render(value, values) if isinstance(value, str) and "{" in value else value
+        for key, value in extra.items()
+    }
 
 
 def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) -> Iterator[_Hit]:
@@ -831,6 +842,7 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
             span=m.span(),
             call_paren=m.start("call") - 1 if "call" in groups else None,
             parameter_source=rule.parameter_source,
+            extra=_render_extra(rule.extra, values),
         )
 
 
@@ -1406,7 +1418,7 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
             line=hit.line,
             snippet=snippet,
         )
-        extra: dict[str, Any] = dict(hit.rule.extra)
+        extra: dict[str, Any] = dict(hit.extra if hit.extra is not None else hit.rule.extra)
         extra["rule"] = hit.rule.id
         if hit.mode_source:
             extra["mode_source"] = hit.mode_source
