@@ -16,6 +16,8 @@ _TLS_KINDS = frozenset(
     {KindHint.CIPHER_SUITE, KindHint.GROUP, KindHint.SIGNATURE_SCHEME, KindHint.PROTOCOL_VERSION}
 )
 _MODES = frozenset({"cbc", "ecb", "ccm", "gcm", "cfb", "ofb", "ctr", "other", "unknown"})
+# Recognized modes outside the CycloneDX mode enumeration report as "other"; raw names stay in evidence.
+_OTHER_MODES = frozenset({"eax", "ocb", "siv", "gcmsiv", "kw", "kwp", "openpgp"})
 
 
 @dataclass(frozen=True)
@@ -231,17 +233,19 @@ def normalize(
     if entry:
         curve_name = _curve(name, kb)
         curve_alias = curve_name in {"secp256r1", "secp384r1", "secp521r1", "secp256k1"}
-        if entry.id in {"ECDH", "ECDSA"}:
+        if entry.id in {"ECDH", "ECDSA", "EC"}:
             if curve_alias:
                 inferred["curve"] = curve_name
                 entry = kb.get(
                     "ECDSA" if finding.usage in {Usage.SIGNATURE, Usage.AUTHENTICATION} else "ECDH"
                 )
             elif alias_key(name) in {"ec", "ecc"}:
+                # Name the scheme only from observed usage; otherwise keep the generic,
+                # Shor-vulnerable EC key rather than calling a possible ECDH key ECDSA.
                 if finding.usage == Usage.KEY_EXCHANGE:
                     entry = kb.get("ECDH")
-                elif finding.usage == Usage.UNKNOWN:
-                    reasons.append("generic EC name has unknown usage")
+                elif finding.usage in {Usage.SIGNATURE, Usage.AUTHENTICATION}:
+                    entry = kb.get("ECDSA")
             cloud_curve = re.fullmatch(r"ecc(?:nistp|secgp)(256|384|521)(k1)?", alias_key(name))
             if cloud_curve:
                 inferred["curve"] = f"secp{cloud_curve[1]}{'k1' if cloud_curve[2] else 'r1'}"
@@ -305,6 +309,8 @@ def normalize(
             for suffix, padding in (("pss", "pss"), ("oaep", "oaep"), ("pkcs1v15", "pkcs1v15")):
                 if alias_key(name).endswith(suffix):
                     inferred["padding"] = padding
+        if entry.id == "XDH" and finding.curve and _curve(finding.curve, kb) in {"x25519", "x448"}:
+            entry = kb.get("X25519" if _curve(finding.curve, kb) == "x25519" else "X448")
         if entry.id == "3DES" and alias_key(name) == "3descbc":
             inferred["mode"] = "cbc"
 
@@ -360,6 +366,8 @@ def normalize(
         if field == "key_size" and value is not None and (type(value) is not int or value <= 0):
             conflicts.append(Conflict(field, (value,), "key size must be positive bits"))
             value = None
+        if field == "mode" and value in _OTHER_MODES:
+            value = "other"
         if field == "mode" and value is not None and value not in _MODES:
             conflicts.append(Conflict(field, (value,), "mode outside canonical schema"))
             value = None
@@ -380,6 +388,10 @@ def normalize(
             conflicts.append(Conflict(field, (scanner,), "scanner provenance does not establish parameter"))
             value = None
         effective[field] = value
+    # Padding distinguishes RSA schemes (PKCS#1 v1.5, OAEP, PSS); for other families it stays
+    # evidence only, so a reported block-cipher padding does not split one configuration in two.
+    if not (entry and entry.id == "RSA"):
+        effective["padding"] = None
 
     legacy = bool(
         entry

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Iterable, cast
 
 from quantumtrace.engine.decompose import EvidenceNode
@@ -197,6 +197,18 @@ def _replacement(ref: Replacement) -> str:
     return target
 
 
+# Validity extending into 2031 or later (agreed with M2), not merely a date during 2030.
+BEYOND_2030 = datetime(2031, 1, 1, tzinfo=UTC)
+
+
+def _component_label(child: ClassifiedNode) -> str:
+    # A nested container (e.g. a policy's cipher suite) has no single algorithm; name it instead.
+    identity = child.node.normalized.identity.algorithm_id
+    if identity is None and child.node.kind == "container":
+        return child.to_asset().canonical_name
+    return identity or "unresolved"
+
+
 def _timestamp(value: object) -> datetime | None:
     if not isinstance(value, str):
         return None
@@ -342,7 +354,7 @@ def classify(
         notes.append(
             "Components: "
             + "; ".join(
-                f"{child.node.role}={child.node.normalized.identity.algorithm_id or 'unresolved'} "
+                f"{child.node.role}={_component_label(child)} "
                 f"({child.tier.value}{', classical weakness' if child.classically_broken else ''})"
                 for child in children
             )
@@ -462,7 +474,9 @@ def classify(
                 target = _replacement(ref)
                 if identity.usage == Usage.MAC and entry.primitive_by_usage.get("default") in {"hash", "xof"}:
                     target = "HMAC-" + target
-                action = f"Migrate {identity.usage.value} to {target}."
+                # Unobserved use is not a use to name; the text stays a roadmap grouping key.
+                usage_text = "" if identity.usage == Usage.UNKNOWN else f"{identity.usage.value} "
+                action = f"Migrate {usage_text}to {target}."
                 if ref.algorithm_id == "ML-KEM" and identity.usage == Usage.ENCRYPTION:
                     action = f"Use {target} for key establishment with authenticated data encryption; a KEM is not bulk encryption."
                 advice.append(Advice(action, target, ref.standard, 1 if tier == Tier.CRITICAL else 2))
@@ -482,6 +496,18 @@ def classify(
             advice.append(
                 Advice("Verify the missing algorithm parameters and implementation provenance.", priority=2)
             )
+    validity = _timestamp(finding.extra.get("not_after"))
+    if (
+        finding.kind_hint == KindHint.CERTIFICATE
+        and tier in {Tier.CRITICAL, Tier.MEDIUM}
+        and validity is not None
+        and validity >= BEYOND_2030
+    ):
+        # Migration context from the absolute validity end; independent of the scan reference time.
+        notes.append("Certificate validity extends beyond 2030 with quantum-vulnerable cryptography.")
+        advice.append(
+            Advice("Reissue the certificate with a quantum-safe signature scheme before 2031.", priority=2)
+        )
     hygiene_notes, hygiene_advice = _hygiene(node, scan_started_at)
     notes.extend(hygiene_notes)
     advice.extend(hygiene_advice)

@@ -46,8 +46,16 @@ def _dump(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
+def _display(path: Path) -> str:
+    """Report pipeline paths relative to the working directory so reports carry no local prefix."""
+    try:
+        return path.relative_to(Path.cwd()).as_posix()
+    except ValueError:
+        return str(path)
+
+
 def _files(
-    inputs: list[str | Path], options: ScanOptions, errors: list[ScanError]
+    inputs: list[str | Path], options: ScanOptions, errors: list[ScanError], scan_root: Path | None = None
 ) -> list[tuple[Path, Path]]:
     files: dict[Path, tuple[Path, Path]] = {}
     excluded = set(options.exclude_dirs)
@@ -64,18 +72,24 @@ def _files(
                 files.setdefault(real, (path, root))
             else:
                 errors.append(
-                    ScanError(detector="pipeline", path=str(path), message="missing or unsupported input")
+                    ScanError(
+                        detector="pipeline", path=_display(path), message="missing or unsupported input"
+                    )
                 )
         except OSError as exc:
-            errors.append(ScanError(detector="pipeline", path=str(path), message=f"input traversal: {exc}"))
+            errors.append(
+                ScanError(detector="pipeline", path=_display(path), message=f"input traversal: {exc}")
+            )
 
     # Outer directory roots win over their descendants and explicit overlapping files.
     paths = sorted({Path(item).absolute() for item in inputs}, key=lambda path: (len(path.parts), str(path)))
     for path in paths:
         try:
-            visit(path, path if path.is_dir() else path.parent)
+            visit(path, scan_root if scan_root is not None else (path if path.is_dir() else path.parent))
         except OSError as exc:
-            errors.append(ScanError(detector="pipeline", path=str(path), message=f"input traversal: {exc}"))
+            errors.append(
+                ScanError(detector="pipeline", path=_display(path), message=f"input traversal: {exc}")
+            )
     return sorted(files.values(), key=lambda item: (str(item[1]), str(item[0])))
 
 
@@ -87,7 +101,9 @@ def _route(path: Path, scanners: list[Scanner], errors: list[ScanError]) -> Scan
         except Exception as exc:
             errors.append(
                 ScanError(
-                    detector=scanner.name, path=str(path), message=f"can_handle: {type(exc).__name__}: {exc}"
+                    detector=scanner.name,
+                    path=_display(path),
+                    message=f"can_handle: {type(exc).__name__}: {exc}",
                 )
             )
     return None
@@ -97,6 +113,17 @@ def run(
     inputs: list[str | Path], probes: list[str] | None = None, options: ScanOptions | None = None
 ) -> ScanResult:
     """Run published adapters, preserve partial results, and return the native shared model."""
+    return _run(inputs, probes, options)
+
+
+def _run(
+    inputs: list[str | Path],
+    probes: list[str] | None = None,
+    options: ScanOptions | None = None,
+    *,
+    scan_root: Path | None = None,
+) -> ScanResult:
+    """Internal orchestration; evaluation fixes evidence paths without changing run()."""
     started = datetime.now(UTC)
     settings = options if options is not None else ScanOptions()
     errors = _load_adapters()
@@ -106,11 +133,13 @@ def run(
         errors.append(ScanError(detector="pipeline", message=str(exc)))
         scanners = []
     findings = []
-    for path, root in _files(inputs, settings, errors):
+    for path, root in _files(inputs, settings, errors, scan_root):
         scanner = _route(path, scanners, errors)
         if scanner is None:
             errors.append(
-                ScanError(detector="pipeline", path=str(path), message="no selected scanner supports input")
+                ScanError(
+                    detector="pipeline", path=_display(path), message="no selected scanner supports input"
+                )
             )
             continue
         try:
@@ -121,11 +150,15 @@ def run(
                     errors.append(item)
                 else:
                     errors.append(
-                        ScanError(detector=scanner.name, path=str(path), message="invalid scanner result")
+                        ScanError(
+                            detector=scanner.name, path=_display(path), message="invalid scanner result"
+                        )
                     )
         except Exception as exc:
             errors.append(
-                ScanError(detector=scanner.name, path=str(path), message=f"scan: {type(exc).__name__}: {exc}")
+                ScanError(
+                    detector=scanner.name, path=_display(path), message=f"scan: {type(exc).__name__}: {exc}"
+                )
             )
     for target in sorted(set(probes or [])):
         errors.append(
@@ -148,7 +181,8 @@ def run(
         ScanError.model_validate(json.loads(payload))
         for payload in sorted({_dump(item.model_dump(mode="json")) for item in errors})
     ]
-    normalized_inputs = sorted({str(Path(item).absolute()) for item in inputs})
+    # Inputs are stored as given (normalized spelling), never expanded to a local absolute path.
+    normalized_inputs = sorted({Path(item).as_posix() for item in inputs})
     normalized_options = settings.model_dump(mode="json")
     normalized_options["exclude_dirs"] = sorted(set(settings.exclude_dirs))
     if settings.scanner_names is not None:

@@ -327,3 +327,17 @@ def test_known_critical_survives_conflicting_authentication_state(kb):
     assert errors
     assert sessions[0].verdict_tier == Tier.CRITICAL
     assert sessions[0].cert_key is None and sessions[0].pq_status == "unknown"
+
+
+def test_undecodable_certificate_is_unauthenticated_not_conflicting(kb):
+    raw = protocol(certificate_state="observed", session={"cert_key": None, "cert_sig_alg": None})
+    sessions, errors = views(kb, [raw, finding(), safe_cipher()])
+    assert not errors
+    assert sessions[0].cert_key is None and sessions[0].cert_sig_alg is None
+    assert sessions[0].verdict_tier == Tier.UNKNOWN
+
+
+def test_decoded_certificate_with_false_authentication_still_conflicts(kb):
+    cert = finding("RSA", kind_hint=KindHint.CERTIFICATE, usage=Usage.AUTHENTICATION, key_size=2048)
+    sessions, errors = views(kb, [cert, finding(), safe_cipher(), protocol(certificate_state="observed")])
+    assert errors and sessions[0].verdict_tier == Tier.CRITICAL

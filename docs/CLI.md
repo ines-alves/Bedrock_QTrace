@@ -37,7 +37,11 @@ The API serves a built frontend when `frontend/dist` exists. Uploads are M4 task
 4.8; the current scan API accepts server-side paths. API failures are reported
 explicitly. The CLI does not build the frontend.
 
-`eval` delegates to `scripts/eval.py` from the repository root once task 1.12
-delivers it. Until then it prints an explicit unavailable message and exits 2.
-Accuracy acceptance is pending that task; passing the CLI tests is not a golden
-precision/recall claim.
+`qtrace eval` and `make eval` run the packaged offline golden evaluator from the
+repository root. `scripts/eval.py --root /path/to/checkout` also supports an explicit
+checkout. Exit 0 requires precision and recall at least 0.95 for every assessed
+source and overall, correct tiers/flags/SAFE expectations, and complete confirmed
+coverage. Failed accuracy or incomplete coverage exits 1; invalid setup exits 2.
+`make check` includes this gate. Confirmed-only metrics are labelled explicitly;
+network/cloud accuracy remains unmeasured until their owners contribute rows.
+See [GOLDEN.md](GOLDEN.md) for matching, scope and provisional counts.

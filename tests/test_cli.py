@@ -49,11 +49,11 @@ def test_real_starter_partial_scan_writes_all_requested_valid_reports(tmp_path):
     )
     assert invocation.exit_code == 2 and "Coverage incomplete: 3" in invocation.output
     result = ScanResult.model_validate_json((tmp_path / "report.json").read_text())
-    assert (len(result.findings), len(result.assets), len(result.sessions)) == (1056, 662, 121)
+    assert (len(result.findings), len(result.assets), len(result.sessions)) == (1056, 660, 121)
     assert result.roadmap and result.summary.score == 60
     assert len(result.errors) == 3
     cbom = json.loads((tmp_path / "cbom.json").read_text())
-    assert validate_cbom(cbom) == [] and len(cbom["components"]) == 673
+    assert validate_cbom(cbom) == [] and len(cbom["components"]) == 671
     markdown = (tmp_path / "summary.md").read_text()
     assert "cryptography" in markdown and "Phase 0" in markdown
 
@@ -127,10 +127,10 @@ def test_repeated_explicit_probes_delegate_without_changing_targets(sample, monk
     assert len(ScanResult.model_validate_json((tmp_path / "report.json").read_text()).errors) == 2
 
 
-def test_eval_unavailable_is_explicit(monkeypatch, tmp_path):
+def test_eval_missing_repository_is_explicit(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(cli.app, ["eval"])
-    assert result.exit_code == 2 and "planned for task 1.12" in result.output
+    assert result.exit_code == 2 and "Evaluation setup failed" in result.output
 
 
 def test_ui_uses_owner_app_and_uvicorn_without_starting_server(monkeypatch):

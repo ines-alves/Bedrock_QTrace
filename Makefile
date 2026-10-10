@@ -8,8 +8,8 @@ help:
 	@echo "install    Sync locked development dependencies into Python 3.12 .venv"
 	@echo "test       Run local pytest suite"
 	@echo "lint       Check Ruff lint, import sorting, and formatting"
-	@echo "check      Run lint and tests (evaluation added in task 1.12)"
-	@echo "eval       Evaluate accuracy once scripts/eval.py exists"
+	@echo "check      Run lint, tests and the confirmed golden accuracy gate"
+	@echo "eval       Measure confirmed golden accuracy and report coverage gaps"
 	@echo "scan-demo  Scan starter inputs once the CLI exists; output goes to out/"
 	@echo "api        Run API at :8000 once api/main.py exists"
 	@echo "ui         Run frontend dev server once frontend/package.json exists"
@@ -25,11 +25,10 @@ lint:
 	$(RUFF) check .
 	$(RUFF) format --check .
 
-# Evaluation becomes part of this gate in task 1.12.
-check: lint test
+# Missing confirmed coverage must fail this gate.
+check: lint test eval
 
 eval:
-	@test -f scripts/eval.py || { echo "Evaluation is unavailable: scripts/eval.py is planned for task 1.12." >&2; exit 1; }
 	$(PYTHON) scripts/eval.py
 
 scan-demo:
