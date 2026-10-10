@@ -80,6 +80,20 @@
   library: cryptography
   inherit_key_size: RSA
 
+# RSA encryption sinks exist so that a generated key used for encryption is never reported as a signing
+# key. The padding argument (OAEP or PKCS1v15) separates RSA from other key types with an encrypt method.
+# The receiver may be a name or name.public_key().
+- id: PY_RSA_ENCRYPT_DECRYPT
+  language: python
+  pattern: >-
+    (?P<key_arg>[A-Za-z_]\w*)(?:\s*\.\s*public_key\(\s*\))?\s*\.\s*(?:encrypt|decrypt)\((?:[^()]|\([^()]*\))*?\bpadding\.(?P<pad>OAEP|PKCS1v15)\(
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: encryption
+  padding: '{pad}'
+  library: cryptography
+  inherit_key_size: RSA
+
 # ---- Ed25519 ------------------------------------------------------------------------------------
 
 - id: PY_ED25519_GENERATE

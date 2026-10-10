@@ -157,11 +157,12 @@ def test_aes_with_an_imported_key_keeps_its_explicit_mode_but_no_size():
     assert found.confidence == 0.5
 
 
-def test_rsa_transform_sets_no_mode_and_expects_no_aes_size():
+def test_rsa_transform_sets_no_mode_and_its_imported_key_stays_unresolved():
     found = by_line(scan_fixture("Ciphers.java"))[58]
     assert (found.mode, found.padding, found.key_size) == (None, None, None)
-    assert "key_size_source" not in found.extra
-    assert found.confidence == 1.0
+    assert (found.usage.value, found.extra["rule"]) == ("encryption", "JAVA_CIPHER_RSA")
+    assert found.extra["key_size_source"] == "unresolved"
+    assert found.confidence == 0.5
 
 
 def test_secure_random_emits_no_finding_and_new_random_is_hygiene_only():

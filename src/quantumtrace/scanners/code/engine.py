@@ -32,6 +32,12 @@ producer), the producer's result is bound to a variable once, and that variable 
 directly or as an argument of the function that contains the sink. Reassigned or conflicting bindings,
 imported keys and unused allocations never link: the size stays None with key_size_source
 "unresolved" (or "ambiguous" for conflicting sizes). A linked size has key_size_source "flow".
+
+Usage inference (RSA only): a generation hit (provides_key_size RSA) whose rule usage is unknown becomes
+usage signature, with extra["usage_source"] "flow" and confidence at most 0.8, only when every RSA sink
+(inherit_key_size RSA) of the file traces to exactly one generation, at least one sink traces to this
+generation, and every sink linked to it signs or verifies. One RSA sink with an unresolved, ambiguous or
+multi-source flow blocks the whole file, because it might consume the generated key through an alias.
 """
 
 from __future__ import annotations
@@ -89,7 +95,14 @@ _RULE_KEYS = {
     "scope",
 }
 _CASE_KEYS = {"mode", "mode_source", "requires", "forbids"}
-_RESERVED_EXTRA = {"rule", "key_size_source", "unresolved", "resolved_from_line", "mode_source"}
+_RESERVED_EXTRA = {
+    "rule",
+    "key_size_source",
+    "unresolved",
+    "resolved_from_line",
+    "mode_source",
+    "usage_source",
+}
 FLOW_DEPTH = 3
 
 Value = int | str | bytes
@@ -532,6 +545,7 @@ class Constants:
 @dataclass
 class _Hit:
     rule: Rule
+    usage: Usage
     line: int
     raw_name: str
     key_size: int | None
@@ -544,6 +558,8 @@ class _Hit:
     key_arg: str | None = None
     resolved_from_line: int | None = None
     mode_source: str | None = None
+    usage_source: str | None = None
+    sink_generations: frozenset[int] | None = None
 
 
 def _literal_length(value: Value) -> int:
@@ -645,6 +661,7 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
 
         yield _Hit(
             rule=rule,
+            usage=rule.usage,
             line=line,
             raw_name=_render(rule.raw_name, values) or "",
             key_size=size,
@@ -694,6 +711,7 @@ _CALLEE = re.compile(r"\s*(?:await\s+)?(?:[A-Za-z_]\w*\s*\.\s*)*(?P<fn>[A-Za-z_]
 _RETURN = re.compile(r"^\s*return\b(?P<expr>.*)$")
 _RECEIVER = re.compile(r"\b([A-Za-z_]\w*)\s*\.\s*\w+\s*\(")
 _IDENTS = re.compile(r"[A-Za-z_]\w*")
+_Source = tuple[int, int | None, int | None]
 _BASE_IDENT = re.compile(r"[&*]?\s*(?P<id>[A-Za-z_]\w*)\b(?:[.\[(].*)?", re.S)
 _STRING_LITERAL = re.compile(r"[bBrRuUfF]{0,2}(?:\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'|`[^`]*`)")
 
@@ -808,20 +826,20 @@ class _Flow:
                 return set(assign.names)
         return set(_RECEIVER.findall(self.lines[line - 1]))
 
-    def _producer(self, index: int, family: str) -> set[tuple[int, int | None]] | None:
+    def _producer(self, index: int, family: str) -> set[_Source] | None:
         func = self.funcs[index]
         returns = []
         for number in range(func.first, func.last + 1):
             m = _RETURN.match(self.lines[number - 1])
             if m:
                 returns.append((number, set(_IDENTS.findall(m.group("expr")))))
-        found: set[tuple[int, int | None]] = set()
+        found: set[_Source] = set()
         for hit in self._sources(family):
             if self.scope_of(hit.line) != index:
                 continue
             bound = self._bound(hit.line)
             if any(number == hit.line or bound & idents for number, idents in returns):
-                found.add((hit.key_size, hit.resolved_from_line))
+                found.add((hit.key_size, hit.resolved_from_line, hit.line))
         return found or None
 
     def _sources(self, family: str) -> list[_Hit]:
@@ -838,8 +856,8 @@ class _Flow:
 
     def trace(
         self, name: str, scope: int | None, family: str, depth: int, literal: bool
-    ) -> set[tuple[int, int | None]] | None:
-        """Sizes (with the line they came from) the key `name` carries, or None when no link holds."""
+    ) -> set[_Source] | None:
+        """Sources (size, line the size came from, generation line) of the key `name`, or None."""
         if depth > FLOW_DEPTH:
             return None
         assigns = [a for a in self.assigns if a.scope == scope and name in a.names]
@@ -848,7 +866,9 @@ class _Flow:
         if len(assigns) == 1:
             assign = assigns[0]
             direct = {
-                (h.key_size, h.resolved_from_line) for h in self._sources(family) if h.line == assign.line
+                (h.key_size, h.resolved_from_line, h.line)
+                for h in self._sources(family)
+                if h.line == assign.line
             }
             if direct:
                 return direct
@@ -859,14 +879,14 @@ class _Flow:
         if scope is None or name not in self.funcs[scope].params:
             constant = self.consts.resolve_full(name, 0) if literal else None
             if constant is not None and isinstance(constant[0], (str, bytes)):
-                return {(_literal_length(constant[0]) * 8, constant[2])}
+                return {(_literal_length(constant[0]) * 8, constant[2], None)}
             return None
         func = self.funcs[scope]
         position = func.params.index(name)
         sites = self._call_sites(func, scope)
         if not sites:
             return None
-        found: set[tuple[int, int | None]] = set()
+        found: set[_Source] = set()
         for line, args in sites:
             arg = None
             for k, raw in enumerate(args):
@@ -895,16 +915,38 @@ class _Flow:
                 traced = self.trace(
                     hit.key_arg, self.scope_of(hit.line), family, 0, hit.rule.key_size_from_length
                 )
-            sizes = {size for size, _ in traced} if traced else set()
+            sizes = {size for size, _, _ in traced} if traced else set()
+            generations = {gen for _, _, gen in traced} if traced else set()
+            if traced and None not in generations:
+                hit.sink_generations = frozenset(generations)
             if len(sizes) == 1:
                 hit.key_size = next(iter(sizes))
                 hit.key_size_source = "flow"
-                lines = [at for size, at in traced if at is not None]
+                lines = [at for _, at, _ in traced if at is not None]
                 hit.resolved_from_line = min(lines) if lines else hit.resolved_from_line
                 hit.confidence = min(hit.confidence, HEURISTIC_CONFIDENCE_CAP)
             else:
                 hit.key_size_source = "ambiguous" if sizes else "unresolved"
                 hit.confidence = min(hit.confidence, UNRESOLVED_CONFIDENCE_CAP)
+
+    def apply_usage(self) -> None:
+        """Set usage signature on RSA generations whose every linked sink signs or verifies."""
+        linked: dict[int, list[_Hit]] = {}
+        for sink in self.hits:
+            if sink.rule.inherit_key_size != "RSA":
+                continue
+            generations = sink.sink_generations
+            if generations is None or len(generations) != 1:
+                return
+            linked.setdefault(next(iter(generations)), []).append(sink)
+        for hit in self.hits:
+            if hit.rule.provides_key_size != "RSA" or hit.usage != Usage.UNKNOWN:
+                continue
+            sinks = linked.get(hit.line)
+            if sinks and all(s.usage == Usage.SIGNATURE for s in sinks):
+                hit.usage = Usage.SIGNATURE
+                hit.usage_source = "flow"
+                hit.confidence = min(hit.confidence, HEURISTIC_CONFIDENCE_CAP)
 
     def apply_modes(self) -> None:
         for hit in self.hits:
@@ -961,6 +1003,7 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
     if any(h.rule.mode_cases or (h.rule.inherit_key_size and h.key_size is None) for h in hits):
         flow = _Flow(masked, language, hits, consts)
         flow.apply()
+        flow.apply_usage()
         flow.apply_modes()
 
     for hit in hits:
@@ -987,6 +1030,8 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
         extra["rule"] = hit.rule.id
         if hit.mode_source:
             extra["mode_source"] = hit.mode_source
+        if hit.usage_source:
+            extra["usage_source"] = hit.usage_source
         if hit.resolved_from_line is not None:
             extra["resolved_from_line"] = hit.resolved_from_line
         if hit.key_size_source:
@@ -1000,7 +1045,7 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
                 id=fid,
                 raw_name=hit.raw_name,
                 kind_hint=hit.rule.kind_hint,
-                usage=hit.rule.usage,
+                usage=hit.usage,
                 key_size=hit.key_size,
                 curve=hit.curve,
                 mode=hit.mode,

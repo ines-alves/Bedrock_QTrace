@@ -135,9 +135,22 @@
   key_arg_lines: 5
   inherit_key_size: AES
 
+# RSA ciphers are encryption sinks for the RSA key flow, so a generated key used for encryption is
+# never reported as a signing key. The transform is the raw name and mode and padding stay None.
+- id: JAVA_CIPHER_RSA
+  language: java
+  pattern: '\bCipher\.getInstance\(\s*"(?P<transform>RSA(?:/[^"]*)?)"'
+  raw_name: '{transform}'
+  kind_hint: algorithm
+  usage: encryption
+  library: javax.crypto
+  key_arg_pattern: '\.init\(\s*[^,()]+,\s*(?P<key_arg>[A-Za-z_]\w*)'
+  key_arg_lines: 5
+  inherit_key_size: RSA
+
 - id: JAVA_CIPHER_OTHER
   language: java
-  pattern: '\bCipher\.getInstance\(\s*"(?P<transform>(?!AES)[^"]+)"'
+  pattern: '\bCipher\.getInstance\(\s*"(?P<transform>(?!AES|RSA(?:/|"))[^"]+)"'
   raw_name: '{transform}'
   kind_hint: algorithm
   usage: encryption

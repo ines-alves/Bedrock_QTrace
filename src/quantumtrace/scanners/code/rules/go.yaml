@@ -203,6 +203,31 @@
   library: crypto/rsa
   inherit_key_size: RSA
 
+# Encrypt and decrypt sinks exist so that a generated key used for encryption is never reported as a
+# signing key. OAEP takes the key as third argument, PKCS1v15 (and DecryptPKCS1v15SessionKey) as second.
+# The first OAEP argument is usually a call (sha256.New()).
+- id: GO_RSA_OAEP
+  language: go
+  pattern: >-
+    \brsa\.(?:Encrypt|Decrypt)OAEP\(\s*(?:[^,()]|\([^()]*\))+,\s*(?:[^,()]|\([^()]*\))+,\s*[&*]?\s*(?P<key_arg>[A-Za-z_]\w*)\b
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: encryption
+  padding: OAEP
+  library: crypto/rsa
+  inherit_key_size: RSA
+
+- id: GO_RSA_PKCS1V15_CRYPT
+  language: go
+  pattern: >-
+    \brsa\.(?:Encrypt|Decrypt)PKCS1v15(?:SessionKey)?\(\s*(?:[^,()]|\([^()]*\))+,\s*[&*]?\s*(?P<key_arg>[A-Za-z_]\w*)\b
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: encryption
+  padding: PKCS1v15
+  library: crypto/rsa
+  inherit_key_size: RSA
+
 # ---- Ed25519 ------------------------------------------------------------------------------------
 
 - id: GO_ED25519
@@ -332,7 +357,7 @@
   usage: unknown
   library: crypto/rsa
   confidence: 0.6
-  forbids: ['\brsa\.(?:GenerateKey|SignPKCS1v15|SignPSS|VerifyPKCS1v15|VerifyPSS)\b']
+  forbids: ['\brsa\.(?:GenerateKey|Sign|Verify|Encrypt|Decrypt)(?:PKCS1v15|PSS|OAEP)\b']
 
 - id: GO_IMPORT_ED25519
   language: go
