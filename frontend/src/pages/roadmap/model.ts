@@ -4,11 +4,12 @@ import type { ScanResult } from '../../api/useScanResult'
 type Asset = components['schemas']['CryptoAsset']
 type Item = components['schemas']['RoadmapItem']
 
+// Names and planning dates follow PLAN section 7.7; the dates order the work and are not regulatory deadlines.
 export const PHASES = [
-  'Resolve first',
-  'Key exchange and encryption',
-  'Signatures and authentication',
-  'Symmetric and hashes',
+  'Fix now: classically broken',
+  'Key exchange and encryption (now)',
+  'Signatures and PKI (by 2027)',
+  'Symmetric and hashes (by 2030)',
 ]
 
 export type Entry = { item: Item; assets: Asset[]; standards: string[] }
