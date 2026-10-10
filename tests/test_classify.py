@@ -533,3 +533,38 @@ def test_certificate_signature_hygiene_and_subject_parameters_scoped(kb):
     digest = next(r for r in row.walk() if r.node.normalized.identity.algorithm_id == "SHA-1")
     assert "certificate signature" in digest.rationale and digest.to_asset().key_size is None
     assert any("Renew" in a.action for a in row.recommendations)
+
+
+@pytest.mark.parametrize(
+    "key,not_after,expected",
+    [
+        ("RSA", "2030-12-31T23:59:59Z", False),
+        ("RSA", "2031-01-01T00:00:00Z", True),
+        ("RSA", "2031-01-01T00:30:00+01:00", False),
+        ("RSA", "2045-06-01T00:00:00+00:00", True),
+        ("RSA", "2045-06-01T00:00:00", False),
+        ("ML-DSA-65", "2045-06-01T00:00:00Z", False),
+    ],
+)
+def test_beyond_2030_validity_is_migration_context_only(key, not_after, expected, kb):
+    def classified(when):
+        node = decompose(
+            finding(
+                key,
+                kind_hint=KindHint.CERTIFICATE,
+                usage=Usage.AUTHENTICATION,
+                key_size=2048 if key == "RSA" else None,
+                extra={"key_algorithm": key, "not_after": not_after},
+                location=Location(source_type=SourceType.PCAP, file="capture.pcap"),
+            ),
+            kb,
+        ).root
+        return classify(node, kb, scan_started_at=when)
+
+    early = classified(datetime(2026, 9, 14, tzinfo=timezone.utc))
+    late = classified(datetime(2029, 1, 1, tzinfo=timezone.utc))
+    for row in (early, late):
+        assert any("before 2031" in advice.action for advice in row.recommendations) is expected
+        assert ("beyond 2030" in row.rationale) is expected
+    assert early.tier == late.tier
+    assert not any("before 2031" in advice.action for advice in early.maintenance)

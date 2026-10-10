@@ -254,7 +254,7 @@ def _hash_name(raw: str, kb: KnowledgeBase) -> str | None:
 def _signature(name: str, kb: KnowledgeBase) -> _Recipe | None:
     key = alias_key(name)
     match = re.fullmatch(
-        r"(?P<hash>md5|sha1|sha224|sha256|sha384|sha512|sha512256|sha512224|sha3256|sha3384|sha3512)with(?P<alg>rsa|ecdsa|dsa)(?P<pss>pss)?",
+        r"(?P<hash>md5|sha1|sha224|sha256|sha384|sha512|sha512256|sha512224|sha3256|sha3384|sha3512)with(?P<alg>rsa|ecdsa|dsa)(?P<pss>pss|encryption)?",
         key,
     )
     if not match:
@@ -267,6 +267,9 @@ def _signature(name: str, kb: KnowledgeBase) -> _Recipe | None:
             return None
     else:
         algorithm = match["alg"].upper()
+        # X.509 sha256WithRSAEncryption-style names (RFC 8017) denote RSA PKCS#1 v1.5 only.
+        if match.groupdict().get("pss") == "encryption" and algorithm != "RSA":
+            return None
     digest = _hash_name(match["hash"], kb)
     if digest is None:
         return None

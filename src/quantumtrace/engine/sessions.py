@@ -219,9 +219,9 @@ def build_sessions(
             ):
                 error("certificate_state")
         observed = bool(selected and any(raw.kind_hint == KindHint.CERTIFICATE for raw in selected))
+        # An observed but undecodable Certificate message has no CERTIFICATE finding and stays
+        # unauthenticated (M2 Q2); only a decoded certificate contradicting false is a conflict.
         if observed and observability == {False}:
-            error("certificate authentication")
-        if states == {"observed"} and observability == {False}:
             error("certificate authentication")
         auth = observed or observability == {True}
         if states & {"encrypted", "absent"}:

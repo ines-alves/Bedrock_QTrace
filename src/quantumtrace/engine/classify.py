@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Iterable, cast
 
 from quantumtrace.engine.decompose import EvidenceNode
@@ -195,6 +195,10 @@ def _replacement(ref: Replacement) -> str:
     if ref.mode:
         target += "-" + ref.mode.upper()
     return target
+
+
+# Validity extending into 2031 or later (agreed with M2), not merely a date during 2030.
+BEYOND_2030 = datetime(2031, 1, 1, tzinfo=UTC)
 
 
 def _timestamp(value: object) -> datetime | None:
@@ -482,6 +486,18 @@ def classify(
             advice.append(
                 Advice("Verify the missing algorithm parameters and implementation provenance.", priority=2)
             )
+    validity = _timestamp(finding.extra.get("not_after"))
+    if (
+        finding.kind_hint == KindHint.CERTIFICATE
+        and tier in {Tier.CRITICAL, Tier.MEDIUM}
+        and validity is not None
+        and validity >= BEYOND_2030
+    ):
+        # Migration context from the absolute validity end; independent of the scan reference time.
+        notes.append("Certificate validity extends beyond 2030 with quantum-vulnerable cryptography.")
+        advice.append(
+            Advice("Reissue the certificate with a quantum-safe signature scheme before 2031.", priority=2)
+        )
     hygiene_notes, hygiene_advice = _hygiene(node, scan_started_at)
     notes.extend(hygiene_notes)
     advice.extend(hygiene_advice)

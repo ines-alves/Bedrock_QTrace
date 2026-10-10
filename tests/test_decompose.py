@@ -133,6 +133,8 @@ def test_openssl_requires_verified_name_mapping(openssl, iana, kb):
         ("SHA384withDSA", "DSA", "SHA-384", None),
         ("RSASSA_PSS_SHA_256", "RSA", "SHA-256", "pss"),
         ("ECDSA_WITH_SHA384", "ECDSA", "SHA-384", None),
+        ("sha256WithRSAEncryption", "RSA", "SHA-256", "pkcs1v15"),
+        ("sha1WithRSAEncryption", "RSA", "SHA-1", "pkcs1v15"),
     ],
 )
 def test_jca_and_cloud_signatures(name, algorithm, hash_name, padding, kb):
@@ -659,3 +661,33 @@ def test_equivalent_recipe_aliases_preserve_legacy_evidence_and_digest_identity(
     digest = replace(row, components=(ComponentSpec("HKDF", Usage.KDF, "kdf", underlying_hash="sha256"),))
     kdf = decompose(raw, kb, cloud_registry=CloudFixture(digest))
     assert atoms(kdf)[0].normalized.identity.parameters.underlying_hash == "SHA-256"
+
+
+def test_x509_rsa_encryption_signature_is_pkcs1_rsa_and_never_borrows_subject_parameters(kb):
+    raw = finding(
+        "RSA",
+        KindHint.CERTIFICATE,
+        usage=Usage.AUTHENTICATION,
+        key_size=2048,
+        extra={"key_algorithm": "RSA", "signature_algorithm": "sha256WithRSAEncryption"},
+        location=Location(source_type=SourceType.PCAP, file="capture.pcap", flow="flow", frame=7),
+    )
+    result = decompose(raw, kb)
+    issuer = by_role(result, "signature").normalized.identity
+    assert issuer.algorithm_id == "RSA" and issuer.parameters.padding == "pkcs1v15"
+    assert issuer.parameters.key_size is None
+    assert by_role(result, "signature_hash").normalized.identity.algorithm_id == "SHA-256"
+    assert by_role(result, "certificate_key").normalized.identity.parameters.key_size == 2048
+    assert raw.extra["signature_algorithm"] == "sha256WithRSAEncryption"
+
+
+def test_encryption_suffix_is_rsa_only(kb):
+    raw = finding(
+        "EC",
+        KindHint.CERTIFICATE,
+        usage=Usage.AUTHENTICATION,
+        extra={"key_algorithm": "EC", "signature_algorithm": "sha256WithECDSAEncryption"},
+        location=Location(source_type=SourceType.PCAP, file="capture.pcap"),
+    )
+    issuer = by_role(decompose(raw, kb), "signature").normalized.identity
+    assert issuer.algorithm_id is None
