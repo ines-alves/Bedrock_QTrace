@@ -12,7 +12,9 @@
 # the call rules of that package detect. The `forbids` of each import rule lists those calls, so a
 # call finding always wins and crypto/sha256 imported only for HMAC or PBKDF2 stays silent.
 #
-# Scope today: the starter-kit scenarios and their SAFE decoys. Wider library coverage comes later.
+# Scope today: the starter-kit scenarios and their SAFE decoys, plus crypto/ecdsa, crypto/ecdh,
+# x/crypto/curve25519 and crypto/mlkem. Not covered: crypto/dsa, crypto/tls curve preferences,
+# elliptic.P256() outside ecdsa.GenerateKey, key loading (x509, ParseRawPrivateKey).
 
 # ---- hashes -------------------------------------------------------------------------------------
 
@@ -250,6 +252,70 @@
   usage: signature
   library: crypto/ed25519
 
+# ---- EC, key agreement and ML-KEM (task 6, Go slice) --------------------------------------------
+
+# crypto/ecdsa. The usage is the algorithm's own: ECDSA signs. The curve is reported only when it is
+# the elliptic.PNNN() constructor in the call (as seen: P256); a curve held in a variable gives ECDSA
+# with no curve. Names checked on pkg.go.dev/crypto/ecdsa, 2026-10-10. # verify
+- id: GO_ECDSA_GENERATE
+  language: go
+  pattern: '\becdsa\.GenerateKey\(\s*(?:elliptic\.(?P<curve>P224|P256|P384|P521)\(\))?'
+  raw_name: ECDSA
+  kind_hint: algorithm
+  usage: signature
+  curve: '{curve}'
+  library: crypto/ecdsa
+
+# Sign and verify sites carry no curve: it belongs to the key.
+- id: GO_ECDSA_SIGN_VERIFY
+  language: go
+  pattern: '\becdsa\.(?:Sign|SignASN1|Verify|VerifyASN1)\('
+  raw_name: ECDSA
+  kind_hint: algorithm
+  usage: signature
+  library: crypto/ecdsa
+
+# crypto/ecdh. The curve constructor is the evidence (ecdh.P256().GenerateKey(...), NewPrivateKey,
+# NewPublicKey). X25519 through crypto/ecdh is reported as X25519, like the Python and x/crypto forms.
+# Names checked on pkg.go.dev/crypto/ecdh, 2026-10-10. # verify
+- id: GO_ECDH_CURVE
+  language: go
+  pattern: '\becdh\.(?P<curve>P256|P384|P521)\(\)'
+  raw_name: ECDH
+  kind_hint: algorithm
+  usage: key_exchange
+  curve: '{curve}'
+  library: crypto/ecdh
+
+- id: GO_ECDH_X25519
+  language: go
+  pattern: '\becdh\.X25519\(\)'
+  raw_name: X25519
+  kind_hint: algorithm
+  usage: key_exchange
+  library: crypto/ecdh
+
+# golang.org/x/crypto/curve25519 (X25519 is the recommended call, ScalarMult is deprecated).
+# Names checked on pkg.go.dev/golang.org/x/crypto/curve25519, 2026-10-10. # verify
+- id: GO_CURVE25519
+  language: go
+  pattern: '\bcurve25519\.(?:X25519|ScalarMult|ScalarBaseMult)\('
+  raw_name: X25519
+  kind_hint: algorithm
+  usage: key_exchange
+  library: golang.org/x/crypto/curve25519
+
+# crypto/mlkem (FIPS 203). The parameter set is in the function name and is kept in raw_name. A
+# post-quantum KEM: reported as a positive finding, not a weakness.
+# Names checked on pkg.go.dev/crypto/mlkem, 2026-10-10. # verify
+- id: GO_MLKEM
+  language: go
+  pattern: '\bmlkem\.(?:GenerateKey|NewDecapsulationKey|NewEncapsulationKey)(?P<set>768|1024)\('
+  raw_name: 'ML-KEM-{set}'
+  kind_hint: algorithm
+  usage: key_exchange
+  library: crypto/mlkem
+
 # ---- AES ----------------------------------------------------------------------------------------
 
 # Key source: make([]byte, N) of a named or literal length. Never reported on its own. It only gives
@@ -408,6 +474,47 @@
   library: crypto/aes
   confidence: 0.6
   forbids: ['\baes\.NewCipher\b']
+
+- id: GO_IMPORT_ECDSA
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>crypto/ecdsa)"'
+  raw_name: ECDSA
+  kind_hint: algorithm
+  usage: signature
+  library: crypto/ecdsa
+  confidence: 0.6
+  forbids: ['\becdsa\.(?:GenerateKey|Sign|SignASN1|Verify|VerifyASN1)\b']
+
+- id: GO_IMPORT_ECDH
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>crypto/ecdh)"'
+  raw_name: ECDH
+  kind_hint: algorithm
+  usage: key_exchange
+  library: crypto/ecdh
+  confidence: 0.6
+  forbids: ['\becdh\.(?:P256|P384|P521|X25519)\b']
+
+- id: GO_IMPORT_CURVE25519
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>golang\.org/x/crypto/curve25519)"'
+  raw_name: X25519
+  kind_hint: algorithm
+  usage: key_exchange
+  library: golang.org/x/crypto/curve25519
+  confidence: 0.6
+  forbids: ['\bcurve25519\.(?:X25519|ScalarMult|ScalarBaseMult)\b']
+
+# The parameter set is unknown from the import alone, so raw_name carries the family only.
+- id: GO_IMPORT_MLKEM
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>crypto/mlkem)"'
+  raw_name: ML-KEM
+  kind_hint: algorithm
+  usage: key_exchange
+  library: crypto/mlkem
+  confidence: 0.6
+  forbids: ['\bmlkem\.(?:GenerateKey|NewDecapsulationKey|NewEncapsulationKey)(?:768|1024)\b']
 
 # A math/rand import under another name (mrand) is the usual survivor: its calls carry the alias, which
 # no rule follows, so the import line is the evidence. crypto/rand in the same file does not change that.
