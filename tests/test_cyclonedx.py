@@ -53,6 +53,19 @@ def _by_ref(cbom: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {component["bom-ref"]: component for component in cbom["components"]}
 
 
+def _wrappers(result: ScanResult) -> set[str]:
+    """Assets made only of hygiene warnings or library declarations: they are not CBOM components (M3M4-05)."""
+    findings = {f.id: f for f in result.findings}
+    return {
+        a.asset_id
+        for a in result.assets
+        if all(
+            findings[i].extra.get("hygiene_only") or findings[i].kind_hint == KindHint.LIBRARY
+            for i in a.finding_ids
+        )
+    }
+
+
 def _prop(component: dict[str, Any], name: str) -> str | None:
     values = [p["value"] for p in component.get("properties", []) if p["name"] == f"quantumtrace:{name}"]
     return values[0] if values else None
@@ -85,9 +98,11 @@ def test_components_are_assets_materials_and_libraries_only() -> None:
     cbom = build_cbom(result)
     kms = [f for f in result.findings if f.kind_hint == KindHint.KEY and f.detector == "cloud.kms"]
     libraries = [f for f in result.findings if f.kind_hint == KindHint.LIBRARY]
-    assert len(cbom["components"]) == len(result.assets) + len(kms) + len(libraries)
+    wrappers = _wrappers(result)
+    assert wrappers
+    assert len(cbom["components"]) == len(result.assets) - len(wrappers) + len(kms) + len(libraries)
     refs = _by_ref(cbom)
-    assert all(asset.asset_id in refs for asset in result.assets)
+    assert all((asset.asset_id in refs) == (asset.asset_id not in wrappers) for asset in result.assets)
     hygiene_ids = {f.id for f in result.findings if f.extra.get("hygiene_only")}
     assert not any(ref == f"material-{fid}" or ref == f"library-{fid}" for fid in hygiene_ids for ref in refs)
 
@@ -110,6 +125,18 @@ def test_one_related_material_per_kms_key_references_its_algorithm() -> None:
         assert material["name"] == finding.extra["alias"]
 
 
+def test_hygiene_and_library_wrapper_assets_are_not_components() -> None:
+    """M3M4-05: hard-coded key, insecure RNG, plaintext and library warnings stay off the CBOM."""
+    result = _sample()
+    cbom = build_cbom(result)
+    names = {a.canonical_name for a in result.assets if a.asset_id in _wrappers(result)}
+    assert {"hard-coded symmetric key", "INSECURE-RNG", "HTTP"} <= names
+    assert not names & {c["name"] for c in cbom["components"] if c["type"] == "cryptographic-asset"}
+    assert [c["name"] for c in cbom["components"] if c["type"] == "library"] == ["cryptography"]
+    assert all(d["ref"] not in _wrappers(result) for d in cbom["dependencies"])
+    assert validate_cbom(cbom) == []
+
+
 def test_key_material_without_classified_algorithm_has_no_reference() -> None:
     result = _sample()
     finding = next(f for f in result.findings if f.kind_hint == KindHint.KEY and f.detector == "cloud.kms")
@@ -126,15 +153,16 @@ def test_tier_and_test_code_only_are_properties() -> None:
     result = _sample()
     result.assets[0].in_test_code_only = True  # the kit has no test-path code, so mark one asset
     refs = _by_ref(build_cbom(result))
-    assert {_prop(refs[a.asset_id], "tier") for a in result.assets} <= {
+    assets = [a for a in result.assets if a.asset_id not in _wrappers(result)]
+    assert {_prop(refs[a.asset_id], "tier") for a in assets} <= {
         "CRITICAL",
         "MEDIUM",
         "SAFE",
         "UNKNOWN",
     }
-    test_only = {a.asset_id for a in result.assets if a.in_test_code_only}
+    test_only = {a.asset_id for a in assets if a.in_test_code_only}
     assert test_only == {result.assets[0].asset_id}
-    for asset in result.assets:
+    for asset in assets:
         expected = "true" if asset.asset_id in test_only else None
         assert _prop(refs[asset.asset_id], "testCodeOnly") == expected
 
@@ -142,10 +170,11 @@ def test_tier_and_test_code_only_are_properties() -> None:
 def test_unknown_tier_never_becomes_quantum_level_zero() -> None:
     result = _sample()
     refs = _by_ref(build_cbom(result))
-    for asset in result.assets:
+    assets = [a for a in result.assets if a.asset_id not in _wrappers(result)]
+    for asset in assets:
         props = refs[asset.asset_id]["cryptoProperties"].get("algorithmProperties", {})
         assert props.get("nistQuantumSecurityLevel") == (asset.nist_quantum_level if props else None)
-    unknown = next(a for a in result.assets if a.tier.value == "UNKNOWN" and a.nist_quantum_level is None)
+    unknown = next(a for a in assets if a.tier.value == "UNKNOWN" and a.nist_quantum_level is None)
     assert "nistQuantumSecurityLevel" not in refs[unknown.asset_id]["cryptoProperties"].get(
         "algorithmProperties", {}
     )
@@ -157,7 +186,7 @@ def test_session_protocol_asset_carries_version_and_byte_split_suite_identifiers
     suites = [
         (refs[a.asset_id]["cryptoProperties"]["protocolProperties"], suite)
         for a in result.assets
-        if a.asset_type == "protocol"
+        if a.asset_type == "protocol" and a.asset_id not in _wrappers(result)
         for suite in refs[a.asset_id]["cryptoProperties"]["protocolProperties"].get("cipherSuites", [])
     ]
     proto, suite = next((p, s) for p, s in suites if s["name"] == "TLS_AES_256_GCM_SHA384")
@@ -166,7 +195,9 @@ def test_session_protocol_asset_carries_version_and_byte_split_suite_identifiers
     policies = [
         a
         for a in result.assets
-        if a.asset_type == "protocol" and any(o.source_type == "loadbalancer" for o in a.occurrences)
+        if a.asset_type == "protocol"
+        and a.asset_id not in _wrappers(result)
+        and any(o.source_type == "loadbalancer" for o in a.occurrences)
     ]
     assert policies
     assert all(
