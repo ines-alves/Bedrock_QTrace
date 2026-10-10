@@ -1,4 +1,6 @@
-"""The five sample sessions of M2M4-01: real parser output, one session per file.
+"""The sample sessions of M2M4-01 and the plaintext finding of M2M4-03: real parser output.
+
+Five files are one session each; ``plaintext_http.json`` is one plaintext finding, never a session.
 
 Regenerate with ``.venv/bin/python tests/test_network_samples.py`` after a parser change; the tests
 fail while the committed files differ from the output of the current code.
@@ -13,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from quantumtrace.models import Finding, KindHint
-from quantumtrace.scanners.network import purepy, ssh, tls_session
+from quantumtrace.scanners.network import plaintext, purepy, ssh, tls_session
 
 ROOT = Path(__file__).resolve().parents[1]
 KIT = ROOT / "network-capture" / "network.pcap"
@@ -32,6 +34,9 @@ PICKS = {
     ),
     "ssh_modern": lambda s, se: se["transport"] == "ssh" and se["negotiated_group"] == "curve25519-sha256",
 }
+
+
+PLAINTEXT_SAMPLE = "plaintext_http"  # the first HTTP flow of the kit, in stream order
 
 
 def build_samples() -> dict[str, str]:
@@ -54,6 +59,11 @@ def build_samples() -> dict[str, str]:
         # session finding first, then the algorithm findings as emitted
         dumped = [f.model_dump(mode="json") for f in findings]
         files[name] = json.dumps(dumped, indent=2, ensure_ascii=False) + "\n"
+    first_http = next(
+        f for f in plaintext.build_findings(result, FILE, parser_errors=False) if isinstance(f, Finding)
+    )
+    dumped = [first_http.model_dump(mode="json")]
+    files[PLAINTEXT_SAMPLE] = json.dumps(dumped, indent=2, ensure_ascii=False) + "\n"
     return files
 
 
@@ -63,14 +73,14 @@ def built():
 
 
 def test_committed_samples_match_the_current_parser_output(built):
-    assert sorted(p.stem for p in SAMPLES.glob("*.json")) == sorted(PICKS)
+    assert sorted(p.stem for p in SAMPLES.glob("*.json")) == sorted([*PICKS, PLAINTEXT_SAMPLE])
     for name, text in built.items():
         assert (SAMPLES / f"{name}.json").read_text(encoding="utf-8") == text, name
 
 
 def test_each_sample_is_one_session_with_offered_and_negotiated_findings(built):
-    for name, text in built.items():
-        findings = [Finding.model_validate(d) for d in json.loads(text)]
+    for name in PICKS:
+        findings = [Finding.model_validate(d) for d in json.loads(built[name])]
         assert len({f.session_id for f in findings}) == 1, name
         heads = [f for f in findings if f.kind_hint == KindHint.PROTOCOL_VERSION]
         assert len(heads) == 1 and heads[0].negotiated is True, name
@@ -90,6 +100,16 @@ def test_sample_profiles(built):
     assert legacy["extra"]["session"]["cert_key"] == "ssh-rsa"
     assert modern["extra"]["session"]["cert_key"] == "rsa-sha2-512"
     assert modern["location"]["source_type"] == "ssh"
+
+
+def test_plaintext_sample_is_one_hygiene_only_finding_and_no_session(built):
+    (finding,) = [Finding.model_validate(d) for d in json.loads(built[PLAINTEXT_SAMPLE])]
+    assert finding.kind_hint == KindHint.PLAINTEXT and finding.raw_name == "HTTP"
+    assert finding.detector == "pcap.plaintext.http" and finding.protocol == "http"
+    assert finding.location.source_type.value == "pcap" and finding.location.file == FILE
+    assert finding.session_id is None and finding.negotiated is None
+    assert finding.extra["hygiene_only"] is True
+    assert finding.extra["http"]["path"] == "/status" and finding.extra["http"]["status"] == 200
 
 
 if __name__ == "__main__":

@@ -216,6 +216,18 @@ def test_version_labels(reg):
     assert registry.version_label(0x1234) is None
 
 
+def test_every_version_row_has_its_rfc_reference(reg):
+    """The engine resolves a version only when the row carries a non-empty ref."""
+    assert {k: v["ref"] for k, v in reg["versions"].items()} == {
+        "0x0300": "[RFC6101]",
+        "0x0301": "[RFC2246]",
+        "0x0302": "[RFC4346]",
+        "0x0303": "[RFC5246]",
+        "0x0304": "[RFC8446]",
+    }
+    assert all("verify" not in row for row in reg["versions"].values())
+
+
 # --- OpenSSL aliases ---------------------------------------------------------------------
 
 
