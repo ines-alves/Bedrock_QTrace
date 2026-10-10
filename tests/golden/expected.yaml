@@ -663,3 +663,12 @@
   metric: occurrences
   count: 1
   note: "deduplicated raw finding occurrences, hygiene-only findings included"
+
+# library declaration from a manifest file (M3D-07); a declaration, not a cryptographic use
+- kind: finding
+  source: sample-repos/python/requirements.txt
+  source_type: code
+  kind_hint: library
+  raw_name: "cryptography==46.0.5"
+  line: 1
+  note: "dependency declaration only; the 24 code files are counted by the count rows above"

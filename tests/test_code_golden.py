@@ -15,6 +15,7 @@ from jsonschema import Draft202012Validator
 
 from quantumtrace.models import Finding
 from quantumtrace.scanners.code.engine import CodeScanner
+from quantumtrace.scanners.code.manifests import ManifestScanner
 
 ROOT = Path(__file__).parent.parent
 KIT = ROOT / "sample-repos"
@@ -53,6 +54,18 @@ def findings() -> dict[str, list[Finding]]:
     for path in sorted(KIT.rglob("*")):
         if path.suffix in {".py", ".java", ".go"}:
             results = list(CodeScanner().scan(path, KIT))
+            assert all(isinstance(f, Finding) for f in results), results
+            out["sample-repos/" + path.relative_to(KIT).as_posix()] = results
+    return out
+
+
+@pytest.fixture(scope="module")
+def library_findings() -> dict[str, list[Finding]]:
+    scanner = ManifestScanner()
+    out: dict[str, list[Finding]] = {}
+    for path in sorted(KIT.rglob("*")):
+        if path.is_file() and scanner.can_handle(path):
+            results = list(scanner.scan(path, KIT))
             assert all(isinstance(f, Finding) for f in results), results
             out["sample-repos/" + path.relative_to(KIT).as_posix()] = results
     return out
@@ -103,11 +116,21 @@ def test_rows_validate_against_the_schema(rows):
     assert not errors, [e.message for e in errors[:5]]
 
 
-def test_every_row_is_a_code_row_for_a_kit_file(rows, findings):
+def test_every_row_is_a_code_row_for_a_kit_file(rows, findings, library_findings):
     assert rows
     for row in rows:
         assert row["source_type"] == "code", row
-        assert row["source"] in findings, row
+        assert row["source"] in findings or row["source"] in library_findings, row
+
+
+def test_library_rows_agree_with_manifest_scanner(rows, library_findings):
+    want = [
+        (r["source"], r["line"], r["raw_name"])
+        for r in rows
+        if r["kind"] == "finding" and r["kind_hint"] == "library"
+    ]
+    got = [(source, f.location.line, f.raw_name) for source, found in library_findings.items() for f in found]
+    assert sorted(got) == sorted(want)
 
 
 def test_asset_tiers_and_flags_follow_the_plan_7_1_policy(rows):
