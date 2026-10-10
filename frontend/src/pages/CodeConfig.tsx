@@ -12,6 +12,8 @@ import {
   type Filters,
 } from './code-config/model'
 
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
 export default function CodeConfig() {
   const { data, error } = useScanResult()
   const rows = useMemo(() => (data ? buildRows(data) : []), [data])
@@ -39,9 +41,9 @@ export default function CodeConfig() {
     <>
       <h1 className="mb-1 font-head text-2xl">Code &amp; Config</h1>
       <p className="mb-6 font-sub italic text-paper/60">
-        {s.findings} findings in {s.files} files
+        {plural(s.findings, 'finding', 'findings')} in {plural(s.files, 'file', 'files')}
         {` · ${s.byTier.CRITICAL} critical, ${s.byTier.MEDIUM} medium, ${s.byTier.UNKNOWN} unknown, ${s.byTier.SAFE} safe`}
-        {` · ${s.warnings} warnings, ${s.libraries} libraries, ${s.testCode} in test code`}
+        {` · ${plural(s.warnings, 'warning', 'warnings')}, ${plural(s.libraries, 'library', 'libraries')}, ${s.testCode} in test code`}
       </p>
       <FilterBar languages={languages} filters={filters} onChange={setOverride} />
       {groups.length === 0 ? (
