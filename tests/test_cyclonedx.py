@@ -2,6 +2,7 @@
 
 import copy
 import re
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -165,6 +166,24 @@ def test_tier_and_test_code_only_are_properties() -> None:
     for asset in assets:
         expected = "true" if asset.asset_id in test_only else None
         assert _prop(refs[asset.asset_id], "testCodeOnly") == expected
+
+
+def test_recommended_replacement_and_standard_come_from_the_first_recommendation_with_a_target() -> None:
+    result = _sample()
+    refs = _by_ref(build_cbom(result))
+    wrappers = _wrappers(result)
+    for asset in result.assets:
+        if asset.asset_id in wrappers:
+            continue
+        first = next((r for r in asset.recommendations if r.target_algorithm), None)
+        assert _prop(refs[asset.asset_id], "recommendedReplacement") == (first and first.target_algorithm)
+        assert _prop(refs[asset.asset_id], "recommendedStandard") == (first and first.standard)
+    got = Counter(
+        (_prop(c, "recommendedReplacement"), _prop(c, "recommendedStandard"))
+        for c in refs.values()
+        if _prop(c, "recommendedReplacement")
+    )
+    assert got[("ML-DSA-65", "NIST FIPS 204")] and got[("ML-KEM-768", "NIST FIPS 203")]
 
 
 def test_unknown_tier_never_becomes_quantum_level_zero() -> None:

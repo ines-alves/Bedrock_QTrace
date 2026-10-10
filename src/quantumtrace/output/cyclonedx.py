@@ -120,6 +120,8 @@ def _asset_component(
         if "resolved_from_line" in findings[fid].extra
     }
     session = _session(asset, findings, sessions)
+    # Recommendations arrive sorted by priority, so the first one with a target is the main migration.
+    migration = next((rec for rec in asset.recommendations if rec.target_algorithm), None)
     return {
         "type": "cryptographic-asset",
         "bom-ref": asset.asset_id,
@@ -136,6 +138,8 @@ def _asset_component(
             forwardSecrecy=asset.forward_secrecy,
             deprecatedPqcDraft=True if asset.deprecated_pqc_draft else None,
             pqcStandard=asset.pqc_standard,
+            recommendedReplacement=migration and migration.target_algorithm,
+            recommendedStandard=migration and migration.standard,
             testCodeOnly=True if asset.in_test_code_only else None,
             keySize=None if asset.asset_type == "algorithm" else asset.key_size,
             curve=None if asset.asset_type == "algorithm" else asset.curve,
