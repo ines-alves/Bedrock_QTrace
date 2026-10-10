@@ -5,7 +5,7 @@
 
 This document is the **single source of truth** for the team and every coding-agent session working on the repo. Read sections 1–6 and **Appendix D** (what the starter kit really contains, with golden expectations) before writing code. Your personal work package is in section 8. If something here conflicts with a later team decision, update this file in the same commit.
 
-**M1 execution:** read root `AGENTS.md`, `agents/IMPLEMENTATION.md`, `agents/STATUS.md`, and the current task plan in `agents/tasks/`. That checklist expands the M1 work package into individually planned, tested, and integrated tasks. Approved workflow and contract refinements are recorded in `docs/DECISIONS.md`. Each task ends with a contextual handoff; the next task starts in a fresh user-opened session.
+**M1 local execution:** M1 keeps root `AGENTS.md` and `agents/` (implementation checklist, status, skills, individual plans, and handoffs) local-only and Git-ignored. These files are not distributed in repository checkouts; other members use this shared plan and their own local instructions. Approved shared workflow and contract refinements are recorded in `docs/DECISIONS.md`. Each M1 task ends with a local contextual handoff; the next task starts in a fresh user-opened session.
 
 ---
 
@@ -993,12 +993,12 @@ The starter kit's "intentional patterns" are what judges will check. **Appendix 
 
 Members retain their ownership boundaries. M1 uses a fresh session for each task:
 
-1. **Repository instructions**: read root `AGENTS.md` and this plan. M1 additionally reads `agents/IMPLEMENTATION.md`, `agents/STATUS.md`, the active task plan, and the previous handoff. `CLAUDE.md` will point to these instructions for Claude sessions.
-2. **Reusable local skills**: root instructions route explicitly to `agents/skills/qtrace-task-cycle/SKILL.md`, `qtrace-core-engine/SKILL.md`, and `qtrace-integration/SKILL.md`. Use writable `agents/`, because `.agents/` is protected; automatic discovery is not assumed.
+1. **Repository instructions**: all members read this shared plan. M1 additionally reads the local-only root `AGENTS.md`, `agents/IMPLEMENTATION.md`, `agents/STATUS.md`, active task plan, and previous handoff. Shared instructions must not require these files to exist in another member's checkout.
+2. **Reusable local skills**: M1's local root instructions route explicitly to `agents/skills/qtrace-task-cycle/SKILL.md`, `qtrace-core-engine/SKILL.md`, and `qtrace-integration/SKILL.md`. Use writable `agents/`, because `.agents/` is protected; automatic discovery is not assumed. Root `AGENTS.md` and all of `agents/` are Git-ignored: never stage or force-add them.
 3. **Plan first**: refresh the individual task plan with current repo facts, dependencies, owned changes, and acceptance checks before implementation. The user-approved roadmap authorizes ordinary implementation choices without a recurring approval gate.
 4. **Contract-first**: import types from `quantumtrace.models`; do not redefine them. Establish the approved initial additions in 1.2, then freeze contracts and coordinate later changes with the team.
 5. **Test meaningful behavior**: use local fixtures and run the checks available at the current stage. Record unavailable checks honestly; no application `make check` exists during workflow-only M1-00.
-6. **Handoff at task end**: record outcome, interface changes, exact checks/results, blockers, branch/commit/PR integration evidence, and the next-session prompt in the task file. Update status and checklist after verified integration.
+6. **Handoff at task end**: record outcome, interface changes, exact checks/results, blockers, branch/commit/PR integration evidence, and the next-session prompt in the local task file. Update local status and checklist after verified integration; these updates do not need another Git commit.
 7. **Fresh context**: end the session after its task handoff. The user opens a new session that reads these files; agents do not claim to clear conversation context or launch concurrent work.
 8. **Ownership and accuracy**: do not silently fix another member's modules; record requests in DECISIONS/handoffs. Never invent codepoints, OIDs, KMS mappings, or standards status; verify primary sources during the owning task and keep uncertain values explicit.
 
