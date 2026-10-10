@@ -1,0 +1,45 @@
+# Cryptographic library allowlist for manifests.py (M3D-07).
+#
+# A match establishes that a dependency is declared, not that it is used or vulnerable. Identities are
+# exact: PyPI names are compared after PEP 503 normalization, Maven entries are groupId:artifactId and
+# Go entries are module paths (a major version suffix is a distinct module). Nothing here is tiered.
+#
+# Every entry is unconfirmed until checked against the package's primary source (PyPI project page,
+# Maven Central, pkg.go.dev). # verify
+
+python:
+  - cryptography
+  - pycryptodome
+  - pycryptodomex
+  - pyopenssl
+  - pyjwt
+  - paramiko
+  - bcrypt
+  - pynacl
+  - argon2-cffi
+  - ecdsa
+  - rsa
+  - liboqs-python
+
+java:
+  - org.bouncycastle:bcprov-jdk18on
+  - org.bouncycastle:bcpkix-jdk18on
+  - org.bouncycastle:bctls-jdk18on
+  - org.bouncycastle:bcprov-jdk15on
+  - org.bouncycastle:bcpkix-jdk15on
+  - org.bouncycastle:bc-fips
+  - com.google.crypto.tink:tink
+  - io.jsonwebtoken:jjwt-api
+  - io.jsonwebtoken:jjwt-impl
+  - io.jsonwebtoken:jjwt-jackson
+  - com.nimbusds:nimbus-jose-jwt
+  - com.auth0:java-jwt
+  - org.conscrypt:conscrypt-openjdk-uber
+
+go:
+  - golang.org/x/crypto
+  - github.com/cloudflare/circl
+  - github.com/golang-jwt/jwt
+  - github.com/golang-jwt/jwt/v4
+  - github.com/golang-jwt/jwt/v5
+  - github.com/open-quantum-safe/liboqs-go

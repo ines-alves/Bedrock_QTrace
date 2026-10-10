@@ -437,7 +437,9 @@ def _parse_value(expr: str, language: str) -> _Entry:
 
 
 def _split_top_level(text: str) -> list[str]:
-    parts, depth, current = [], 0, []
+    parts: list[str] = []
+    depth = 0
+    current: list[str] = []
     for ch in text:
         if ch in "([{":
             depth += 1
@@ -580,7 +582,7 @@ class _Hit:
     literal_inline: bool = False
 
 
-def _literal_length(value: Value) -> int:
+def _literal_length(value: str | bytes) -> int:
     return len(value.encode("utf-8")) if isinstance(value, str) else len(value)
 
 
@@ -853,16 +855,21 @@ class _Flow:
             if m:
                 returns.append((number, set(_IDENTS.findall(m.group("expr")))))
         found: set[_Source] = set()
-        for hit in self._sources(family):
-            if self.scope_of(hit.line) != index:
+        for size, from_line, line in self._sources(family):
+            if self.scope_of(line) != index:
                 continue
-            bound = self._bound(hit.line)
-            if any(number == hit.line or bound & idents for number, idents in returns):
-                found.add((hit.key_size, hit.resolved_from_line, hit.line))
+            bound = self._bound(line)
+            if any(number == line or bound & idents for number, idents in returns):
+                found.add((size, from_line, line))
         return found or None
 
-    def _sources(self, family: str) -> list[_Hit]:
-        return [h for h in self.hits if h.rule.provides_key_size == family and h.key_size is not None]
+    def _sources(self, family: str) -> list[tuple[int, int | None, int]]:
+        """(size, line the size came from, generation line) of every sized hit of the family."""
+        return [
+            (h.key_size, h.resolved_from_line, h.line)
+            for h in self.hits
+            if h.rule.provides_key_size == family and h.key_size is not None
+        ]
 
     def _call_sites(self, func: _Func, index: int) -> list[tuple[int, list[str]]]:
         sites = []
@@ -884,11 +891,7 @@ class _Flow:
             return None
         if len(assigns) == 1:
             assign = assigns[0]
-            direct = {
-                (h.key_size, h.resolved_from_line, h.line)
-                for h in self._sources(family)
-                if h.line == assign.line
-            }
+            direct: set[_Source] = {s for s in self._sources(family) if s[2] == assign.line}
             if direct:
                 return direct
             targets = self.by_name.get(assign.callee or "", [])
@@ -929,14 +932,15 @@ class _Flow:
             family = hit.rule.inherit_key_size
             if not family or hit.key_size is not None:
                 continue
-            traced = None
+            traced: set[_Source] = set()
             if hit.key_arg:
-                traced = self.trace(
-                    hit.key_arg, self.scope_of(hit.line), family, 0, hit.rule.key_size_from_length
+                traced = (
+                    self.trace(hit.key_arg, self.scope_of(hit.line), family, 0, hit.rule.key_size_from_length)
+                    or set()
                 )
-            sizes = {size for size, _, _ in traced} if traced else set()
-            generations = {gen for _, _, gen in traced} if traced else set()
-            if traced and None not in generations:
+            sizes = {size for size, _, _ in traced}
+            generations = {gen for _, _, gen in traced if gen is not None}
+            if traced and len(generations) == len({gen for _, _, gen in traced}):
                 hit.sink_generations = frozenset(generations)
             if len(sizes) == 1:
                 hit.key_size = next(iter(sizes))

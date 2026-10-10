@@ -1,0 +1,14 @@
+# fixture for manifests.py
+--index-url https://user:secret@pypi.example.invalid/simple
+-r base.txt
+-e git+https://user:secret@git.example.invalid/org/repo.git#egg=cryptography
+flask==3.0.0
+cryptography==46.0.5
+PyJWT>=2.8,<3
+Pycryptodome[extra] == 3.20.0 ; python_version >= "3.9"
+paramiko  # ssh
+argon2_cffi==23.1.0 \
+    --hash=sha256:aaaa
+pynacl @ https://user:secret@files.example.invalid/pynacl.whl
+https://files.example.invalid/other.whl
+bcrypt==4.*
