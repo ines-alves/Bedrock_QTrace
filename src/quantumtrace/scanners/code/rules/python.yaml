@@ -16,6 +16,19 @@
   usage: hash
   library: hashlib
 
+# hashlib.new(name): the name is a literal or a file-scope constant or parameter default. Anything else
+# (an unresolved identifier, an algorithm outside the list) emits nothing, see values_must_match.
+- id: PY_HASHLIB_NEW
+  language: python
+  pattern: >-
+    \bhashlib\.new\(\s*(?:[bB]?["'](?P<name>(?i:md5|sha1|sha224|sha256|sha384|sha512))["']|(?P<name_ref>[A-Za-z_]\w*))\s*[,)]
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: hash
+  library: hashlib
+  values_must_match:
+    name: '(?i)md5|sha1|sha224|sha256|sha384|sha512'
+
 # A hash class handed to PBKDF2HMAC as algorithm= is part of that composite and is not reported twice.
 - id: PY_CRYPTOGRAPHY_HASH
   language: python
@@ -36,6 +49,19 @@
   usage: mac
   library: hmac
 
+# digestmod given as a string: hmac.new(k, m, "sha1") or hmac.new(k, m, digestmod="sha1"). A digest
+# named through a variable bound to hashlib.sha1 is not followed (known gap).
+- id: PY_HMAC_STRING
+  language: python
+  pattern: >-
+    \bhmac\.new\((?:(?:\s*(?:[^,()]|\([^()]*\))+,){2}|(?:\s*(?:[^,()]|\([^()]*\))+,){1,2}\s*digestmod\s*=)\s*(?P<q>["'])(?P<name>(?i:md5|sha1|sha224|sha256|sha384|sha512))(?P=q)
+  raw_name: 'HMAC-{name}'
+  kind_hint: algorithm
+  usage: mac
+  library: hmac
+
+# A positional first argument (PBKDF2HMAC(hashes.SHA1(), ...)) is given the algorithm= keyword in the
+# masked text by python_ast.py before this rule runs.
 - id: PY_PBKDF2
   language: python
   pattern: >-
@@ -117,12 +143,13 @@
   provides_key_size: AES
   emit: false
 
-# Cipher(algorithms.AES(key), modes.X(...)). The mode is stated by the call. The key size comes from
+# Cipher(algorithms.AES(key), modes.X(...)), algorithm and mode positional or keyword. The mode is
+# stated by the call. The key size comes from
 # a parameter default or constant directly, otherwise through a flow link.
 - id: PY_AES_CIPHER
   language: python
   pattern: >-
-    \bCipher\(\s*algorithms\.AES\(\s*(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*))\s*\)\s*,\s*modes\.(?P<mode>[A-Za-z0-9]+)\(
+    \bCipher\(\s*(?:algorithm\s*=\s*)?algorithms\.AES\(\s*(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*))\s*\)\s*,\s*(?:mode\s*=\s*)?modes\.(?P<mode>[A-Za-z0-9]+)\(
   raw_name: AES
   kind_hint: algorithm
   usage: encryption
