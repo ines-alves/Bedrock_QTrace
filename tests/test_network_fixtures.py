@@ -53,6 +53,25 @@ def test_fixture_matches_expected(parser, name):
     flows = {f.location.flow for f in found}
     assert len(flows) == 1 and next(iter(flows)).endswith("->127.0.0.1:443")
 
+    certificates = [f for f in found if f.kind_hint == KindHint.CERTIFICATE]
+    session = next(f for f in found if f.kind_hint == KindHint.PROTOCOL_VERSION)
+    assert session.extra["authentication_observable"] is want["authentication_observable"]
+    assert (len(certificates) == 1) is want["certificate_in_capture"]
+    if not certificates:
+        assert session.extra["session"]["cert_key"] is None
+        assert session.extra["session"]["cert_sig_alg"] is None
+        return
+    (cert,) = certificates
+    expected = want["certificate"]
+    assert cert.raw_name == expected["raw_name"] == cert.extra["key_algorithm"]
+    assert (cert.curve, cert.key_size) == (expected["curve"], expected["key_size"])
+    assert cert.location.frame == expected["frame"] and cert.negotiated is True
+    for key in ("signature_algorithm", "signature_algorithm_oid", "not_before", "not_after", "self_signed"):
+        assert cert.extra[key] == expected[key]
+    assert session.extra["session"]["cert_key"] == cert.raw_name
+    assert session.extra["session"]["cert_sig_alg"] == cert.extra["signature_algorithm"]
+    assert cert.session_id == session.session_id
+
 
 def test_keylog_file_sits_next_to_the_hybrid_capture():
     assert (DIR / EXPECTED["tls13_hybrid_keylog.pcap"]["keylog"]).stat().st_size > 0

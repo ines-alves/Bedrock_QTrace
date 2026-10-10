@@ -87,6 +87,7 @@ def test_kit_counts_and_contract(parser):
     )
     assert len({f.session_id for f in found if f.location.source_type == SourceType.SSH}) == 24
     assert sum(1 for f in found if f.kind_hint == KindHint.PLAINTEXT) == 14
+    assert [f for f in found if f.kind_hint == KindHint.CERTIFICATE] == []  # the kit has no Certificate
     assert sessions
     assert len({f.id for f in found}) == len(found)
     for f in found:
