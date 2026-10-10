@@ -109,5 +109,5 @@ from scoring as containers. Observed validity stays in original Finding.extra;
 M4's CBOM writer exports those dates as certificateProperties. Generic policy
 components supply dependency links; they do not establish role-specific cipher
 suites. Session cipher-suite export uses observed session metadata. The CLI will
-call `output.cyclonedx.build_cbom` and `validate_cbom` in task 1.10. Unversioned
-library export is pending an M4 correction; the real pinned starter library works.
+call `output.cyclonedx.build_cbom` and `validate_cbom` in task 1.10. Pinned, unpinned and range library declarations are exported without inventing
+versions; the original declaration remains in evidence.
