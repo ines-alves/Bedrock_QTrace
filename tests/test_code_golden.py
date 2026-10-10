@@ -45,7 +45,8 @@ KDFS = {"pbkdf2-hmac-sha256", "pbkdf2withhmacsha256"}
 
 @pytest.fixture(scope="module")
 def rows() -> list[dict]:
-    return yaml.safe_load(GOLDEN.read_text())
+    # The file is shared with the cloud and network sections; this test owns only the code rows.
+    return [row for row in yaml.safe_load(GOLDEN.read_text()) if row.get("source_type") == "code"]
 
 
 @pytest.fixture(scope="module")
