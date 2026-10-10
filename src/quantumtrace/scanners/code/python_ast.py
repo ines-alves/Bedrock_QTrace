@@ -35,6 +35,30 @@ import ast
 
 QUALIFIERS = frozenset(
     {
+        "AES",
+        "ARC4",
+        "BLAKE2b",
+        "BLAKE2s",
+        "DES",
+        "DES3",
+        "DSA",
+        "ECC",
+        "HMAC",
+        "MD2",
+        "MD5",
+        "PKCS1_OAEP",
+        "PKCS1_v1_5",
+        "RIPEMD160",
+        "RSA",
+        "SHA1",
+        "SHA224",
+        "SHA256",
+        "SHA384",
+        "SHA3_224",
+        "SHA3_256",
+        "SHA3_384",
+        "SHA3_512",
+        "SHA512",
         "algorithms",
         "dh",
         "dsa",
@@ -46,6 +70,8 @@ QUALIFIERS = frozenset(
         "modes",
         "os",
         "padding",
+        "pkcs1_15",
+        "pss",
         "random",
         "rsa",
         "x25519",
@@ -113,9 +139,9 @@ def _replacement(name: str, binding: _Binding) -> str | None:
         return last if last in QUALIFIERS else None
     if kind == "from":
         module, obj = binding[1], binding[2]
-        if obj in QUALIFIERS or obj in BARE_MEMBERS:
-            return obj
         module_last = module.rsplit(".", 1)[-1]
+        if obj in BARE_MEMBERS:
+            return obj
         if module_last in QUALIFIERS:
             return f"{module_last}.{obj}"
         return obj

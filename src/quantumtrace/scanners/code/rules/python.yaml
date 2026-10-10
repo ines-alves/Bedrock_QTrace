@@ -301,3 +301,261 @@
   extra:
     hygiene_only: true
     hygiene_flags: [insecure_rng]
+
+# ---- PyCryptodome (Crypto.* and Cryptodome.*) -----------------------------------------------------
+#
+# Names checked on pycryptodome.readthedocs.io, 2026-10-10 (AES.new and MODE_*, DES.new, DES3.new,
+# ARC4.new, RSA.generate(bits), DSA.generate(bits), ECC.generate(curve), Crypto.Hash.<NAME>.new,
+# HMAC.new(key, msg, digestmod), KDF.PBKDF2(..., hmac_hash_module), pkcs1_15.new, PKCS1_OAEP.new). # verify
+#
+# Every rule needs a Crypto or Cryptodome mention in the file, so a bare MD5.new( or HMAC.new( of another
+# library is not reported. Raw names are the tokens as seen. Defaults are not inferred: HMAC.new without
+# digestmod (library default MD5) and PBKDF2 without prf or hmac_hash_module (library default HMAC-SHA1)
+# emit nothing, the same stance as a bare Java "AES" (M1M3-06).
+
+# Key source: get_random_bytes of a named or literal length. Never reported on its own.
+- id: PYC_RANDOM_KEY
+  language: python
+  pattern: '\bget_random_bytes\(\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*\)'
+  raw_name: AES-KEY
+  kind_hint: key
+  usage: encryption
+  key_size_unit: bytes
+  provides_key_size: AES
+  emit: false
+
+# AES.new(key, AES.MODE_X, ...). The key is an inline literal (its length), a constant or default, or
+# traced through a flow link. The mode is the MODE_ token when the call states one, otherwise None.
+- id: PYC_AES_NEW
+  language: python
+  pattern: >-
+    \bAES\.new\(\s*(?:key\s*=\s*)?(?:(?P<key_literal>[bB]?"(?:[^"\\]|\\.)*"|[bB]?'(?:[^'\\]|\\.)*')|(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*)))(?=\s*[,)])(?=(?:[^()]|\([^()]*\))*?\bAES\.MODE_(?P<mode>[A-Z]+)\b|)
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  raw_name: AES
+  kind_hint: algorithm
+  usage: encryption
+  mode: '{mode}'
+  library: pycryptodome
+  key_size_from_length: true
+  inherit_key_size: AES
+
+# Hard-coded AES key for AES.new, same contract as PY_HARDCODED_AES_KEY.
+- id: PYC_HARDCODED_AES_KEY
+  language: python
+  pattern: >-
+    \bAES\.new\(\s*(?:key\s*=\s*)?(?:(?P<literal>[bB]?"(?:[^"\\]|\\.)*"|[bB]?'(?:[^'\\]|\\.)*')|(?P<key_arg>[A-Za-z_]\w*))\s*[,)]
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  raw_name: hard-coded symmetric key
+  kind_hint: key
+  usage: encryption
+  library: pycryptodome
+  literal_key: AES
+  redact: true
+  extra:
+    hygiene_only: true
+    hygiene_flags: [hardcoded_key]
+
+# Legacy and weak symmetric ciphers: the module name is the raw name. No size: the key length is
+# not evidence of the cipher's strength here.
+- id: PYC_LEGACY_CIPHER
+  language: python
+  pattern: '\b(?P<name>DES3|DES|ARC4)\.new\('
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: encryption
+  library: pycryptodome
+
+# ---- PyCryptodome asymmetric ---------------------------------------------------------------------
+
+- id: PYC_RSA_GENERATE
+  language: python
+  pattern: '\bRSA\.generate\(\s*(?:bits\s*=\s*)?(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*[,)]'
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: unknown
+  library: pycryptodome
+  provides_key_size: RSA
+
+# Signature and encryption sinks. The key is the first argument: a name, or name.publickey(). Any other
+# expression (RSA.import_key(...)) leaves key_arg unset: an unlinked sink blocks the usage inference of
+# the file, the same as every RSA sink of the other libraries.
+- id: PYC_RSA_PKCS1_15
+  language: python
+  pattern: >-
+    \bpkcs1_15\.new\(\s*(?:rsa_key\s*=\s*)?(?:(?P<key_arg>[A-Za-z_]\w*)(?=\s*(?:[,)]|\.\s*publickey\(\s*\))))?
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: signature
+  padding: PKCS1v15
+  library: pycryptodome
+  inherit_key_size: RSA
+
+- id: PYC_RSA_PSS
+  language: python
+  pattern: >-
+    \bpss\.new\(\s*(?:rsa_key\s*=\s*)?(?:(?P<key_arg>[A-Za-z_]\w*)(?=\s*(?:[,)]|\.\s*publickey\(\s*\))))?
+  requires: ['\b(?:Crypto|Cryptodome)\b', '\bRSA\b']
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: signature
+  padding: PSS
+  library: pycryptodome
+  inherit_key_size: RSA
+
+- id: PYC_RSA_OAEP
+  language: python
+  pattern: >-
+    \bPKCS1_OAEP\.new\(\s*(?:key\s*=\s*)?(?:(?P<key_arg>[A-Za-z_]\w*)(?=\s*(?:[,)]|\.\s*publickey\(\s*\))))?
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: encryption
+  padding: OAEP
+  library: pycryptodome
+  inherit_key_size: RSA
+
+# The legacy PKCS1_v1_5 module name exists in Crypto.Signature (signatures) and Crypto.Cipher
+# (encryption). The import decides. A file importing both leaves it unmatched (ambiguous).
+- id: PYC_RSA_PKCS1_V1_5_SIGN
+  language: python
+  pattern: >-
+    \bPKCS1_v1_5\.new\(\s*(?:key\s*=\s*)?(?:(?P<key_arg>[A-Za-z_]\w*)(?=\s*(?:[,)]|\.\s*publickey\(\s*\))))?
+  requires: ['(?m)^[ \t]*from[ \t]+Crypto(?:dome)?\.Signature[ \t]+import\b[^\n]*\bPKCS1_v1_5\b']
+  forbids: ['(?m)^[ \t]*from[ \t]+Crypto(?:dome)?\.Cipher[ \t]+import\b[^\n]*\bPKCS1_v1_5\b']
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: signature
+  padding: PKCS1v15
+  library: pycryptodome
+  inherit_key_size: RSA
+
+- id: PYC_RSA_PKCS1_V1_5_CRYPT
+  language: python
+  pattern: >-
+    \bPKCS1_v1_5\.new\(\s*(?:key\s*=\s*)?(?:(?P<key_arg>[A-Za-z_]\w*)(?=\s*(?:[,)]|\.\s*publickey\(\s*\))))?
+  requires: ['(?m)^[ \t]*from[ \t]+Crypto(?:dome)?\.Cipher[ \t]+import\b[^\n]*\bPKCS1_v1_5\b']
+  forbids: ['(?m)^[ \t]*from[ \t]+Crypto(?:dome)?\.Signature[ \t]+import\b[^\n]*\bPKCS1_v1_5\b']
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: encryption
+  padding: PKCS1v15
+  library: pycryptodome
+  inherit_key_size: RSA
+
+# DSA signs only. Sizes: a literal, a constant, or bits=.
+- id: PYC_DSA_GENERATE
+  language: python
+  pattern: '\bDSA\.generate\(\s*(?:bits\s*=\s*)?(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*[,)]'
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  raw_name: DSA
+  kind_hint: algorithm
+  usage: signature
+  library: pycryptodome
+
+# ECC.generate(curve=...): the curve names itself an algorithm for the Edwards and Montgomery curves.
+# NIST and other curves are an EC key of unknown usage, curve as seen (the same as ec.SECP256R1).
+# The four fixed-curve rules redact the curve literal: the raw name already states it.
+# A curve held in a variable resolves through constants, otherwise nothing is emitted.
+- id: PYC_ECC_ED25519
+  language: python
+  pattern: >-
+    \bECC\.generate\(\s*(?:curve\s*=\s*)?(?:(?P<q>["'])(?P<curve>[^"']+)(?P=q)|(?P<curve_ref>[A-Za-z_]\w*))
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  values_must_match:
+    curve: '(?i)ed25519'
+  raw_name: Ed25519
+  kind_hint: algorithm
+  usage: signature
+  library: pycryptodome
+  redact: true
+
+- id: PYC_ECC_ED448
+  language: python
+  pattern: >-
+    \bECC\.generate\(\s*(?:curve\s*=\s*)?(?:(?P<q>["'])(?P<curve>[^"']+)(?P=q)|(?P<curve_ref>[A-Za-z_]\w*))
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  values_must_match:
+    curve: '(?i)ed448'
+  raw_name: Ed448
+  kind_hint: algorithm
+  usage: signature
+  library: pycryptodome
+  redact: true
+
+- id: PYC_ECC_CURVE25519
+  language: python
+  pattern: >-
+    \bECC\.generate\(\s*(?:curve\s*=\s*)?(?:(?P<q>["'])(?P<curve>[^"']+)(?P=q)|(?P<curve_ref>[A-Za-z_]\w*))
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  values_must_match:
+    curve: '(?i)curve25519'
+  raw_name: X25519
+  kind_hint: algorithm
+  usage: key_exchange
+  library: pycryptodome
+  redact: true
+
+- id: PYC_ECC_CURVE448
+  language: python
+  pattern: >-
+    \bECC\.generate\(\s*(?:curve\s*=\s*)?(?:(?P<q>["'])(?P<curve>[^"']+)(?P=q)|(?P<curve_ref>[A-Za-z_]\w*))
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  values_must_match:
+    curve: '(?i)curve448'
+  raw_name: X448
+  kind_hint: algorithm
+  usage: key_exchange
+  library: pycryptodome
+  redact: true
+
+- id: PYC_ECC_GENERATE
+  language: python
+  pattern: >-
+    \bECC\.generate\(\s*(?:curve\s*=\s*)?(?:(?P<q>["'])(?P<curve>[^"']+)(?P=q)|(?P<curve_ref>[A-Za-z_]\w*))
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  values_must_match:
+    curve: '(?i)(?!(?:ed25519|ed448|curve25519|curve448)$).+'
+  raw_name: EC
+  kind_hint: algorithm
+  usage: unknown
+  curve: '{curve}'
+  library: pycryptodome
+
+# ---- PyCryptodome hashes, HMAC and PBKDF2 --------------------------------------------------------
+
+- id: PYC_HASH
+  language: python
+  pattern: >-
+    \b(?P<name>MD2|MD5|SHA1|SHA224|SHA256|SHA384|SHA512|SHA3_224|SHA3_256|SHA3_384|SHA3_512|RIPEMD160|BLAKE2b|BLAKE2s)\.new\(
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: hash
+  library: pycryptodome
+
+# HMAC.new(key, msg, digestmod=SHA256) or digestmod as the third positional argument. Without a
+# digestmod the library default applies and nothing is emitted (see the header).
+- id: PYC_HMAC
+  language: python
+  pattern: >-
+    \bHMAC\.new\((?:(?:[^()]|\([^()]*\))*?\bdigestmod\s*=\s*|(?:\s*(?:[^,()=]|\([^()]*\))+,){2}\s*)(?P<name>MD5|SHA1|SHA224|SHA256|SHA384|SHA512|SHA3_224|SHA3_256|SHA3_384|SHA3_512|RIPEMD160)\b
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  raw_name: 'HMAC-{name}'
+  kind_hint: algorithm
+  usage: mac
+  library: pycryptodome
+
+# KDF.PBKDF2(password, salt, dkLen, count, prf, hmac_hash_module): the hash module is the keyword or
+# the sixth positional argument. A prf callable or no hash argument emits nothing.
+- id: PYC_PBKDF2
+  language: python
+  pattern: >-
+    \bPBKDF2\((?:(?:[^()]|\([^()]*\))*?\bhmac_hash_module\s*=\s*|(?:\s*(?:[^,()=]|\([^()]*\))+,){5}\s*)(?P<name>SHA1|SHA224|SHA256|SHA384|SHA512|SHA3_224|SHA3_256|SHA3_384|SHA3_512)\b
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  raw_name: 'PBKDF2-HMAC-{name}'
+  kind_hint: algorithm
+  usage: kdf
+  library: pycryptodome
