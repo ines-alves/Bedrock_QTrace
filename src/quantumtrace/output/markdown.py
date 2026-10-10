@@ -18,6 +18,7 @@ Rendering rules agreed with M1:
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 from pathlib import Path
 
 from quantumtrace.models import (
@@ -52,7 +53,7 @@ def _cell(value: object) -> str:
     return text.replace("\\", "\\\\").replace("|", "\\|").replace("<", "&lt;").strip() or "-"
 
 
-def _table(headers: list[str], rows: list[list[object]]) -> list[str]:
+def _table(headers: list[str], rows: Sequence[Sequence[object]]) -> list[str]:
     lines = [
         "| " + " | ".join(_cell(h) for h in headers) + " |",
         "| " + " | ".join("---" for _ in headers) + " |",

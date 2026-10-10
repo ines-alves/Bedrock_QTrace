@@ -305,6 +305,7 @@ class ManifestScanner:
                     language=language,
                     in_test_code=in_test,
                     detector=detector,
+                    confidence=1.0,
                     location=location,
                     extra={"rule": RULE_IDS[language]},
                 ),
