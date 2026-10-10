@@ -287,6 +287,23 @@
         - '\bcipher\.New[A-Z]'
         - '(?i)\b(?:iv|nonce|prev\w*|xor\w*|chain\w*)\b'
 
+# Hard-coded key (M1M3-02, M1M3-04): fires only when a literal reaches aes.NewCipher, inline, through a
+# package-level constant or variable, or call-site arguments. The finding is at the literal's line.
+# HMAC keys are outside the rule because hmac.New is not an AES sink.
+- id: GO_HARDCODED_AES_KEY
+  language: go
+  pattern: >-
+    \baes\.NewCipher\(\s*(?:(?P<literal>\[\]byte\(\s*(?:"(?:[^"\\]|\\.)*"|`[^`]*`)\s*\))|(?P<key_arg>[A-Za-z_]\w*))\s*\)
+  raw_name: hard-coded symmetric key
+  kind_hint: key
+  usage: encryption
+  library: crypto/aes
+  literal_key: AES
+  redact: true
+  extra:
+    hygiene_only: true
+    hygiene_flags: [hardcoded_key]
+
 # ---- insecure RNG -------------------------------------------------------------------------------
 
 # Hygiene warning, not a primitive (M1M3-04). rand.Read means crypto/rand or math/rand depending on

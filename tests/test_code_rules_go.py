@@ -78,6 +78,7 @@ def summary(findings: list[Finding]) -> list[tuple[str, int, int | None, str | N
         (
             "ciphers.go",
             [
+                ("hard-coded symmetric key", 11, None, None),
                 ("AES", 20, 256, "GCM"),
                 ("AES", 33, 128, "ECB"),
                 ("AES", 45, None, None),
@@ -295,7 +296,14 @@ def test_sha256_imported_only_for_hmac_and_pbkdf2_produces_no_sha256_asset():
             "auth-gateway",
             [("PBKDF2-HMAC-SHA256", 25, None, None), ("PBKDF2-HMAC-SHA256", 34, None, None)],
         ),
-        ("batch-pipeline", [("AES", 22, 128, "ECB"), ("math/rand", 36, None, None)]),
+        (
+            "batch-pipeline",
+            [
+                ("hard-coded symmetric key", 10, None, None),
+                ("AES", 22, 128, "ECB"),
+                ("math/rand", 36, None, None),
+            ],
+        ),
         ("telemetry-relay", [("AES", 23, 256, "GCM"), ("AES", 40, 256, "GCM")]),
     ],
 )
@@ -312,9 +320,51 @@ def test_safe_decoys_produce_no_md5_sha1_or_ecb_finding(scenario):
 
 
 def test_kit_aes_flow_lines_and_block_loop_evidence():
-    ecb = scan_path(KIT / "batch-pipeline" / "main.go", KIT)[0]
+    ecb = [f for f in scan_path(KIT / "batch-pipeline" / "main.go", KIT) if f.raw_name == "AES"][0]
     assert ecb.extra["mode_source"] == "block_loop"
     assert ecb.extra["resolved_from_line"] == 10
     for found in scan_path(KIT / "telemetry-relay" / "main.go", KIT):
         assert found.extra["resolved_from_line"] == 12
         assert found.extra["key_size_source"] == "flow"
+
+
+HARDCODED = "hard-coded symmetric key"
+LITERAL_BYTES = ("0123456789ABCDEF", "fedcba9876543210", "shared-signing-key", "inline-key", "hop-key")
+
+
+def hardcoded(name: str) -> dict[int, Finding]:
+    return {f.location.line: f for f in scan_fixture(name) if f.raw_name == HARDCODED}
+
+
+def test_hardcoded_key_fires_only_for_literals_reaching_an_aes_sink():
+    assert sorted(hardcoded("hardcoded_keys.go")) == [10, 11, 21]
+
+
+def test_hardcoded_key_shape_is_redacted_hygiene_only_and_has_no_key_bytes():
+    found = hardcoded("hardcoded_keys.go")
+    assert found
+    for finding in found.values():
+        assert (finding.kind_hint.value, finding.usage.value) == ("key", "encryption")
+        assert finding.key_size is None
+        assert finding.extra["hygiene_only"] is True
+        assert finding.extra["hygiene_flags"] == ["hardcoded_key"]
+        assert "<redacted>" in finding.location.snippet
+        assert not any(text in repr(finding.model_dump()) for text in LITERAL_BYTES)
+
+
+def test_hardcoded_key_through_a_call_site_hop_is_capped_at_0_8():
+    found = hardcoded("hardcoded_keys.go")
+    for line in (11,):
+        assert found[line].confidence == 0.8
+    assert {f.confidence for line, f in found.items() if line not in (11,)} == {1.0}
+
+
+def test_hardcoded_key_kit_batch_pipeline_is_reported_at_the_literal():
+    results = [f for f in scan_path(KIT / "batch-pipeline" / "main.go", KIT) if f.raw_name == HARDCODED]
+    assert [f.location.line for f in results] == [10]
+    assert results[0].location.snippet == "var exportKey = []byte(<redacted>)"
+
+
+def test_hardcoded_key_kit_hmac_decoy_is_outside_the_rule():
+    results = scan_path(KIT / "config-sync" / "main.go", KIT)
+    assert not [f for f in results if f.raw_name == HARDCODED]

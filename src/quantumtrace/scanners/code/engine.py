@@ -20,6 +20,7 @@ Rule fields (YAML list of mappings):
                                                              whole file (default) or the enclosing function
   extra: {key: json value}                                   static extra (hygiene_only, hand_rolled, ...)
   redact: true                                               replace string literals in the snippet
+  literal_key: <family>                                      hard-coded key rule: see below
   emit: false                                                record only, produce no finding
 
 Pattern groups: a group named X holds a literal; a group named X_ref holds an identifier that is
@@ -38,6 +39,14 @@ usage signature, with extra["usage_source"] "flow" and confidence at most 0.8, o
 (inherit_key_size RSA) of the file traces to exactly one generation, at least one sink traces to this
 generation, and every sink linked to it signs or verifies. One RSA sink with an unresolved, ambiguous or
 multi-source flow blocks the whole file, because it might consume the generated key through an alias.
+
+Hard-coded key (literal_key): the rule pattern matches a key sink and holds either a group `key_arg` (the
+identifier of the key) or a group `literal` (an inline string literal). The hit is kept only if the key is
+a string or bytes literal: inline, a file-scope constant, a Python parameter default, or a constant
+reached through call-site arguments of the enclosing function (same flow as inherit_key_size, at most
+FLOW_DEPTH hops). The finding moves to the line of the literal. Keys that come from a generation, an
+import, a local assignment or an unresolvable call site never qualify. A literal reached through a
+call-site hop has confidence at most 0.8. The size of the literal is never reported.
 """
 
 from __future__ import annotations
@@ -46,7 +55,7 @@ import ast
 import json
 import re
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -93,6 +102,7 @@ _RULE_KEYS = {
     "requires",
     "forbids",
     "scope",
+    "literal_key",
 }
 _CASE_KEYS = {"mode", "mode_source", "requires", "forbids"}
 _RESERVED_EXTRA = {
@@ -149,6 +159,7 @@ class Rule:
     requires: tuple[re.Pattern[str], ...] = ()
     forbids: tuple[re.Pattern[str], ...] = ()
     scope: str = "file"
+    literal_key: str | None = None
 
     @property
     def expects_key_size(self) -> bool:
@@ -210,6 +221,11 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         if not isinstance(patterns, list) or not all(isinstance(p, str) for p in patterns):
             raise ValueError(f"{where}: {key} must be a list of regex strings")
         conditions[key] = tuple(_compile(p, where) for p in patterns)
+    literal_key = raw.get("literal_key")
+    if literal_key is not None:
+        groups = _compile(raw["pattern"], where).groupindex
+        if not isinstance(literal_key, str) or not ({"key_arg", "literal"} & set(groups)):
+            raise ValueError(f"{where}: literal_key needs a family name and a key_arg or literal group")
     cases = []
     for case in raw.get("mode_cases") or []:
         bad = set(case) - _CASE_KEYS
@@ -252,6 +268,7 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         requires=conditions["requires"],
         forbids=conditions["forbids"],
         scope=scope,
+        literal_key=literal_key,
     )
 
 
@@ -560,6 +577,7 @@ class _Hit:
     mode_source: str | None = None
     usage_source: str | None = None
     sink_generations: frozenset[int] | None = None
+    literal_inline: bool = False
 
 
 def _literal_length(value: Value) -> int:
@@ -673,6 +691,7 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
             unresolved=unresolved,
             key_arg=key_arg,
             resolved_from_line=from_line,
+            literal_inline=bool(groups.get("literal")),
         )
 
 
@@ -948,6 +967,40 @@ class _Flow:
                 hit.usage_source = "flow"
                 hit.confidence = min(hit.confidence, HEURISTIC_CONFIDENCE_CAP)
 
+    def _literal_lines(self, hit: _Hit, language: str) -> tuple[set[int], bool]:
+        """Lines of the string or bytes literals that reach the key argument of `hit`, and whether a
+        call-site hop was needed."""
+        name = hit.key_arg
+        if not name:
+            return set(), False
+        scope = self.scope_of(hit.line)
+        traced = self.trace(name, scope, hit.rule.literal_key or "", 0, True)
+        if traced:
+            lines = {at for _, at, gen in traced if gen is None and at is not None}
+            hopped = scope is not None and name in self.funcs[scope].params
+            return lines, hopped
+        assigned = any(a.scope == scope and name in a.names for a in self.assigns)
+        if language == "python" and not assigned:
+            resolved = self.consts.resolve_full(name, hit.line)
+            if resolved and resolved[1] == "param_default" and isinstance(resolved[0], (str, bytes)):
+                return ({resolved[2]} if resolved[2] is not None else set()), False
+        return set(), False
+
+    def apply_literal_keys(self, language: str) -> list[_Hit]:
+        """Keep hard-coded key hits whose key is a literal, moved to the line of that literal."""
+        kept: list[_Hit] = []
+        for hit in self.hits:
+            if not hit.rule.literal_key:
+                kept.append(hit)
+            elif hit.literal_inline:
+                kept.append(hit)
+            else:
+                lines, hopped = self._literal_lines(hit, language)
+                for line in sorted(lines):
+                    confidence = min(hit.confidence, HEURISTIC_CONFIDENCE_CAP) if hopped else hit.confidence
+                    kept.append(replace(hit, line=line, confidence=confidence))
+        return kept
+
     def apply_modes(self) -> None:
         for hit in self.hits:
             if not hit.rule.mode_cases:
@@ -1000,11 +1053,15 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
     for rule in rules:
         hits.extend(_match_hits(rule, masked, lines, consts))
     hits = _conditions_hold(hits, masked, language)
-    if any(h.rule.mode_cases or (h.rule.inherit_key_size and h.key_size is None) for h in hits):
+    if any(
+        h.rule.mode_cases or h.rule.literal_key or (h.rule.inherit_key_size and h.key_size is None)
+        for h in hits
+    ):
         flow = _Flow(masked, language, hits, consts)
         flow.apply()
         flow.apply_usage()
         flow.apply_modes()
+        hits = flow.apply_literal_keys(language)
 
     for hit in hits:
         if hit.rule.expects_key_size and hit.key_size is None and hit.key_size_source is None:

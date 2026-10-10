@@ -642,6 +642,51 @@ def test_conditions_must_be_regex_lists_and_scope_is_validated(tmp_path):
         rules_for(tmp_path, "go", base + "scope: line}")
 
 
+def test_literal_key_needs_a_key_arg_or_literal_group(tmp_path):
+    base = "- {id: A, language: go, raw_name: X, kind_hint: key, usage: encryption, literal_key: AES, "
+    with pytest.raises(ValueError, match="literal_key"):
+        rules_for(tmp_path, "go", base + "pattern: 'aes[.]New[(]x[)]'}")
+    assert rules_for(tmp_path, "go", base + "pattern: 'aes[.]New[(](?P<key_arg>\\w+)[)]'}")
+
+
+LITERAL_RULE = (
+    "- {id: HK, language: go, pattern: 'aes[.]New[(](?P<key_arg>[A-Za-z_]\\w*)[)]', raw_name: K, "
+    "kind_hint: key, usage: encryption, literal_key: AES, redact: true}"
+)
+
+
+def test_literal_key_moves_to_the_literal_line_through_call_sites(tmp_path):
+    source = (
+        'var k0 = []byte("0123456789ABCDEF")\n'
+        "func a(k []byte) {\n"
+        "\taes.New(k)\n"
+        "}\n"
+        "func b(k []byte) {\n"
+        "\ta(k)\n"
+        "}\n"
+        "func c() {\n"
+        "\tb(k0)\n"
+        "}\n"
+    )
+    found = scan(tmp_path, "go", LITERAL_RULE, source)
+    assert [(f.location.line, f.confidence) for f in found] == [(1, 0.8)]
+    assert found[0].location.snippet == "var k0 = []byte(<redacted>)"
+
+
+def test_literal_key_ignores_an_untraceable_call_site_for_the_whole_parameter(tmp_path):
+    source = (
+        'var k0 = []byte("0123456789ABCDEF")\n'
+        "func a(k []byte) {\n"
+        "\taes.New(k)\n"
+        "}\n"
+        "func c() {\n"
+        "\ta(k0)\n"
+        "\ta(loadKey())\n"
+        "}\n"
+    )
+    assert scan(tmp_path, "go", LITERAL_RULE, source) == []
+
+
 def test_resolved_from_line_for_constant_and_parameter_default(tmp_path):
     findings = scan(
         tmp_path,

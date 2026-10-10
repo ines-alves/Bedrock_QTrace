@@ -58,7 +58,12 @@ def summary(findings: list[Finding]) -> list[tuple[str, int, int | None, str | N
         ),
         (
             "aes_ciphers.py",
-            [("AES", 11, 128, "ECB"), ("AES", 16, None, "CBC"), ("AESGCM", 25, 256, "GCM")],
+            [
+                ("hard-coded symmetric key", 6, None, None),
+                ("AES", 11, 128, "ECB"),
+                ("AES", 16, None, "CBC"),
+                ("AESGCM", 25, 256, "GCM"),
+            ],
         ),
         (
             "rng_calls.py",
@@ -149,3 +154,45 @@ def test_os_urandom_and_secrets_emit_no_finding():
     assert all(f.extra["hygiene_only"] is True for f in findings)
     assert all(f.extra["hygiene_flags"] == ["insecure_rng"] for f in findings)
     assert all(f.usage.value == "rng" and f.kind_hint.value == "algorithm" for f in findings)
+
+
+HARDCODED = "hard-coded symmetric key"
+LITERAL_BYTES = ("0123456789ABCDEF", "fedcba9876543210", "shared-signing-key", "inline-key", "hop-key")
+
+
+def hardcoded(name: str) -> dict[int, Finding]:
+    return {f.location.line: f for f in scan_fixture(name) if f.raw_name == HARDCODED}
+
+
+def test_hardcoded_key_fires_only_for_literals_reaching_an_aes_sink():
+    assert sorted(hardcoded("hardcoded_keys.py")) == [9, 10, 11, 26]
+
+
+def test_hardcoded_key_shape_is_redacted_hygiene_only_and_has_no_key_bytes():
+    found = hardcoded("hardcoded_keys.py")
+    assert found
+    for finding in found.values():
+        assert (finding.kind_hint.value, finding.usage.value) == ("key", "encryption")
+        assert finding.key_size is None
+        assert finding.extra["hygiene_only"] is True
+        assert finding.extra["hygiene_flags"] == ["hardcoded_key"]
+        assert "<redacted>" in finding.location.snippet
+        assert not any(text in repr(finding.model_dump()) for text in LITERAL_BYTES)
+
+
+def test_hardcoded_key_through_a_call_site_hop_is_capped_at_0_8():
+    found = hardcoded("hardcoded_keys.py")
+    for line in (11,):
+        assert found[line].confidence == 0.8
+    assert {f.confidence for line, f in found.items() if line not in (11,)} == {1.0}
+
+
+def test_hardcoded_key_kit_report_export_is_reported_at_the_literal():
+    path = Path(__file__).parent.parent / "sample-repos" / "python" / "report_export.py"
+    results = [f for f in CodeScanner().scan(path, path.parent) if f.raw_name == HARDCODED]
+    assert [(f.location.line, f.location.snippet) for f in results] == [(5, "EXPORT_KEY = <redacted>")]
+
+
+def test_hardcoded_key_kit_hmac_decoy_is_outside_the_rule():
+    path = Path(__file__).parent.parent / "sample-repos" / "python" / "artifact_manifest.py"
+    assert not [f for f in CodeScanner().scan(path, path.parent) if f.raw_name == HARDCODED]

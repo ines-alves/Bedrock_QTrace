@@ -142,6 +142,23 @@
   key_size_from_length: true
   inherit_key_size: AES
 
+# Hard-coded key (M1M3-02, M1M3-04): fires only when a literal reaches an AES key sink, inline, through a
+# file-scope constant, a parameter default or call-site arguments. The finding is at the literal's line.
+# HMAC keys are outside the rule because HMAC is not an AES sink.
+- id: PY_HARDCODED_AES_KEY
+  language: python
+  pattern: >-
+    \b(?:algorithms\.AES|AESGCM)\(\s*(?:(?P<literal>[bB]?"(?:[^"\\]|\\.)*"|[bB]?'(?:[^'\\]|\\.)*')|(?P<key_arg>[A-Za-z_]\w*))\s*\)
+  raw_name: hard-coded symmetric key
+  kind_hint: key
+  usage: encryption
+  library: cryptography
+  literal_key: AES
+  redact: true
+  extra:
+    hygiene_only: true
+    hygiene_flags: [hardcoded_key]
+
 # ---- insecure RNG -------------------------------------------------------------------------------
 
 # Hygiene warning, not a primitive (M1M3-04). os.urandom and secrets are decoys and have no rule.

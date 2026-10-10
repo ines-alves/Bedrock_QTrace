@@ -60,6 +60,7 @@ def summary(findings: list[Finding]) -> list[tuple[str, int, int | None, str | N
         (
             "Ciphers.java",
             [
+                ("hard-coded symmetric key", 9, None, None),
                 ("AES/ECB/PKCS5Padding", 16, 128, "ECB"),
                 ("AES/GCM/NoPadding", 28, 256, "GCM"),
                 ("AES/GCM/NoPadding", 34, 256, "GCM"),
@@ -172,3 +173,44 @@ def test_secure_random_emits_no_finding_and_new_random_is_hygiene_only():
     assert found.extra["hygiene_only"] is True
     assert found.extra["hygiene_flags"] == ["insecure_rng"]
     assert (found.usage.value, found.kind_hint.value) == ("rng", "algorithm")
+
+
+HARDCODED = "hard-coded symmetric key"
+LITERAL_BYTES = ("0123456789ABCDEF", "fedcba9876543210", "shared-signing-key", "inline-key", "hop-key")
+
+
+def hardcoded(name: str) -> dict[int, Finding]:
+    return {f.location.line: f for f in scan_fixture(name) if f.raw_name == HARDCODED}
+
+
+def test_hardcoded_key_fires_only_for_literals_reaching_an_aes_sink():
+    assert sorted(hardcoded("HardcodedKeys.java")) == [7, 17]
+
+
+def test_hardcoded_key_shape_is_redacted_hygiene_only_and_has_no_key_bytes():
+    found = hardcoded("HardcodedKeys.java")
+    assert found
+    for finding in found.values():
+        assert (finding.kind_hint.value, finding.usage.value) == ("key", "encryption")
+        assert finding.key_size is None
+        assert finding.extra["hygiene_only"] is True
+        assert finding.extra["hygiene_flags"] == ["hardcoded_key"]
+        assert "<redacted>" in finding.location.snippet
+        assert not any(text in repr(finding.model_dump()) for text in LITERAL_BYTES)
+
+
+def test_hardcoded_key_without_a_hop_keeps_full_confidence():
+    found = hardcoded("HardcodedKeys.java")
+    assert {f.confidence for f in found.values()} == {1.0}
+
+
+def test_hardcoded_key_kit_batch_exporter_is_reported_at_the_literal():
+    path = Path(__file__).parent.parent / "sample-repos" / "java" / "BatchExporter.java"
+    results = [f for f in CodeScanner().scan(path, path.parent) if f.raw_name == HARDCODED]
+    assert [f.location.line for f in results] == [9]
+    assert "<redacted>" in results[0].location.snippet
+
+
+def test_hardcoded_key_kit_hmac_decoy_is_outside_the_rule():
+    path = Path(__file__).parent.parent / "sample-repos" / "java" / "ConfigSync.java"
+    assert not [f for f in CodeScanner().scan(path, path.parent) if f.raw_name == HARDCODED]

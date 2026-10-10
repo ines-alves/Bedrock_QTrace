@@ -161,6 +161,23 @@
     from: transform
     pattern: '^(?P<algo>(?!RSA)[^/]+)(?:/(?P<mode>[^/]+))?(?:/(?P<padding>[^/]+))?$'
 
+# Hard-coded key (M1M3-02, M1M3-04): fires only when a literal reaches SecretKeySpec(..., "AES"), inline or
+# through a file-scope constant. The finding is at the literal's line. A key spec for another algorithm
+# (HmacSHA256) is outside the rule.
+- id: JAVA_HARDCODED_AES_KEY
+  language: java
+  pattern: >-
+    \bnew\s+SecretKeySpec\(\s*(?:(?P<literal>"(?:[^"\\]|\\.)*"\s*\.getBytes\([^)]*\))|(?P<key_arg>[A-Za-z_]\w*))\s*,\s*"AES"\s*\)
+  raw_name: hard-coded symmetric key
+  kind_hint: key
+  usage: encryption
+  library: javax.crypto
+  literal_key: AES
+  redact: true
+  extra:
+    hygiene_only: true
+    hygiene_flags: [hardcoded_key]
+
 # ---- insecure RNG -------------------------------------------------------------------------------
 
 # Hygiene warning, not a primitive (M1M3-04). SecureRandom is a decoy and has no rule.
