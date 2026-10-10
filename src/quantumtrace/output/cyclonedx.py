@@ -14,7 +14,7 @@ from quantumtrace.engine.registries import TLSRegistry
 from quantumtrace.models import CryptoAsset, Finding, KindHint, Location, ScanResult, TLSSession
 
 SPEC_VERSION = "1.6"
-_PURL_TYPES = {"python": "pypi", "go": "golang"}
+_PURL_TYPES = {"python": "pypi", "go": "golang", "java": "maven"}
 _REF_KEYS = {"ref", "algorithmRef", "signatureAlgorithmRef", "subjectPublicKeyRef"}
 _REF_LISTS = {"dependsOn", "algorithms"}
 _VALIDATOR = JsonStrictValidator(SchemaVersion.V1_6)
@@ -175,13 +175,18 @@ def _key_material(finding: Finding, owner: dict[str, str]) -> dict[str, Any]:
 
 def _library(finding: Finding) -> dict[str, Any]:
     name, _, version = finding.raw_name.partition("==")
+    # Maven names are groupId:artifactId: the group is the purl namespace, the artifact the name.
+    group, name = name.split(":", 1) if finding.language == "java" else (None, name)
     purl_type = _PURL_TYPES.get(finding.language or "")
     return _present(
         type="library",
         **{"bom-ref": f"library-{finding.id}"},
+        group=group,
         name=name,
         version=version or None,
-        purl=None if purl_type is None else f"pkg:{purl_type}/{name}" + (f"@{version}" if version else ""),
+        purl=None
+        if purl_type is None
+        else f"pkg:{purl_type}/{group + '/' if group else ''}{name}" + (f"@{version}" if version else ""),
         evidence={"occurrences": _occurrences([finding.location], {})},
     )
 
