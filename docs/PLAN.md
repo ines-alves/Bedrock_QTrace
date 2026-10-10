@@ -620,6 +620,24 @@ alone never prove negotiation. Optional repeatable --probe uses existing run(pro
 and the M2 probe_endpoints adapter after file scanning, with explicit failures and
 no network access unless probes are requested. See communication/M1M2agreement.md.
 
+**M2 consumption follow-up (user-relayed 2026-10-10; M1M2-06):** A
+session_id group need not contain a PROTOCOL_VERSION finding or extra.session.
+ClientHello-only captures retain offers and ScanError; missing session metadata
+is incomplete evidence, not a conflict. ServerHello-only metadata may have null
+offered_* lists; preserve raw nulls and normalize only typed output lists. A
+HelloRetryRequest alone establishes no negotiated selection, including on its
+session finding. Never fabricate selected algorithms or observable authentication.
+PROTOCOL_VERSION retains its label (e.g. TLS 1.3); an observed extra.codepoint
+(e.g. 0x0304) belongs only to the registry versions map, even with iana_name=None.
+Dispatch by kind_hint rather than a single detector string: M2 uses
+pcap.tls.version, pcap.tls.cipher_suite, pcap.tls.group and
+pcap.tls.signature_scheme to avoid finding ID collisions. TLS 1.2 ECDHE group
+evidence uses the actual ServerKeyExchange frame. Session IDs include
+scan-root-relative Location.file and are stable only for the same invocation
+root and observations; direct-file and repository-root scans may differ. M1
+plans consumption accordingly; M2's tested commit/fixture verification remains
+pending under M1M2-06. Frozen contracts remain unchanged.
+
 **Finding.extra evidence conventions (initial freeze):** this dictionary remains
 an extensible, JSON-compatible evidence payload. Keys below are optional; omit
 unobserved values or represent them as `None`, and do not infer observations from
@@ -1125,6 +1143,12 @@ Owner contributions follow [GOLDEN.md](GOLDEN.md) and
 [golden.schema.json](golden.schema.json): a top-level list with explicit asset,
 finding, session and count entries. M4 supplies confirmed cloud rows; raw warnings
 and counts do not inflate algorithm accuracy. M1 implements the evaluator in 1.12.
+
+Golden evaluation fixes the scan root to the repository root so Location.file
+matches repository-relative row sources. Starter/portable network rows use source
+and stable observed selectors such as session_sni and transport, not literal
+session_id hashes. Ambiguous matches fail explicitly. Direct-file scans keep
+their parent-relative paths and are tested separately (M1M2-06; GOLDEN.md).
 
 `make eval` matches produced assets/occurrences to the golden list (tolerance ±2 lines) and prints **precision, recall and tier accuracy** per source type plus a list of misses and false positives. Target: ≥ 0.95 recall, ≥ 0.95 precision on the starter kit (it is small — every miss is visible). Show the table in the pitch.
 

@@ -48,6 +48,12 @@ Why: `Scanner.can_handle` takes a `Path`, and a `host:port` is not one. `ScanOpt
 Preference: as stated. Without `--probe` nothing touches the network.
 Fallback: M2 exposes `python -m quantumtrace.scanners.network.probe host:port` printing findings as JSON, and M1 skips the flag.
 
+### M1M2-06 | By n/a
+Ask: M2 confirms the incomplete-handshake, path-dependent identity, version namespace, detector and frame clarifications relayed by the user on 2026-10-10, with a tested implementation commit reference.
+Why: M1 tasks 1.9 and 1.12 must consume partial captures without false conflicts or invocation-dependent golden matches.
+Preference: ClientHello-only groups retain offered Findings plus ScanError without a PROTOCOL_VERSION/session finding or extra.session; ServerHello-only groups can carry extra.session with offered_* null. HelloRetryRequest alone establishes no negotiated selection and its session finding has negotiated=false. Location.file is scan-root-relative (direct file scans use the parent), so session_id can differ across invocations. Golden evaluation uses a fixed repository root and avoids literal session_id selectors. PROTOCOL_VERSION keeps the observed label (for example TLS 1.3), may carry extra.codepoint=0x0304 with extra.iana_name=None, and resolves only through the registry versions map. Detector values pcap.tls.version, pcap.tls.cipher_suite, pcap.tls.group and pcap.tls.signature_scheme distinguish namespaces; M1 dispatches by kind_hint, not one detector string. TLS 1.2 ECDHE group evidence anchors at ServerKeyExchange. M1 retains partial evidence/errors, treats missing or null observations as incompleteness rather than conflicting values, and never promotes offers or retries to negotiated evidence. No frozen model changes.
+Fallback: Preserve incomplete groups and errors with explicit unknowns; owner behavior remains unverified until the tested commit and fixtures are reviewed.
+
 ---
 
 ## Replies

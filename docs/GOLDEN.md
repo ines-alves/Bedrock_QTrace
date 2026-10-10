@@ -12,6 +12,22 @@ Location.resource_id; `resource_alias` matches Finding.extra.alias instead.
 `line` is one-based, with a matching tolerance of two lines. `note` records
 verification or uncertainty, but unverified rows cannot establish a passing gate.
 
+The evaluator scans with the repository root fixed as the scan root, ensuring
+Location.file matches each repository-relative source. A direct-file scan instead
+uses the file's parent (network.pcap versus network-capture/network.pcap), which
+can change session_id because the hash includes Location.file. Do not use literal
+session_id selectors in starter or portable network golden rows; use source plus
+observed selectors such as session_sni and transport. The schema still supports
+session_id for fixtures with an explicitly fixed root. Ambiguous matches fail;
+never choose an arbitrary session or silently match by basename.
+
+Partial captures are separate fixture expectations: ClientHello-only groups may
+have offers plus ScanError without extra.session; ServerHello-only groups may
+have null offered_* values. HelloRetryRequest alone establishes no negotiated
+selection. Keep incomplete coverage/errors explicit; these fixtures do not change
+the complete starter-kit counts. M2 behavior was relayed by the user and awaits
+tested owner publication/review under M1M2-06.
+
 | Kind | Required fields beyond kind/source | Optional assertions/selectors |
 |---|---|---|
 | asset | canonical, tier | usage, asset_type, resource/resource_alias, line, classically_broken, hndl_exposed, negotiated |
