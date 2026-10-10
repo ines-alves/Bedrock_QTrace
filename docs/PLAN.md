@@ -608,6 +608,18 @@ singular/plural test, example, and mock path segments (including `_`/`-` suffixe
 plus `test_*.py`/`*_test.py` conventions; unrelated substrings such as `contest` and
 `mockery` do not match. Windows separators are supported.
 
+**Network session ownership (M1M2-01..05):** M2 pairs transport observations and
+emits Finding/ScanError only. M1 task 1.9 constructs classified TLSSession views by
+session_id from raw extra.session and central engine results; analyze/run signatures
+remain unchanged. Raw TLS lists retain hex codepoints and client order; output
+uses verified registry iana names, retaining hex spellings for unresolved codes.
+Resolve cipher-suite/group/signature namespaces through kind_hint. SSH keeps wire
+names and each Finding's actual source type. Preserve unknown authentication,
+actual packet evidence frames, and offered versus selected observations; offers
+alone never prove negotiation. Optional repeatable --probe uses existing run(probes)
+and the M2 probe_endpoints adapter after file scanning, with explicit failures and
+no network access unless probes are requested. See communication/M1M2agreement.md.
+
 **Finding.extra evidence conventions (initial freeze):** this dictionary remains
 an extensible, JSON-compatible evidence payload. Keys below are optional; omit
 unobserved values or represent them as `None`, and do not infer observations from
@@ -1018,7 +1030,7 @@ All four are generalists, so the split is by **module ownership** with balanced 
 | 2.2 | `purepy.py`: pure-Python classic-pcap + Ethernet/IPv4/TCP reader and TLS ClientHello/ServerHello parser (≈ 100 lines; a working prototype logic is described in Appendix D.1). Used when tshark is missing, and as the SSH transport | P0 | parses starter pcap without tshark |
 | 2.3 | `tls_registry.yaml` generator from IANA CSVs + PQC overrides (7.4) + GREASE filter helper | P0 | |
 | 2.4 | `tshark.py`: run `tshark -r <file> -Y "tls.handshake.type==1 or tls.handshake.type==2 or tls.handshake.type==11 or tls.handshake.type==12" -T json`; verify field names with `tshark -G fields \| grep tls.handshake`; request **numeric** values. Ports 587 (SMTP STARTTLS), 5432 (Postgres SSLRequest), 636 (LDAPS), 993 (IMAPS) must all be decoded — add `-d tcp.port==N,tls` and check STARTTLS/pgsql dissectors; otherwise fall back to `purepy.py` | P0 | all 97 sessions found |
-| 2.5 | `tls_session.py`: pair ClientHello/ServerHello by TCP stream, produce `TLSSession` + Findings: offered (negotiated=False) and selected (negotiated=True) cipher suite, group, version, sig schemes; `service` label from port (`https`, `ldaps`, `imaps`, `smtp-starttls`, `postgres`); `session_id` on all findings. TLS 1.3 version comes from `supported_versions`, not `legacy_version` | P0 | |
+| 2.5 | `tls_session.py`: pair ClientHello/ServerHello by TCP stream, produce raw session evidence in `Finding.extra["session"]` + Findings (M1 constructs classified `TLSSession` views in task 1.9): offered (negotiated=False) and selected (negotiated=True) cipher suite, group, version, sig schemes; `service` label from port (`https`, `ldaps`, `imaps`, `smtp-starttls`, `postgres`); `session_id` on all findings. TLS 1.3 version comes from `supported_versions`, not `legacy_version` | P0 | |
 | 2.6 | `ssh.py`: SSH banner + `SSH_MSG_KEXINIT` (msg 20) name-lists: kex, host key, cipher c→s, MAC. Negotiated = first client algorithm also in the server list. Findings with `source_type=SSH`, offered vs negotiated. 24 sessions in the kit (14 legacy / 10 modern); note OpenSSH banner versions as evidence | P0 | |
 | 2.7 | Plaintext detection: TCP flows on port 80 with `HTTP/1.1` and STARTTLS flows that never upgrade → `KindHint.PLAINTEXT` finding (14 HTTP sessions in the kit) | P1 | |
 | 2.8 | Generate own fixtures (`gen_pcaps.sh`, OpenSSL ≥ 3.5 + `tcpdump -i lo`) for what the kit **lacks**: (a) TLS 1.2 ECDHE-ECDSA P-256 with certificate, (b) client offers `X25519MLKEM768` but server only x25519 ("the server is the blocker"), (c) TLS 1.0 3DES (`DES-CBC3-SHA@SECLEVEL=0`), (d) TLS 1.3 hybrid with a keylog file | P0 | 4 small pcaps committed |
