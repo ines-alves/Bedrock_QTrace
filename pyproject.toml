@@ -20,6 +20,9 @@ dependencies = [
     "python-multipart>=0.0.9",
 ]
 
+[project.scripts]
+qtrace = "quantumtrace.cli:main"
+
 [project.optional-dependencies]
 probe = ["sslyze>=6"]
 dev = ["pytest>=8", "pytest-cov", "ruff>=0.6", "mypy", "types-PyYAML"]
@@ -46,3 +49,4 @@ select = ["E4", "E7", "E9", "F", "I"]
 [tool.mypy]
 python_version = "3.12"
 files = ["src/quantumtrace"]
+plugins = ["pydantic.mypy"]

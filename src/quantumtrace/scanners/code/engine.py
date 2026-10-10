@@ -19,13 +19,22 @@ Rule fields (YAML list of mappings):
   scope: file | function                                     matches and no forbids regex matches, in the
                                                              whole file (default) or the enclosing function
   extra: {key: json value}                                   static extra (hygiene_only, hand_rolled, ...)
-  redact: true                                               replace string literals in the snippet
+  redact: true                                               redact every string literal in the snippet
   literal_key: <family>                                      hard-coded key rule: see below
+  values_must_match: {group: regex}                          drop the hit unless each named group's value,
+                                                             after constant resolution, fully matches
+                                                             (an identifier that did not resolve is
+                                                             always dropped, whatever its spelling)
+  absorbed_by: [RULE_ID, ...]                                drop the hit when its match starts inside the
+                                                             match of a hit of one of these rules
   emit: false                                                record only, produce no finding
 
 Pattern groups: a group named X holds a literal; a group named X_ref holds an identifier that is
 resolved through file-scope constants and Python parameter defaults. key_size and key_size_ref are
-the size groups. A group named key_arg holds the identifier of the key a sink consumes.
+the size groups. A group named key_arg holds the identifier of the key a sink consumes. A group named
+key_literal holds an inline string or bytes literal passed as the key (Go []byte("...") included): with
+key_size_from_length the size is its decoded length in bits, key_size_source "literal". It never stays
+readable in a snippet.
 
 Key size flow (inherit_key_size): a sink takes a size only when its key argument traces, inside the
 file, to a source of the same family: the sized generation is in a function that returns it (the
@@ -47,6 +56,13 @@ reached through call-site arguments of the enclosing function (same flow as inhe
 FLOW_DEPTH hops). The finding moves to the line of the literal. Keys that come from a generation, an
 import, a local assignment or an unresolvable call site never qualify. A literal reached through a
 call-site hop has confidence at most 0.8. The size of the literal is never reported.
+
+Snippets: every string literal of the matched line is replaced by <redacted> unless its text equals a
+value one of the rule's literal groups captured (an algorithm, transform or name). A key literal that
+no group captured never reaches a snippet. `redact: true` keeps no literal at all.
+
+Python import aliases (import hashlib as h, from hashlib import md5) are rewritten to the canonical
+spelling in the masked text before any rule runs: see python_ast.py.
 """
 
 from __future__ import annotations
@@ -64,6 +80,7 @@ import yaml
 
 from quantumtrace.models import Finding, KindHint, Location, ScanError, SourceType, Usage
 from quantumtrace.scanners.base import finding_id, is_test_path, register
+from quantumtrace.scanners.code.python_ast import resolve_aliases
 
 LANGUAGE_BY_SUFFIX = {".py": "python", ".java": "java", ".go": "go"}
 RULES_DIR = Path(__file__).parent / "rules"
@@ -103,6 +120,8 @@ _RULE_KEYS = {
     "forbids",
     "scope",
     "literal_key",
+    "values_must_match",
+    "absorbed_by",
 }
 _CASE_KEYS = {"mode", "mode_source", "requires", "forbids"}
 _RESERVED_EXTRA = {
@@ -160,6 +179,8 @@ class Rule:
     forbids: tuple[re.Pattern[str], ...] = ()
     scope: str = "file"
     literal_key: str | None = None
+    values_must_match: tuple[tuple[str, re.Pattern[str]], ...] = ()
+    absorbed_by: tuple[str, ...] = ()
 
     @property
     def expects_key_size(self) -> bool:
@@ -226,6 +247,12 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         groups = _compile(raw["pattern"], where).groupindex
         if not isinstance(literal_key, str) or not ({"key_arg", "literal"} & set(groups)):
             raise ValueError(f"{where}: literal_key needs a family name and a key_arg or literal group")
+    must_match = raw.get("values_must_match") or {}
+    if not isinstance(must_match, dict) or not all(isinstance(v, str) for v in must_match.values()):
+        raise ValueError(f"{where}: values_must_match must map group names to regex strings")
+    absorbed_by = raw.get("absorbed_by") or []
+    if not isinstance(absorbed_by, list) or not all(isinstance(v, str) for v in absorbed_by):
+        raise ValueError(f"{where}: absorbed_by must be a list of rule ids")
     cases = []
     for case in raw.get("mode_cases") or []:
         bad = set(case) - _CASE_KEYS
@@ -269,6 +296,8 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         forbids=conditions["forbids"],
         scope=scope,
         literal_key=literal_key,
+        values_must_match=tuple((group, _compile(p, where)) for group, p in must_match.items()),
+        absorbed_by=tuple(absorbed_by),
     )
 
 
@@ -289,6 +318,10 @@ def load_rules(language: str, rules_dir: Path = RULES_DIR) -> tuple[Rule, ...]:
             raise ValueError(f"{path}: duplicate rule id {rule.id}")
         seen.add(rule.id)
         rules.append(rule)
+    for rule in rules:
+        unknown = set(rule.absorbed_by) - seen
+        if unknown:
+            raise ValueError(f"{path}: rule {rule.id} is absorbed_by unknown rule {sorted(unknown)}")
     return tuple(rules)
 
 
@@ -580,6 +613,8 @@ class _Hit:
     usage_source: str | None = None
     sink_generations: frozenset[int] | None = None
     literal_inline: bool = False
+    visible: frozenset[str] = frozenset()
+    span: tuple[int, int] = (0, 0)
 
 
 def _literal_length(value: str | bytes) -> int:
@@ -596,6 +631,12 @@ def _size_from(
     if literal:
         size = _parse_int(literal)
         return (size * 8 if rule.key_size_unit == "bytes" else size), "literal", None
+    key_literal = groups.get("key_literal")
+    if key_literal and rule.key_size_from_length:
+        inline = _parse_value(key_literal, rule.language)
+        if isinstance(inline, (str, bytes)):
+            return _literal_length(inline) * 8, "literal", None
+        return None, None, None
     ref = groups.get("key_size_ref")
     if not ref:
         return None, None, None
@@ -626,11 +667,13 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
         line = masked.count("\n", 0, m.start()) + 1
         groups: dict[str, str | None] = dict(m.groupdict())
         size, size_source, from_line = _size_from(rule, groups, consts, line)
+        visible = _visible_literals(groups)
 
         if size is None and rule.lookahead_pattern is not None:
             window = "\n".join(lines[line - 1 : line + rule.lookahead_lines])
             look = rule.lookahead_pattern.search(window)
             if look:
+                visible |= _visible_literals(look.groupdict())
                 look_line = line + window.count("\n", 0, look.start())
                 size, _, from_line = _size_from(rule, dict(look.groupdict()), consts, look_line)
                 size_source = "lookahead" if size is not None else None
@@ -665,6 +708,12 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
             else:
                 values[name] = value
 
+        if any(
+            group in unresolved or not (value := values.get(group)) or not pattern.fullmatch(value)
+            for group, pattern in rule.values_must_match
+        ):
+            continue
+
         if rule.refine is not None:
             source_group, pattern = rule.refine
             refined = pattern.search(values.get(source_group, ""))
@@ -694,6 +743,8 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
             key_arg=key_arg,
             resolved_from_line=from_line,
             literal_inline=bool(groups.get("literal")),
+            visible=frozenset() if rule.redact else frozenset(visible),
+            span=m.span(),
         )
 
 
@@ -1041,13 +1092,48 @@ def _conditions_hold(hits: list[_Hit], masked: str, language: str) -> list[_Hit]
     return kept
 
 
-def _redact(snippet: str) -> str:
-    return _STRING_LITERAL.sub("<redacted>", snippet)
+_NEVER_VISIBLE = frozenset({"key_arg", "literal", "key_literal"})
+
+
+def _visible_literals(groups: dict[str, str | None]) -> set[str]:
+    """Literal group values that may stay readable in a snippet (never a key group)."""
+    return {
+        value
+        for name, value in groups.items()
+        if value and name not in _NEVER_VISIBLE and not name.endswith("_ref")
+    }
+
+
+def _drop_absorbed(hits: list[_Hit]) -> list[_Hit]:
+    """Drop a hit whose match starts inside the match of a hit of a rule named in its `absorbed_by`."""
+    if not any(h.rule.absorbed_by for h in hits):
+        return hits
+    return [
+        hit
+        for hit in hits
+        if not any(
+            other.rule.id in hit.rule.absorbed_by and other.span[0] <= hit.span[0] < other.span[1]
+            for other in hits
+        )
+    ]
+
+
+def _redact(snippet: str, visible: frozenset[str]) -> str:
+    """Replace every string literal except one whose text equals a captured value."""
+
+    def replace(match: re.Match[str]) -> str:
+        token = match.group(0)
+        inner = token.lstrip("bBrRuUfF")[1:-1]
+        return token if inner in visible else "<redacted>"
+
+    return _STRING_LITERAL.sub(replace, snippet)
 
 
 def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | list[Rule]) -> list[Finding]:
     """Scan one file's text. `file` is the path relative to the scan root, in posix form."""
     masked = mask_comments(text, language)
+    if language == "python":
+        masked = resolve_aliases(text, masked)
     consts = Constants(masked, language)
     lines = masked.split("\n")
     original = text.split("\n")
@@ -1056,7 +1142,7 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
     hits: list[_Hit] = []
     for rule in rules:
         hits.extend(_match_hits(rule, masked, lines, consts))
-    hits = _conditions_hold(hits, masked, language)
+    hits = _drop_absorbed(_conditions_hold(hits, masked, language))
     if any(
         h.rule.mode_cases or h.rule.literal_key or (h.rule.inherit_key_size and h.key_size is None)
         for h in hits
@@ -1078,9 +1164,7 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
             continue
         detector = f"code.{language}.regex:{hit.rule.id}"
         snippet = original[hit.line - 1].strip()
-        if hit.rule.redact:
-            snippet = _redact(snippet)
-        snippet = snippet[:SNIPPET_MAX]
+        snippet = _redact(snippet, hit.visible)[:SNIPPET_MAX]
         location = Location(
             source_type=SourceType.CODE,
             file=file,

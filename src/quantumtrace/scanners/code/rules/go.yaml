@@ -12,7 +12,9 @@
 # the call rules of that package detect. The `forbids` of each import rule lists those calls, so a
 # call finding always wins and crypto/sha256 imported only for HMAC or PBKDF2 stays silent.
 #
-# Scope today: the starter-kit scenarios and their SAFE decoys. Wider library coverage comes later.
+# Scope today: the starter-kit scenarios and their SAFE decoys, plus crypto/ecdsa, crypto/ecdh,
+# x/crypto/curve25519 and crypto/mlkem. Not covered: crypto/dsa, crypto/tls curve preferences,
+# elliptic.P256() outside ecdsa.GenerateKey, key loading (x509, ParseRawPrivateKey).
 
 # ---- hashes -------------------------------------------------------------------------------------
 
@@ -77,7 +79,8 @@
 # ---- HMAC and PBKDF2 ----------------------------------------------------------------------------
 
 # A hash constructor handed to hmac.New is part of that composite and is not reported separately.
-# A function that loops and XORs derived blocks is a hand-rolled PBKDF2 and is reported below, not here.
+# A function that feeds the HMAC output back and XOR-accumulates blocks is a hand-rolled PBKDF2 and is
+# reported below, not here.
 - id: GO_HMAC
   language: go
   pattern: '\bhmac\.New\(\s*(?P<name>md5|sha1|sha256|sha512)\.New\s*,'
@@ -86,7 +89,7 @@
   usage: mac
   library: crypto/hmac
   scope: function
-  forbids: ['(?s)\bfor\b.*\^']
+  forbids: ['(?s)\A(?=.*?\b(?P<arr>[A-Za-z_]\w*)\[(?P<idx>[A-Za-z_]\w*)\]\s*(?:\^=|=\s*(?P=arr)\[(?P=idx)\]\s*\^))(?=.*?\b(?P<u>[A-Za-z_]\w*)\s*:?=\s*[A-Za-z_]\w*\.Sum\(.*?\.Write\(\s*(?P=u)\s*\))']
 
 - id: GO_HMAC_SHA224
   language: go
@@ -96,7 +99,7 @@
   usage: mac
   library: crypto/hmac
   scope: function
-  forbids: ['(?s)\bfor\b.*\^']
+  forbids: ['(?s)\A(?=.*?\b(?P<arr>[A-Za-z_]\w*)\[(?P<idx>[A-Za-z_]\w*)\]\s*(?:\^=|=\s*(?P=arr)\[(?P=idx)\]\s*\^))(?=.*?\b(?P<u>[A-Za-z_]\w*)\s*:?=\s*[A-Za-z_]\w*\.Sum\(.*?\.Write\(\s*(?P=u)\s*\))']
 
 - id: GO_HMAC_SHA384
   language: go
@@ -106,12 +109,14 @@
   usage: mac
   library: crypto/hmac
   scope: function
-  forbids: ['(?s)\bfor\b.*\^']
+  forbids: ['(?s)\A(?=.*?\b(?P<arr>[A-Za-z_]\w*)\[(?P<idx>[A-Za-z_]\w*)\]\s*(?:\^=|=\s*(?P=arr)\[(?P=idx)\]\s*\^))(?=.*?\b(?P<u>[A-Za-z_]\w*)\s*:?=\s*[A-Za-z_]\w*\.Sum\(.*?\.Write\(\s*(?P=u)\s*\))']
 
 # Hand-rolled PBKDF2 (M1M3-05, M1M3-08): HMAC in an iteration loop whose output blocks are XORed,
 # with no pbkdf2 call. Every hmac.New of the function is evidence of the same asset; the first is the
-# anchor. The conjunction of a loop and an XOR in the same function is what separates it from a
-# plain HMAC (config-sync).
+# anchor. Two things must hold in the same function: an HMAC output that is written back into the HMAC
+# (u := mac.Sum(nil) ... mac.Write(u)) and an indexed XOR accumulation (t[j] ^= u[j], or t[j] = t[j] ^ u[j]).
+# A loop and a "^" alone are not enough (a constant-time tag compare has both). The rule is a heuristic,
+# so its confidence is at most 0.8. GO_HMAC and its variants forbid the same two conditions.
 - id: GO_PBKDF2_HAND_ROLLED_SHA256
   language: go
   pattern: '\bhmac\.New\(\s*sha256\.New\s*,'
@@ -120,7 +125,10 @@
   usage: kdf
   library: crypto/hmac
   scope: function
-  requires: ['(?s)\bfor\b.*\^']
+  confidence: 0.8
+  requires:
+    - '\b(?P<arr>[A-Za-z_]\w*)\[(?P<idx>[A-Za-z_]\w*)\]\s*(?:\^=|=\s*(?P=arr)\[(?P=idx)\]\s*\^)'
+    - '(?s)\b(?P<u>[A-Za-z_]\w*)\s*:?=\s*[A-Za-z_]\w*\.Sum\(.*?\.Write\(\s*(?P=u)\s*\)'
   forbids: ['\bpbkdf2\.Key\(']
   extra:
     hand_rolled: true
@@ -133,7 +141,10 @@
   usage: kdf
   library: crypto/hmac
   scope: function
-  requires: ['(?s)\bfor\b.*\^']
+  confidence: 0.8
+  requires:
+    - '\b(?P<arr>[A-Za-z_]\w*)\[(?P<idx>[A-Za-z_]\w*)\]\s*(?:\^=|=\s*(?P=arr)\[(?P=idx)\]\s*\^)'
+    - '(?s)\b(?P<u>[A-Za-z_]\w*)\s*:?=\s*[A-Za-z_]\w*\.Sum\(.*?\.Write\(\s*(?P=u)\s*\)'
   forbids: ['\bpbkdf2\.Key\(']
   extra:
     hand_rolled: true
@@ -146,7 +157,10 @@
   usage: kdf
   library: crypto/hmac
   scope: function
-  requires: ['(?s)\bfor\b.*\^']
+  confidence: 0.8
+  requires:
+    - '\b(?P<arr>[A-Za-z_]\w*)\[(?P<idx>[A-Za-z_]\w*)\]\s*(?:\^=|=\s*(?P=arr)\[(?P=idx)\]\s*\^)'
+    - '(?s)\b(?P<u>[A-Za-z_]\w*)\s*:?=\s*[A-Za-z_]\w*\.Sum\(.*?\.Write\(\s*(?P=u)\s*\)'
   forbids: ['\bpbkdf2\.Key\(']
   extra:
     hand_rolled: true
@@ -238,6 +252,70 @@
   usage: signature
   library: crypto/ed25519
 
+# ---- EC, key agreement and ML-KEM (task 6, Go slice) --------------------------------------------
+
+# crypto/ecdsa. The usage is the algorithm's own: ECDSA signs. The curve is reported only when it is
+# the elliptic.PNNN() constructor in the call (as seen: P256); a curve held in a variable gives ECDSA
+# with no curve. Names checked on pkg.go.dev/crypto/ecdsa, 2026-10-10. # verify
+- id: GO_ECDSA_GENERATE
+  language: go
+  pattern: '\becdsa\.GenerateKey\(\s*(?:elliptic\.(?P<curve>P224|P256|P384|P521)\(\))?'
+  raw_name: ECDSA
+  kind_hint: algorithm
+  usage: signature
+  curve: '{curve}'
+  library: crypto/ecdsa
+
+# Sign and verify sites carry no curve: it belongs to the key.
+- id: GO_ECDSA_SIGN_VERIFY
+  language: go
+  pattern: '\becdsa\.(?:Sign|SignASN1|Verify|VerifyASN1)\('
+  raw_name: ECDSA
+  kind_hint: algorithm
+  usage: signature
+  library: crypto/ecdsa
+
+# crypto/ecdh. The curve constructor is the evidence (ecdh.P256().GenerateKey(...), NewPrivateKey,
+# NewPublicKey). X25519 through crypto/ecdh is reported as X25519, like the Python and x/crypto forms.
+# Names checked on pkg.go.dev/crypto/ecdh, 2026-10-10. # verify
+- id: GO_ECDH_CURVE
+  language: go
+  pattern: '\becdh\.(?P<curve>P256|P384|P521)\(\)'
+  raw_name: ECDH
+  kind_hint: algorithm
+  usage: key_exchange
+  curve: '{curve}'
+  library: crypto/ecdh
+
+- id: GO_ECDH_X25519
+  language: go
+  pattern: '\becdh\.X25519\(\)'
+  raw_name: X25519
+  kind_hint: algorithm
+  usage: key_exchange
+  library: crypto/ecdh
+
+# golang.org/x/crypto/curve25519 (X25519 is the recommended call, ScalarMult is deprecated).
+# Names checked on pkg.go.dev/golang.org/x/crypto/curve25519, 2026-10-10. # verify
+- id: GO_CURVE25519
+  language: go
+  pattern: '\bcurve25519\.(?:X25519|ScalarMult|ScalarBaseMult)\('
+  raw_name: X25519
+  kind_hint: algorithm
+  usage: key_exchange
+  library: golang.org/x/crypto/curve25519
+
+# crypto/mlkem (FIPS 203). The parameter set is in the function name and is kept in raw_name. A
+# post-quantum KEM: reported as a positive finding, not a weakness.
+# Names checked on pkg.go.dev/crypto/mlkem, 2026-10-10. # verify
+- id: GO_MLKEM
+  language: go
+  pattern: '\bmlkem\.(?:GenerateKey|NewDecapsulationKey|NewEncapsulationKey)(?P<set>768|1024)\('
+  raw_name: 'ML-KEM-{set}'
+  kind_hint: algorithm
+  usage: key_exchange
+  library: crypto/mlkem
+
 # ---- AES ----------------------------------------------------------------------------------------
 
 # Key source: make([]byte, N) of a named or literal length. Never reported on its own. It only gives
@@ -253,7 +331,8 @@
   emit: false
 
 # aes.NewCipher(key). The mode comes from what the enclosing function does with the block, the key
-# size from a constant directly, otherwise through a flow link.
+# size from an inline []byte("...") literal (group key_literal, its length) or a constant directly,
+# otherwise through a flow link.
 #
 # ECB needs affirmative evidence (M1M3-06): the function encrypts a block inside a loop and shows no
 # chaining state (no XOR, IV, previous block or cipher.New* mode wrapper). A regex cannot prove that
@@ -261,7 +340,8 @@
 # else leaves mode None.
 - id: GO_AES_NEWCIPHER
   language: go
-  pattern: '\baes\.NewCipher\(\s*(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*))\s*\)'
+  pattern: >-
+    \baes\.NewCipher\(\s*(?:(?P<key_literal>\[\]byte\(\s*(?:"(?:[^"\\]|\\.)*"|`[^`]*`)\s*\))|(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*)))\s*\)
   raw_name: AES
   kind_hint: algorithm
   usage: encryption
@@ -307,8 +387,9 @@
 # ---- insecure RNG -------------------------------------------------------------------------------
 
 # Hygiene warning, not a primitive (M1M3-04). rand.Read means crypto/rand or math/rand depending on
-# the import, so the call counts only when math/rand is imported (with or without the rand name) and
-# crypto/rand is not. crypto/rand is a decoy and has no rule.
+# the import, so the call counts only when math/rand is imported under the name rand and crypto/rand
+# is not bound to that name (crypto/rand imported as crand leaves rand.X a math/rand call).
+# crypto/rand is a decoy and has no rule.
 - id: GO_MATH_RAND
   language: go
   pattern: '\brand\.(?:[A-Z]\w*)\('
@@ -317,7 +398,7 @@
   usage: rng
   library: math/rand
   requires: ['^[ \t]*(?:import[ \t]+)?(?:rand[ \t]+)?"math/rand(?:/v2)?"']
-  forbids: ['"crypto/rand"']
+  forbids: ['^[ \t]*(?:import[ \t]+)?(?:rand[ \t]+)?"crypto/rand"']
   extra:
     hygiene_only: true
     hygiene_flags: [insecure_rng]
@@ -326,7 +407,7 @@
 
 - id: GO_IMPORT_MD5
   language: go
-  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/md5"'
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>crypto/md5)"'
   raw_name: md5
   kind_hint: algorithm
   usage: hash
@@ -336,7 +417,7 @@
 
 - id: GO_IMPORT_SHA1
   language: go
-  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/sha1"'
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>crypto/sha1)"'
   raw_name: sha1
   kind_hint: algorithm
   usage: hash
@@ -348,7 +429,7 @@
 # That use is a call that wins.
 - id: GO_IMPORT_SHA256
   language: go
-  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/sha256"'
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>crypto/sha256)"'
   raw_name: sha256
   kind_hint: algorithm
   usage: hash
@@ -358,7 +439,7 @@
 
 - id: GO_IMPORT_SHA512
   language: go
-  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/sha512"'
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>crypto/sha512)"'
   raw_name: sha512
   kind_hint: algorithm
   usage: hash
@@ -368,7 +449,7 @@
 
 - id: GO_IMPORT_RSA
   language: go
-  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/rsa"'
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>crypto/rsa)"'
   raw_name: RSA
   kind_hint: algorithm
   usage: unknown
@@ -378,7 +459,7 @@
 
 - id: GO_IMPORT_ED25519
   language: go
-  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/ed25519"'
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>crypto/ed25519)"'
   raw_name: Ed25519
   kind_hint: algorithm
   usage: signature
@@ -388,7 +469,7 @@
 
 - id: GO_IMPORT_AES
   language: go
-  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/aes"'
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>crypto/aes)"'
   raw_name: AES
   kind_hint: algorithm
   usage: encryption
@@ -396,16 +477,72 @@
   confidence: 0.6
   forbids: ['\baes\.NewCipher\b']
 
-# An aliased math/rand import (mrand) is the usual survivor: its calls carry the alias.
-- id: GO_IMPORT_MATH_RAND
+- id: GO_IMPORT_ECDSA
   language: go
-  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"math/rand(?:/v2)?"'
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>crypto/ecdsa)"'
+  raw_name: ECDSA
+  kind_hint: algorithm
+  usage: signature
+  library: crypto/ecdsa
+  confidence: 0.6
+  forbids: ['\becdsa\.(?:GenerateKey|Sign|SignASN1|Verify|VerifyASN1)\b']
+
+- id: GO_IMPORT_ECDH
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>crypto/ecdh)"'
+  raw_name: ECDH
+  kind_hint: algorithm
+  usage: key_exchange
+  library: crypto/ecdh
+  confidence: 0.6
+  forbids: ['\becdh\.(?:P256|P384|P521|X25519)\b']
+
+- id: GO_IMPORT_CURVE25519
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>golang\.org/x/crypto/curve25519)"'
+  raw_name: X25519
+  kind_hint: algorithm
+  usage: key_exchange
+  library: golang.org/x/crypto/curve25519
+  confidence: 0.6
+  forbids: ['\bcurve25519\.(?:X25519|ScalarMult|ScalarBaseMult)\b']
+
+# The parameter set is unknown from the import alone, so raw_name carries the family only.
+- id: GO_IMPORT_MLKEM
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"(?P<pkg>crypto/mlkem)"'
+  raw_name: ML-KEM
+  kind_hint: algorithm
+  usage: key_exchange
+  library: crypto/mlkem
+  confidence: 0.6
+  forbids: ['\bmlkem\.(?:GenerateKey|NewDecapsulationKey|NewEncapsulationKey)(?:768|1024)\b']
+
+# A math/rand import under another name (mrand) is the usual survivor: its calls carry the alias, which
+# no rule follows, so the import line is the evidence. crypto/rand in the same file does not change that.
+- id: GO_IMPORT_MATH_RAND_ALIASED
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?!rand[ \t])[A-Za-z_.]\w*[ \t]+"(?P<pkg>math/rand(?:/v2)?)"'
   raw_name: math/rand
   kind_hint: algorithm
   usage: rng
   library: math/rand
   confidence: 0.6
-  forbids: ['"crypto/rand"', '\brand\.[A-Z]\w*\(']
+  extra:
+    hygiene_only: true
+    hygiene_flags: [insecure_rng]
+
+# The same import under its own name: the rand.X calls are reported by GO_MATH_RAND, so the import line
+# is kept only when the file has none.
+- id: GO_IMPORT_MATH_RAND
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:rand[ \t]+)?"(?P<pkg>math/rand(?:/v2)?)"'
+  raw_name: math/rand
+  kind_hint: algorithm
+  usage: rng
+  library: math/rand
+  confidence: 0.6
+  forbids: ['\brand\.[A-Z]\w*\(']
   extra:
     hygiene_only: true
     hygiene_flags: [insecure_rng]

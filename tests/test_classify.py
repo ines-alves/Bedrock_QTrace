@@ -527,6 +527,9 @@ def test_certificate_signature_hygiene_and_subject_parameters_scoped(kb):
         },
     )
     assert row.tier == Tier.CRITICAL and row.classically_broken
+    assert row.to_asset().asset_type == "certificate"
+    assert not row.scoreable
+    assert all(child.to_asset().asset_type == "algorithm" for child in row.children)
     digest = next(r for r in row.walk() if r.node.normalized.identity.algorithm_id == "SHA-1")
     assert "certificate signature" in digest.rationale and digest.to_asset().key_size is None
     assert any("Renew" in a.action for a in row.recommendations)

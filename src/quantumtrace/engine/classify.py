@@ -84,6 +84,7 @@ class ClassifiedNode:
     nist_quantum_level: int | None = None
     pqc_standard: str | None = None
     children: tuple[ClassifiedNode, ...] = ()
+    maintenance: tuple[Advice, ...] = ()
 
     @property
     def scoreable(self) -> bool:
@@ -98,11 +99,14 @@ class ClassifiedNode:
         identity = normalized.identity
         params = identity.parameters
         finding = normalized.finding
+        asset_type = identity.asset_type
+        if self.node.kind == "container" and asset_type != "certificate":
+            asset_type = "protocol"
         return CryptoAsset(
             asset_id=self.node.node_id,
             canonical_name=identity.algorithm_id or normalized.resolved_name,
             family=self.family,
-            asset_type="protocol" if self.node.kind == "container" else identity.asset_type,
+            asset_type=asset_type,
             primitive=self.primitive,
             usage=identity.usage,
             key_size=params.key_size,
@@ -252,6 +256,8 @@ def _hygiene(node: EvidenceNode, scan_started_at: datetime | None) -> tuple[list
                 priority=2,
             )
         )
+    if "hardcoded_key" in observed_flags:
+        warn("Observed hard-coded key material (hygiene).", "Remove and rotate hard-coded key material.")
     iterations = extra.get("iterations")
     if node.normalized.identity.algorithm_id == "PBKDF2" and type(iterations) is int and iterations < 100000:
         warn(
@@ -278,6 +284,7 @@ def classify(
     notes = [*normalized.notes, *node.notes]
     advice: list[Advice] = []
     exclusions: list[str] = []
+    maintenance: list[Advice] = []
     confidence = finding.confidence
     tier, threat = Tier.UNKNOWN, Threat.UNKNOWN
     family, primitive = "Unknown", "unknown"
@@ -321,6 +328,7 @@ def classify(
         elif entry and entry.id == "INSECURE-RNG":
             broken = True
             advice.append(Advice("Use an operating-system cryptographic random generator.", priority=1))
+        maintenance.extend(advice)
     elif node.kind == "container":
         summary = summarize_verdict(
             children,
@@ -425,6 +433,7 @@ def classify(
                     "Replace observed ECB with authenticated encryption.", "AES-256-GCM", "NIST SP 800-38D", 1
                 )
             )
+            maintenance.append(advice[-1])
         if identity.usage in {Usage.SIGNATURE, Usage.AUTHENTICATION}:
             notes.append(
                 "Signatures/authentication are not HNDL exposure for previously recorded confidentiality."
@@ -476,6 +485,9 @@ def classify(
     hygiene_notes, hygiene_advice = _hygiene(node, scan_started_at)
     notes.extend(hygiene_notes)
     advice.extend(hygiene_advice)
+    maintenance.extend(hygiene_advice)
+    if node.kind == "container":
+        maintenance.extend(item for child in children for item in child.maintenance)
     unique_advice = tuple(
         sorted(set(advice), key=lambda a: (a.priority, a.action, a.target_algorithm or "", a.standard or ""))
     )
@@ -498,4 +510,5 @@ def classify(
         level,
         standard,
         children,
+        tuple(sorted(set(maintenance), key=lambda a: (a.priority, a.action))),
     )
