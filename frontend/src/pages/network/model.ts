@@ -22,10 +22,10 @@ export function buildRows(result: ScanResult): Row[] {
 }
 
 const KEX = {
-  pq_hybrid: { label: 'Hybrid PQC', safe: true },
-  pq_pure: { label: 'Post-quantum', safe: true },
-  classical: { label: 'Classical', safe: false },
-  unknown: { label: 'Unknown', safe: false },
+  pq_hybrid: { label: 'Hybrid PQC', style: 'bg-jade text-ink' },
+  pq_pure: { label: 'Post-quantum', style: 'bg-jade text-ink' },
+  classical: { label: 'Classical', style: 'bg-critical text-ink' },
+  unknown: { label: 'Unknown', style: 'border border-dashed border-paper/40 text-paper/60' },
 } as const
 
 export const keyExchange = (s: Session) => ({

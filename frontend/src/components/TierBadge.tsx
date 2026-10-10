@@ -2,9 +2,9 @@ import type { components } from '../api/schema'
 
 type Tier = components['schemas']['Tier']
 
-// Brand palette has no red/amber, so tiers differ by fill and outline, not hue.
+// CRITICAL is always red; the other tiers differ by fill and outline.
 const style: Record<Tier, string> = {
-  CRITICAL: 'bg-paper text-ink',
+  CRITICAL: 'bg-critical text-ink',
   MEDIUM: 'border border-steel text-steel',
   SAFE: 'bg-jade text-ink',
   UNKNOWN: 'border border-dashed border-paper/40 text-paper/60',

@@ -32,10 +32,17 @@ export type Listener = { finding: Finding; extra: ListenerExtra; tier: Tier; cer
 export type Event = { date: string; label: string; note?: string }
 
 const DAY = 86_400_000
+const SEVERITY: Tier[] = ['CRITICAL', 'MEDIUM', 'UNKNOWN', 'SAFE']
 
 export function buildCloud(result: ScanResult) {
+  // A finding belongs to its own asset and to component assets, so keep the worst tier.
   const tierOf = new Map<string, Tier>()
-  for (const a of result.assets) for (const id of a.finding_ids) tierOf.set(id, a.tier)
+  for (const a of result.assets) {
+    for (const id of a.finding_ids) {
+      const seen = tierOf.get(id)
+      if (!seen || SEVERITY.indexOf(a.tier) < SEVERITY.indexOf(seen)) tierOf.set(id, a.tier)
+    }
+  }
   const by = (detector: string) => result.findings.filter((f) => f.detector === detector)
 
   const certs: Cert[] = by('cloud.acm').map((finding) => ({ finding, extra: finding.extra as unknown as AcmExtra }))

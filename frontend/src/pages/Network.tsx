@@ -32,7 +32,7 @@ const columns: Column<Row>[] = [
       const k = keyExchange(r.session)
       return (
         <>
-          <span className={`px-2 py-0.5 text-[10px] uppercase tracking-widest ${k.safe ? 'bg-jade text-ink' : 'bg-paper text-ink'}`}>
+          <span className={`px-2 py-0.5 text-[10px] uppercase tracking-widest ${k.style}`}>
             {k.label}
           </span>
           <div className="mt-1 text-paper/60">{k.group}</div>
