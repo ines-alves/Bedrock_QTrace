@@ -12,6 +12,7 @@ from typing import Any
 from quantumtrace import __version__
 from quantumtrace.engine import classify_findings
 from quantumtrace.engine.aggregate import aggregate
+from quantumtrace.engine.roadmap import build_roadmap
 from quantumtrace.engine.score import score
 from quantumtrace.engine.sessions import build_sessions
 from quantumtrace.kb.loader import load_kb
@@ -139,7 +140,8 @@ def run(
     )
     knowledge = load_kb()
     roots = classify_findings(findings, knowledge, started)
-    assets, summary = score(aggregate(roots), knowledge.scoring)
+    evidence = aggregate(roots)
+    assets, summary = score(evidence, knowledge.scoring)
     sessions, session_errors = build_sessions(findings, roots)
     errors.extend(session_errors)
     errors = [
@@ -172,4 +174,5 @@ def run(
         sessions=sessions,
         summary=summary,
         errors=errors,
+        roadmap=build_roadmap(evidence),
     )

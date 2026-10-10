@@ -121,5 +121,27 @@ ScanResult for `/api/result`, `/api/cbom`, `/api/validate` and `/api/report.md`.
 `/api/scoring` uses the shared scoring loader. Missing pipeline builds return 503;
 missing paths return 400. File/zip uploads are deferred to M4 task 4.8. Real route
 integration checks use a temporary report destination and verify the starter result and strict
-CBOM validation. After task 1.11, M4 can delegate persistence to the atomic native
-writer; API persistence currently uses its own direct write.
+CBOM validation. M4 can delegate persistence to `output.report_json.write_report_json`; API
+persistence currently uses its own direct write.
+
+
+# Native JSON and roadmap
+
+`output.report_json.write_report_json(result, path)` writes the complete ScanResult
+as UTF-8 indented JSON with a trailing newline. An absent roadmap stays omitted.
+Serialization precedes file creation; writes use a flushed temporary file in the
+destination directory and atomic replacement. Filesystem failures raise OSError
+with destination context and preserve the existing report.
+`write_json_document(document, path)` provides the same persistence for CLI CBOM.
+
+`engine.roadmap.build_roadmap(aggregation)` consumes retained policy records and
+physical occurrence IDs. The pipeline attaches its output without rescanning or
+reclassifying. Phase 0 covers classical breakage, maintenance and uncertain evidence;
+phase 1 covers known vulnerable key exchange/asymmetric encryption; phase 2 covers
+signatures/authentication; phase 3 covers symmetric/hash hardening. These are
+planning phases, not regulatory deadlines. SAFE hybrid trace halves and derived
+containers do not add quantum migration actions; root maintenance can still apply
+to SAFE algorithms and unscored plaintext/certificate observations. Broken assets
+do not repeat migration in later phases. Offered-only transit actions are explicit.
+Each action has sorted unique asset links and a count of unique physical sites,
+including across duplicate detectors and multiple linked components.
