@@ -1,0 +1,665 @@
+# Golden expectations, code section (owner M3), format of docs/GOLDEN.md, schema docs/golden.schema.json.
+# Written from PLAN Appendix D.4 with the M1M3-08 corrections and the PLAN 7.1 tier rules, not from scanner output.
+# Sources are repository-relative. Asset canonical values are algorithm plus parameters (RSA-1024 is RSA, key
+# size 1024); mode is recorded in note only and is verified in tests/test_code_sample_repos.py.
+# Count rows: deduplicated raw finding occurrences per file, hygiene-only findings included.
+# Hard-coded key literals never appear here.
+
+# go/agent-enrollment/main.go
+- kind: asset
+  source: sample-repos/go/agent-enrollment/main.go
+  source_type: code
+  canonical: Ed25519
+  usage: signature
+  line: 11
+  tier: CRITICAL
+  classically_broken: false
+- kind: asset
+  source: sample-repos/go/agent-enrollment/main.go
+  source_type: code
+  canonical: Ed25519
+  usage: signature
+  line: 20
+  tier: CRITICAL
+  classically_broken: false
+- kind: asset
+  source: sample-repos/go/agent-enrollment/main.go
+  source_type: code
+  canonical: Ed25519
+  usage: signature
+  line: 21
+  tier: CRITICAL
+  classically_broken: false
+- kind: asset
+  source: sample-repos/go/agent-enrollment/main.go
+  source_type: code
+  canonical: Ed25519
+  usage: signature
+  line: 25
+  tier: CRITICAL
+  classically_broken: false
+# go/auth-gateway/main.go
+- kind: asset
+  source: sample-repos/go/auth-gateway/main.go
+  source_type: code
+  canonical: PBKDF2
+  usage: kdf
+  line: 25
+  tier: SAFE
+  classically_broken: false
+  note: "hand-rolled PBKDF2-HMAC-SHA256, primary site (function spans L19-L44)"
+- kind: asset
+  source: sample-repos/go/auth-gateway/main.go
+  source_type: code
+  canonical: PBKDF2
+  usage: kdf
+  line: 34
+  tier: SAFE
+  classically_broken: false
+  note: "same hand-rolled PBKDF2 implementation, second hmac.New; one asset, second occurrence"
+# go/batch-pipeline/main.go
+- kind: asset
+  source: sample-repos/go/batch-pipeline/main.go
+  source_type: code
+  canonical: AES-128
+  usage: encryption
+  line: 22
+  tier: MEDIUM
+  classically_broken: false
+  note: "mode ECB from the manual block.Encrypt loop (L28-L30); 128 bits from the 16-byte literal at L10"
+# go/config-sync/main.go
+- kind: asset
+  source: sample-repos/go/config-sync/main.go
+  source_type: code
+  canonical: SHA-384
+  usage: hash
+  line: 13
+  tier: SAFE
+  classically_broken: false
+- kind: asset
+  source: sample-repos/go/config-sync/main.go
+  source_type: code
+  canonical: HMAC-SHA256
+  usage: mac
+  line: 22
+  tier: SAFE
+  classically_broken: false
+# go/invoice-service/main.go
+- kind: asset
+  source: sample-repos/go/invoice-service/main.go
+  source_type: code
+  canonical: RSA-1024
+  usage: signature
+  line: 13
+  tier: CRITICAL
+  classically_broken: true
+  note: "1024 literal at the call; usage signature inferred from same-file sign/verify flow"
+- kind: asset
+  source: sample-repos/go/invoice-service/main.go
+  source_type: code
+  canonical: SHA-1
+  usage: hash
+  line: 17
+  tier: MEDIUM
+  classically_broken: true
+- kind: asset
+  source: sample-repos/go/invoice-service/main.go
+  source_type: code
+  canonical: SHA-1
+  usage: hash
+  line: 18
+  tier: MEDIUM
+  classically_broken: true
+- kind: asset
+  source: sample-repos/go/invoice-service/main.go
+  source_type: code
+  canonical: RSA-1024
+  usage: signature
+  line: 18
+  tier: CRITICAL
+  classically_broken: true
+  note: "rsa.SignPKCS1v15; 1024 bits from the key generation in the same file; usage signature inferred from same-file sign/verify flow"
+- kind: asset
+  source: sample-repos/go/invoice-service/main.go
+  source_type: code
+  canonical: SHA-1
+  usage: hash
+  line: 22
+  tier: MEDIUM
+  classically_broken: true
+- kind: asset
+  source: sample-repos/go/invoice-service/main.go
+  source_type: code
+  canonical: SHA-1
+  usage: hash
+  line: 23
+  tier: MEDIUM
+  classically_broken: true
+- kind: asset
+  source: sample-repos/go/invoice-service/main.go
+  source_type: code
+  canonical: RSA-1024
+  usage: signature
+  line: 23
+  tier: CRITICAL
+  classically_broken: true
+  note: "rsa.VerifyPKCS1v15; 1024 bits from the key generation in the same file; usage signature inferred from same-file sign/verify flow"
+# go/member-directory/main.go
+- kind: asset
+  source: sample-repos/go/member-directory/main.go
+  source_type: code
+  canonical: MD5
+  usage: hash
+  line: 10
+  tier: MEDIUM
+  classically_broken: true
+# go/release-feed/main.go
+- kind: asset
+  source: sample-repos/go/release-feed/main.go
+  source_type: code
+  canonical: SHA-1
+  usage: hash
+  line: 10
+  tier: MEDIUM
+  classically_broken: true
+# go/telemetry-relay/main.go
+- kind: asset
+  source: sample-repos/go/telemetry-relay/main.go
+  source_type: code
+  canonical: AES-256
+  usage: encryption
+  line: 23
+  tier: SAFE
+  classically_broken: false
+  note: "mode GCM; 256 bits from make([]byte, keyLen), flow link (M1M3-08)"
+- kind: asset
+  source: sample-repos/go/telemetry-relay/main.go
+  source_type: code
+  canonical: AES-256
+  usage: encryption
+  line: 40
+  tier: SAFE
+  classically_broken: false
+  note: "mode GCM; 256 bits from make([]byte, keyLen), flow link (M1M3-08)"
+# java/BatchExporter.java
+- kind: asset
+  source: sample-repos/java/BatchExporter.java
+  source_type: code
+  canonical: AES-128
+  usage: encryption
+  line: 14
+  tier: MEDIUM
+  classically_broken: false
+  note: "mode ECB from TRANSFORMATION (L10); 128 bits from the 16-character literal at L9"
+# java/ConfigSync.java
+- kind: asset
+  source: sample-repos/java/ConfigSync.java
+  source_type: code
+  canonical: SHA-384
+  usage: hash
+  line: 10
+  tier: SAFE
+  classically_broken: false
+- kind: asset
+  source: sample-repos/java/ConfigSync.java
+  source_type: code
+  canonical: HMAC-SHA256
+  usage: mac
+  line: 20
+  tier: SAFE
+  classically_broken: false
+# java/CustomerDirectory.java
+- kind: asset
+  source: sample-repos/java/CustomerDirectory.java
+  source_type: code
+  canonical: MD5
+  usage: hash
+  line: 8
+  tier: MEDIUM
+  classically_broken: true
+# java/DeviceAttestation.java
+- kind: asset
+  source: sample-repos/java/DeviceAttestation.java
+  source_type: code
+  canonical: Ed25519
+  usage: unknown
+  line: 12
+  tier: CRITICAL
+  classically_broken: false
+  note: "key generation; usage not stated at this site"
+- kind: asset
+  source: sample-repos/java/DeviceAttestation.java
+  source_type: code
+  canonical: Ed25519
+  usage: signature
+  line: 17
+  tier: CRITICAL
+  classically_broken: false
+- kind: asset
+  source: sample-repos/java/DeviceAttestation.java
+  source_type: code
+  canonical: Ed25519
+  usage: signature
+  line: 24
+  tier: CRITICAL
+  classically_broken: false
+# java/IdentityVault.java
+- kind: asset
+  source: sample-repos/java/IdentityVault.java
+  source_type: code
+  canonical: PBKDF2
+  usage: kdf
+  line: 22
+  tier: SAFE
+  classically_broken: false
+  note: "PBKDF2WithHmacSHA256"
+# java/PatchFeed.java
+- kind: asset
+  source: sample-repos/java/PatchFeed.java
+  source_type: code
+  canonical: SHA-1
+  usage: hash
+  line: 8
+  tier: MEDIUM
+  classically_broken: true
+# java/ReceiptSigner.java
+- kind: asset
+  source: sample-repos/java/ReceiptSigner.java
+  source_type: code
+  canonical: RSA-1024
+  usage: signature
+  line: 12
+  tier: CRITICAL
+  classically_broken: true
+  note: "initialize(1024) is read from L13; usage signature inferred from same-file sign flow"
+- kind: asset
+  source: sample-repos/java/ReceiptSigner.java
+  source_type: code
+  canonical: RSA-1024
+  usage: signature
+  line: 18
+  tier: CRITICAL
+  classically_broken: true
+  note: "SHA1withRSA, RSA component; 1024 bits from the key generation in the same file; usage signature inferred from same-file sign/verify flow"
+- kind: asset
+  source: sample-repos/java/ReceiptSigner.java
+  source_type: code
+  canonical: SHA-1
+  usage: hash
+  line: 18
+  tier: MEDIUM
+  classically_broken: true
+  note: "SHA1withRSA, digest component; depends on composite decomposition (M1M3-03)"
+- kind: asset
+  source: sample-repos/java/ReceiptSigner.java
+  source_type: code
+  canonical: RSA-1024
+  usage: signature
+  line: 25
+  tier: CRITICAL
+  classically_broken: true
+  note: "SHA1withRSA, RSA component; 1024 bits from the key generation in the same file; usage signature inferred from same-file sign/verify flow"
+- kind: asset
+  source: sample-repos/java/ReceiptSigner.java
+  source_type: code
+  canonical: SHA-1
+  usage: hash
+  line: 25
+  tier: MEDIUM
+  classically_broken: true
+  note: "SHA1withRSA, digest component; depends on composite decomposition (M1M3-03)"
+# java/SessionCipher.java
+- kind: asset
+  source: sample-repos/java/SessionCipher.java
+  source_type: code
+  canonical: AES-256
+  usage: encryption
+  line: 30
+  tier: SAFE
+  classically_broken: false
+  note: "mode GCM from TRANSFORMATION; 256 bits from KeyGenerator.init(KEY_BITS), flow link (M1M3-08)"
+- kind: asset
+  source: sample-repos/java/SessionCipher.java
+  source_type: code
+  canonical: AES-256
+  usage: encryption
+  line: 39
+  tier: SAFE
+  classically_broken: false
+  note: "mode GCM from TRANSFORMATION; 256 bits from KeyGenerator.init(KEY_BITS), flow link (M1M3-08)"
+# python/artifact_manifest.py
+- kind: asset
+  source: sample-repos/python/artifact_manifest.py
+  source_type: code
+  canonical: SHA-384
+  usage: hash
+  line: 6
+  tier: SAFE
+  classically_broken: false
+- kind: asset
+  source: sample-repos/python/artifact_manifest.py
+  source_type: code
+  canonical: HMAC-SHA256
+  usage: mac
+  line: 14
+  tier: SAFE
+  classically_broken: false
+# python/legacy_accounts.py
+- kind: asset
+  source: sample-repos/python/legacy_accounts.py
+  source_type: code
+  canonical: MD5
+  usage: hash
+  line: 5
+  tier: MEDIUM
+  classically_broken: true
+# python/license_token.py
+- kind: asset
+  source: sample-repos/python/license_token.py
+  source_type: code
+  canonical: RSA-1024
+  usage: signature
+  line: 6
+  tier: CRITICAL
+  classically_broken: true
+  note: "key_size=1024 literal at the call; usage signature inferred from same-file sign flow"
+- kind: asset
+  source: sample-repos/python/license_token.py
+  source_type: code
+  canonical: RSA-1024
+  usage: signature
+  line: 11
+  tier: CRITICAL
+  classically_broken: true
+  note: "1024 bits from the key generation in the same file; usage signature inferred from same-file sign/verify flow"
+- kind: asset
+  source: sample-repos/python/license_token.py
+  source_type: code
+  canonical: SHA-1
+  usage: hash
+  line: 11
+  tier: MEDIUM
+  classically_broken: true
+- kind: asset
+  source: sample-repos/python/license_token.py
+  source_type: code
+  canonical: RSA-1024
+  usage: signature
+  line: 16
+  tier: CRITICAL
+  classically_broken: true
+  note: "1024 bits from the key generation in the same file; usage signature inferred from same-file sign/verify flow"
+- kind: asset
+  source: sample-repos/python/license_token.py
+  source_type: code
+  canonical: SHA-1
+  usage: hash
+  line: 16
+  tier: MEDIUM
+  classically_broken: true
+# python/member_credentials.py
+- kind: asset
+  source: sample-repos/python/member_credentials.py
+  source_type: code
+  canonical: PBKDF2
+  usage: kdf
+  line: 13
+  tier: SAFE
+  classically_broken: false
+  note: "PBKDF2-HMAC-SHA256"
+- kind: asset
+  source: sample-repos/python/member_credentials.py
+  source_type: code
+  canonical: PBKDF2
+  usage: kdf
+  line: 18
+  tier: SAFE
+  classically_broken: false
+  note: "PBKDF2-HMAC-SHA256"
+# python/report_export.py
+- kind: asset
+  source: sample-repos/python/report_export.py
+  source_type: code
+  canonical: AES-128
+  usage: encryption
+  line: 11
+  tier: MEDIUM
+  classically_broken: false
+  note: "mode ECB; key reaches AES() through the parameter default (L8) of the 16-byte literal at L5"
+# python/secure_transfer.py
+- kind: asset
+  source: sample-repos/python/secure_transfer.py
+  source_type: code
+  canonical: AES-256
+  usage: encryption
+  line: 16
+  tier: SAFE
+  classically_broken: false
+  note: "mode GCM; 256 bits from os.urandom(KEY_LEN) elsewhere in the file, flow link (M1M3-08)"
+- kind: asset
+  source: sample-repos/python/secure_transfer.py
+  source_type: code
+  canonical: AES-256
+  usage: encryption
+  line: 21
+  tier: SAFE
+  classically_broken: false
+  note: "mode GCM; 256 bits from os.urandom(KEY_LEN) elsewhere in the file, flow link (M1M3-08)"
+# python/update_feed.py
+- kind: asset
+  source: sample-repos/python/update_feed.py
+  source_type: code
+  canonical: SHA-1
+  usage: hash
+  line: 5
+  tier: MEDIUM
+  classically_broken: true
+# python/webhook_signature.py
+- kind: asset
+  source: sample-repos/python/webhook_signature.py
+  source_type: code
+  canonical: Ed25519
+  usage: signature
+  line: 5
+  tier: CRITICAL
+  classically_broken: false
+# hygiene findings (excluded from quantum score and readiness)
+- kind: finding
+  source: sample-repos/python/report_export.py
+  source_type: code
+  kind_hint: algorithm
+  raw_name: "random.getrandbits"
+  line: 17
+  extra:
+    hygiene_only: true
+    hygiene_flags: [insecure_rng]
+- kind: finding
+  source: sample-repos/java/BatchExporter.java
+  source_type: code
+  kind_hint: algorithm
+  raw_name: "java.util.Random"
+  line: 21
+  extra:
+    hygiene_only: true
+    hygiene_flags: [insecure_rng]
+- kind: finding
+  source: sample-repos/go/batch-pipeline/main.go
+  source_type: code
+  kind_hint: algorithm
+  raw_name: "math/rand"
+  line: 36
+  extra:
+    hygiene_only: true
+    hygiene_flags: [insecure_rng]
+- kind: finding
+  source: sample-repos/python/report_export.py
+  source_type: code
+  kind_hint: key
+  raw_name: "hard-coded symmetric key"
+  line: 5
+  extra:
+    hygiene_only: true
+    hygiene_flags: [hardcoded_key]
+- kind: finding
+  source: sample-repos/java/BatchExporter.java
+  source_type: code
+  kind_hint: key
+  raw_name: "hard-coded symmetric key"
+  line: 9
+  extra:
+    hygiene_only: true
+    hygiene_flags: [hardcoded_key]
+- kind: finding
+  source: sample-repos/go/batch-pipeline/main.go
+  source_type: code
+  kind_hint: key
+  raw_name: "hard-coded symmetric key"
+  line: 10
+  extra:
+    hygiene_only: true
+    hygiene_flags: [hardcoded_key]
+# occurrence counts per file
+- kind: count
+  source: sample-repos/go/agent-enrollment/main.go
+  source_type: code
+  metric: occurrences
+  count: 4
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/go/auth-gateway/main.go
+  source_type: code
+  metric: occurrences
+  count: 2
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/go/batch-pipeline/main.go
+  source_type: code
+  metric: occurrences
+  count: 3
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/go/config-sync/main.go
+  source_type: code
+  metric: occurrences
+  count: 2
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/go/invoice-service/main.go
+  source_type: code
+  metric: occurrences
+  count: 7
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/go/member-directory/main.go
+  source_type: code
+  metric: occurrences
+  count: 1
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/go/release-feed/main.go
+  source_type: code
+  metric: occurrences
+  count: 1
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/go/telemetry-relay/main.go
+  source_type: code
+  metric: occurrences
+  count: 2
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/java/BatchExporter.java
+  source_type: code
+  metric: occurrences
+  count: 3
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/java/ConfigSync.java
+  source_type: code
+  metric: occurrences
+  count: 2
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/java/CustomerDirectory.java
+  source_type: code
+  metric: occurrences
+  count: 1
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/java/DeviceAttestation.java
+  source_type: code
+  metric: occurrences
+  count: 3
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/java/IdentityVault.java
+  source_type: code
+  metric: occurrences
+  count: 1
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/java/PatchFeed.java
+  source_type: code
+  metric: occurrences
+  count: 1
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/java/ReceiptSigner.java
+  source_type: code
+  metric: occurrences
+  count: 3
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/java/SessionCipher.java
+  source_type: code
+  metric: occurrences
+  count: 2
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/python/artifact_manifest.py
+  source_type: code
+  metric: occurrences
+  count: 2
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/python/legacy_accounts.py
+  source_type: code
+  metric: occurrences
+  count: 1
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/python/license_token.py
+  source_type: code
+  metric: occurrences
+  count: 5
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/python/member_credentials.py
+  source_type: code
+  metric: occurrences
+  count: 2
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/python/report_export.py
+  source_type: code
+  metric: occurrences
+  count: 3
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/python/secure_transfer.py
+  source_type: code
+  metric: occurrences
+  count: 2
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/python/update_feed.py
+  source_type: code
+  metric: occurrences
+  count: 1
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
+- kind: count
+  source: sample-repos/python/webhook_signature.py
+  source_type: code
+  metric: occurrences
+  count: 1
+  note: "deduplicated raw finding occurrences, hygiene-only findings included"
