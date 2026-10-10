@@ -588,6 +588,60 @@ def test_rule_extra_cannot_override_engine_keys(tmp_path, key):
         rules_for(tmp_path, "python", body)
 
 
+CONDITION_RULE = """
+- id: GO_RAND
+  language: go
+  pattern: '\\brand\\.Read\\('
+  raw_name: math/rand
+  kind_hint: algorithm
+  usage: rng
+  requires: ['"math/rand"']
+  forbids: ['"crypto/rand"']
+"""
+
+FUNCTION_RULE = """
+- id: GO_LOOP_MAC
+  language: go
+  pattern: '\\bhmac\\.New\\('
+  raw_name: loop-mac
+  kind_hint: algorithm
+  usage: mac
+  scope: function
+  requires: ['\\^=']
+  forbids: ['\\bpbkdf2\\b']
+"""
+
+
+def test_file_scope_requires_and_forbids(tmp_path):
+    insecure = 'import (\n\t"math/rand"\n)\nfunc f() {\n\trand.Read(b)\n}\n'
+    secure = 'import (\n\t"crypto/rand"\n)\nfunc f() {\n\trand.Read(b)\n}\n'
+    both = 'import (\n\t"math/rand"\n\t"crypto/rand"\n)\nfunc f() {\n\trand.Read(b)\n}\n'
+    assert [f.location.line for f in scan(tmp_path, "go", CONDITION_RULE, insecure)] == [5]
+    assert scan(tmp_path, "go", CONDITION_RULE, secure) == []
+    assert scan(tmp_path, "go", CONDITION_RULE, both) == []
+
+
+def test_function_scope_conditions_read_only_the_enclosing_function(tmp_path):
+    source = (
+        "func plain() {\n"
+        "\tmac := hmac.New(h, k)\n"
+        "}\n"
+        "func loop() {\n"
+        "\tmac := hmac.New(h, k)\n"
+        "\tt[0] ^= u[0]\n"
+        "}\n"
+    )
+    assert [f.location.line for f in scan(tmp_path, "go", FUNCTION_RULE, source)] == [5]
+
+
+def test_conditions_must_be_regex_lists_and_scope_is_validated(tmp_path):
+    base = "- {id: A, language: go, pattern: x, raw_name: X, kind_hint: algorithm, usage: hash, "
+    with pytest.raises(ValueError, match="requires"):
+        rules_for(tmp_path, "go", base + "requires: abc}")
+    with pytest.raises(ValueError, match="scope"):
+        rules_for(tmp_path, "go", base + "scope: line}")
+
+
 def test_resolved_from_line_for_constant_and_parameter_default(tmp_path):
     findings = scan(
         tmp_path,

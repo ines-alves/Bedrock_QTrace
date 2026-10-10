@@ -15,6 +15,9 @@ Rule fields (YAML list of mappings):
   key_arg_pattern, key_arg_lines                             where to find the sink's key (group key_arg)
   mode_cases: [{mode, mode_source, requires, forbids}]       first case whose regexes hold in the enclosing
                                                              function sets mode and extra["mode_source"]
+  requires, forbids: [regex]                                 the rule fires only if every requires regex
+  scope: file | function                                     matches and no forbids regex matches, in the
+                                                             whole file (default) or the enclosing function
   extra: {key: json value}                                   static extra (hygiene_only, hand_rolled, ...)
   redact: true                                               replace string literals in the snippet
   emit: false                                                record only, produce no finding
@@ -81,6 +84,9 @@ _RULE_KEYS = {
     "mode_cases",
     "extra",
     "redact",
+    "requires",
+    "forbids",
+    "scope",
 }
 _CASE_KEYS = {"mode", "mode_source", "requires", "forbids"}
 _RESERVED_EXTRA = {"rule", "key_size_source", "unresolved", "resolved_from_line", "mode_source"}
@@ -127,6 +133,9 @@ class Rule:
     mode_cases: tuple[ModeCase, ...] = ()
     extra: dict[str, Any] = field(default_factory=dict)
     redact: bool = False
+    requires: tuple[re.Pattern[str], ...] = ()
+    forbids: tuple[re.Pattern[str], ...] = ()
+    scope: str = "file"
 
     @property
     def expects_key_size(self) -> bool:
@@ -179,6 +188,15 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         json.dumps(extra)
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{where}: extra must be JSON compatible: {exc}") from exc
+    scope = raw.get("scope", "file")
+    if scope not in ("file", "function"):
+        raise ValueError(f"{where}: scope must be file or function")
+    conditions = {}
+    for key in ("requires", "forbids"):
+        patterns = raw.get(key) or []
+        if not isinstance(patterns, list) or not all(isinstance(p, str) for p in patterns):
+            raise ValueError(f"{where}: {key} must be a list of regex strings")
+        conditions[key] = tuple(_compile(p, where) for p in patterns)
     cases = []
     for case in raw.get("mode_cases") or []:
         bad = set(case) - _CASE_KEYS
@@ -218,6 +236,9 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         mode_cases=tuple(cases),
         extra=dict(extra),
         redact=bool(raw.get("redact", False)),
+        requires=conditions["requires"],
+        forbids=conditions["forbids"],
+        scope=scope,
     )
 
 
@@ -900,6 +921,27 @@ class _Flow:
                     break
 
 
+def _conditions_hold(hits: list[_Hit], masked: str, language: str) -> list[_Hit]:
+    """Drop hits whose rule `requires` or `forbids` regexes fail in the file or enclosing function."""
+    if not any(h.rule.requires or h.rule.forbids for h in hits):
+        return hits
+    lines = masked.split("\n")
+    funcs = _functions(masked, language) if any(h.rule.scope == "function" for h in hits) else []
+    kept = []
+    for hit in hits:
+        text = masked
+        if hit.rule.scope == "function":
+            around = [f for f in funcs if f.first <= hit.line <= f.last]
+            if around:
+                inner = max(around, key=lambda f: f.first)
+                text = "\n".join(lines[inner.first - 1 : inner.last])
+        if all(r.search(text) for r in hit.rule.requires) and not any(
+            r.search(text) for r in hit.rule.forbids
+        ):
+            kept.append(hit)
+    return kept
+
+
 def _redact(snippet: str) -> str:
     return _STRING_LITERAL.sub("<redacted>", snippet)
 
@@ -915,6 +957,7 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
     hits: list[_Hit] = []
     for rule in rules:
         hits.extend(_match_hits(rule, masked, lines, consts))
+    hits = _conditions_hold(hits, masked, language)
     if any(h.rule.mode_cases or (h.rule.inherit_key_size and h.key_size is None) for h in hits):
         flow = _Flow(masked, language, hits, consts)
         flow.apply()
