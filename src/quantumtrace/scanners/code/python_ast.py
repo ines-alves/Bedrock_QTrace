@@ -1,0 +1,199 @@
+"""Python import-alias resolution for the regex rule engine.
+
+The Python rules match canonical spellings (hashlib.md5(, rsa.generate_private_key(, hashes.SHA1(),
+AESGCM(). Code that imports under another name (import hashlib as h, from hashlib import md5,
+from ...asymmetric import rsa as R) would not match. resolve_aliases rewrites those references, in
+the comment-masked text, to the canonical spelling before the rules run. Rules, flow and usage
+inference are unchanged and see canonical text.
+
+Properties:
+  - Newlines are never touched, so line numbers hold. Snippets come from the original text.
+  - A file without a rewritable alias returns the masked text object unchanged.
+  - A file that does not parse (Python 2, partial files) returns the masked text unchanged.
+  - A name is rewritten only when every binding of it in the file is the same import. Any
+    assignment, parameter, loop or with target, comprehension target, def or class of the same
+    name, a conflicting import, or a conflicting binding of the replacement's root skips it.
+  - Strings are never rewritten: only ast.Name nodes and plain-import dotted attribute chains.
+
+Canonical form:
+  import hashlib as h                     h        -> hashlib
+  from hashlib import md5 [as m]          md5, m   -> hashlib.md5
+  from ...asymmetric import rsa as R      R        -> rsa
+  from ...rsa import generate_private_key g        -> rsa.generate_private_key
+  from ...aead import AESGCM as G         G        -> AESGCM
+  import cryptography...asymmetric.rsa    cryptography...asymmetric.rsa.f( -> rsa.f(
+
+QUALIFIERS is the set of module tokens the rules write in front of a member. A test keeps it in
+step with rules/python.yaml.
+"""
+
+from __future__ import annotations
+
+import ast
+
+QUALIFIERS = frozenset(
+    {
+        "algorithms",
+        "ed25519",
+        "hashes",
+        "hashlib",
+        "hmac",
+        "modes",
+        "os",
+        "padding",
+        "random",
+        "rsa",
+    }
+)
+
+# Members the rules write without a module prefix even when their module is a qualifier.
+BARE_MEMBERS = frozenset({"Ed25519PrivateKey"})
+
+# A binding of a name: ("as", dotted path), ("plain", root), ("from", module, object) or ("other",).
+_Binding = tuple[str, ...]
+
+
+def _bindings(tree: ast.AST) -> dict[str, list[_Binding]]:
+    names: dict[str, list[_Binding]] = {}
+
+    def add(name: str, binding: _Binding = ("other",)) -> None:
+        names.setdefault(name, []).append(binding)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for item in node.names:
+                if item.asname:
+                    add(item.asname, ("as", item.name))
+                else:
+                    root = item.name.split(".")[0]
+                    add(root, ("plain", root))
+        elif isinstance(node, ast.ImportFrom):
+            for item in node.names:
+                if item.name == "*":
+                    continue
+                bound = item.asname or item.name
+                if node.level or not node.module:
+                    add(bound)
+                else:
+                    add(bound, ("from", node.module, item.name))
+        elif isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            add(node.id)
+        elif isinstance(node, ast.arg):
+            add(node.arg)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            add(node.name)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            add(node.name)
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
+            add(node.name)
+        elif isinstance(node, ast.MatchMapping) and node.rest:
+            add(node.rest)
+    return names
+
+
+def _replacement(name: str, binding: _Binding) -> str | None:
+    kind = binding[0]
+    if kind == "as":
+        last = binding[1].rsplit(".", 1)[-1]
+        return last if last in QUALIFIERS else None
+    if kind == "from":
+        module, obj = binding[1], binding[2]
+        if obj in QUALIFIERS or obj in BARE_MEMBERS:
+            return obj
+        module_last = module.rsplit(".", 1)[-1]
+        if module_last in QUALIFIERS:
+            return f"{module_last}.{obj}"
+        return obj
+    return None
+
+
+def _name_map(names: dict[str, list[_Binding]]) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for name, bound in names.items():
+        if len(set(bound)) != 1:
+            continue
+        replacement = _replacement(name, bound[0])
+        if replacement is None or replacement == name:
+            continue
+        root = replacement.split(".")[0]
+        if any(b == ("other",) for b in names.get(root, [])):
+            continue
+        mapping[name] = replacement
+    return mapping
+
+
+def _dotted_imports(tree: ast.AST, names: dict[str, list[_Binding]]) -> dict[str, str]:
+    """Plain `import a.b.c` paths whose last segment is a qualifier, mapped to that segment."""
+    found: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Import):
+            continue
+        for item in node.names:
+            if item.asname or "." not in item.name:
+                continue
+            last = item.name.rsplit(".", 1)[-1]
+            root = item.name.split(".")[0]
+            if last in QUALIFIERS and all(b[0] == "plain" for b in names.get(root, [])):
+                found[item.name] = last
+    return found
+
+
+def _dotted(node: ast.AST) -> str | None:
+    parts: list[str] = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if not isinstance(node, ast.Name):
+        return None
+    parts.append(node.id)
+    return ".".join(reversed(parts))
+
+
+def resolve_aliases(text: str, masked: str) -> str:
+    """Return `masked` with aliased names and dotted import paths rewritten to canonical spelling.
+
+    `text` is the original source (parsed), `masked` the same text with comments blanked. Both have
+    the same characters outside comments, so positions from `text` apply to `masked`.
+    """
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError, RecursionError):
+        return masked
+    names = _bindings(tree)
+    mapping = _name_map(names)
+    dotted = _dotted_imports(tree, names)
+    if not mapping and not dotted:
+        return masked
+
+    edits: list[tuple[int, int, int, str, str]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id in mapping:
+            old, new = node.id, mapping[node.id]
+        elif isinstance(node, ast.Attribute) and dotted:
+            old = _dotted(node) or ""
+            if old not in dotted:
+                continue
+            new = dotted[old]
+        else:
+            continue
+        if node.end_lineno != node.lineno or node.end_col_offset is None:
+            continue
+        edits.append((node.lineno, node.col_offset, node.end_col_offset, old, new))
+    if not edits:
+        return masked
+
+    source_lines = text.split("\n")
+    lines = masked.split("\n")
+    for number, start, end, old, new in sorted(edits, reverse=True):
+        if number > len(lines):
+            continue
+        # ast offsets count UTF-8 bytes
+        raw = source_lines[number - 1].encode("utf-8")
+        a = len(raw[:start].decode("utf-8", errors="ignore"))
+        b = len(raw[:end].decode("utf-8", errors="ignore"))
+        row = lines[number - 1]
+        if row[a:b] != old:
+            continue
+        lines[number - 1] = row[:a] + new + row[b:]
+    result = "\n".join(lines)
+    return masked if result == masked else result
