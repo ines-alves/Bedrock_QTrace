@@ -323,3 +323,62 @@ def test_scan_opens_no_sockets(parser, monkeypatch):
     monkeypatch.setattr(socket, "socket", refuse)
     monkeypatch.setattr(socket, "create_connection", refuse)
     assert errors(scan(KIT)) == []
+
+
+# --- damaged and unusual captures: never an empty success ------------------------------------------
+
+
+@pytest.mark.parametrize("size", [1, 4, 23])
+def test_file_shorter_than_a_capture_header_is_an_error(parser, tmp_path, size):
+    p = tmp_path / "s.pcap"
+    p.write_bytes(b"\x07" * size)
+    out = scan(p)
+    assert findings(out) == []
+    assert [e.message for e in errors(out)] == ["file is too short to be a capture"]
+
+
+def test_unsupported_linktype_is_an_error_even_when_tshark_reads_it_cleanly(parser, tmp_path):
+    data = KIT.read_bytes()
+    p = tmp_path / "l.pcap"
+    p.write_bytes(data[:20] + bytes([19]) + data[21:])
+    out = scan(p)
+    assert findings(out) == []
+    assert [e.message for e in errors(out)] == ["unsupported linktype 19 (only Ethernet=1)"]
+
+
+def test_valid_capture_without_packets_is_not_an_error(parser, tmp_path):
+    p = tmp_path / "h.pcap"
+    p.write_bytes(KIT.read_bytes()[:24])
+    out = scan(p)
+    assert out == []
+
+
+@pytest.mark.parametrize("extra", [1, 10, 15])
+def test_partial_packet_header_at_the_end_is_reported(parser, tmp_path, extra):
+    p = tmp_path / "t.pcap"
+    p.write_bytes(KIT.read_bytes()[:24] + b"\x00" * extra)
+    out = scan(p)
+    assert findings(out) == []
+    assert "truncated packet header at end of file" in [e.message for e in errors(out)]
+
+
+def test_tshark_clean_run_without_flows_is_checked_against_the_builtin_parser(with_tshark, monkeypatch):
+    monkeypatch.setattr(tshark, "read_flows_tshark", lambda path, timeout=0: PureResult())
+    out = scan(KIT)
+    assert [e.message for e in errors(out)] == [
+        "parsers disagree on tls flows: tshark 0, built-in parser 97; tshark result used",
+        "parsers disagree on ssh flows: tshark 0, built-in parser 24; tshark result used",
+        "parsers disagree on plaintext flows: tshark 0, built-in parser 14; tshark result used",
+    ]
+    assert findings(out) == []
+
+
+def test_reused_four_tuples_agree_between_parsers(with_tshark, tmp_path):
+    if not HAS_TSHARK:
+        pytest.skip("tshark not installed")
+    data = KIT.read_bytes()
+    p = tmp_path / "twice.pcap"
+    p.write_bytes(data + data[24:])
+    out = scan(p)
+    assert errors(out) == []
+    assert len({f.session_id for f in findings(out) if f.session_id}) == 2 * (97 + 24)
