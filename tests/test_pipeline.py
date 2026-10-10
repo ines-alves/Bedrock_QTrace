@@ -196,6 +196,8 @@ def test_published_adapters_and_incomplete_starter_coverage():
     assert sum(raw.location.source_type == SourceType.ACM for raw in result.findings) == 5
     assert not any("acm" in (error.path or "") for error in result.errors)
     assert result.summary.counts_by_source["kms"]["CRITICAL"] > 0
+    assert any(raw.kind_hint == KindHint.LIBRARY for raw in result.findings)
+    assert not any(Path(error.path or "").name in {"requirements.txt", "go.mod"} for error in result.errors)
 
 
 def test_source_timestamp_does_not_enter_scan_identity(fake, monkeypatch, tmp_path):
@@ -288,3 +290,35 @@ def test_acm_routing_certificate_joins_and_source_timestamp_hygiene():
     assert "Plan certificate renewal within 90 days." in actions
     assert all(raw.extra["source_timestamp"] == "2026-09-14T09:38:19Z" for raw in certs)
     assert ScanResult.model_validate_json(result.model_dump_json()) == result
+
+
+def test_manifest_loader_inventory_exclusion_and_markdown_integration(tmp_path):
+    from quantumtrace.output.markdown import render_markdown_summary
+
+    assert "quantumtrace.scanners.code.manifests" in pipeline._ADAPTER_MODULES
+    manifest = tmp_path / "requirements.txt"
+    manifest.write_text("cryptography==46.0.5\nPyJWT>=2.8\n")
+    code = tmp_path / "crypto.py"
+    code.write_text('import hashlib\nhashlib.sha256(b"message")\n')
+    baseline = pipeline.run([code], options=ScanOptions(scanner_names=["code.regex"]))
+    result = pipeline.run([code, manifest])
+    libraries = [raw for raw in result.findings if raw.kind_hint == KindHint.LIBRARY]
+    assert {raw.raw_name for raw in libraries} == {"cryptography==46.0.5", "PyJWT"}
+    assert not result.errors
+    assert result.summary == baseline.summary
+    library_ids = {raw.id for raw in libraries}
+    inventory = [asset for asset in result.assets if library_ids.intersection(asset.finding_ids)]
+    assert len(inventory) == 2
+    assert all(asset.risk_points == asset.max_points == 0 for asset in inventory)
+    assert not {asset.asset_id for asset in inventory}.intersection(result.summary.top_risks)
+    assert ScanResult.model_validate_json(result.model_dump_json()) == result
+    markdown = render_markdown_summary(result)
+    assert "cryptography" in markdown and "PyJWT" in markdown
+
+    broken = tmp_path / "pom.xml"
+    broken.write_text("<project><dependencies>")
+    partial = pipeline.run([manifest, broken], options=ScanOptions(scanner_names=["code.manifest"]))
+    assert partial.findings == libraries
+    assert len(partial.errors) == 1 and partial.errors[0].detector == "code.java.manifest"
+    assert "not well-formed XML" in partial.errors[0].message
+    assert "not well-formed XML" in render_markdown_summary(partial)

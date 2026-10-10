@@ -2,7 +2,8 @@
 
 `quantumtrace.pipeline.run(inputs, probes=None, options=None) -> ScanResult` uses
 the frozen ScanOptions/ScanResult contracts. It imports the currently published
-self-registering owner adapters: `cloud.acm`, `cloud.kms`, `cloud.loadbalancer`, `code.regex`.
+self-registering owner adapters: `cloud.acm`, `cloud.kms`, `cloud.loadbalancer`,
+`code.regex` and `code.manifest`.
 Scanners match content/extensions through their own can_handle, in scanner-name
 order; names containing `generic_json` are tried last. The first accepting handler
 runs once. Explicit scanner selection restricts handlers; unavailable selections
@@ -30,13 +31,17 @@ Scores/session IDs do not depend on wall-clock time; expiry advice can legitimat
 change when the explicit reference changes. Findings containing a source timestamp
 keep it in the serialized ScanResult. Native JSON round-trips through ScanResult.
 
-Currently no registered PCAP adapter or config/manifest/keyfile/binary
-scanner or optional probe adapter is published on main. Their files are reported
+Currently no registered PCAP adapter or config/keyfile/binary scanner or optional
+probe adapter is published on main. Their files are reported
 as unsupported by run; requested probes return explicit unavailable-adapter errors
 and never trigger implicit network traffic. M2 owns the registered capture/probe
 adapter. M4 ACM is now wired into the loader and verified with its five resources.
 Published raw parser helpers work and are exercised in session tests, but they do
 not satisfy the end-to-end registered-scanner H6 gate.
+M3 manifests are routed through the registered adapter; their library Findings
+remain inventory and are excluded from quantum counts, readiness and scoring.
+M3 Markdown output is available through `output.markdown.write_markdown_summary`;
+CLI output integration follows in task 1.10.
 Later owner modules must be included in the loader when integrated; this list
 never guesses or substitutes a detection implementation owned by another member.
 

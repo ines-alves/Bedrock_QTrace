@@ -24,6 +24,7 @@ _ADAPTER_MODULES = (
     "quantumtrace.scanners.cloud.kms",
     "quantumtrace.scanners.cloud.loadbalancer",
     "quantumtrace.scanners.code.engine",
+    "quantumtrace.scanners.code.manifests",
 )
 
 
