@@ -138,10 +138,30 @@
   curve: '{curve}'
   library: java.security
 
+# EdDSA keys exist only to sign (M1M3 session 26 reply): generation is usage signature. The raw name is
+# as seen (Ed25519, Ed448 or the generic EdDSA). Every other generator keeps usage unknown.
+- id: JAVA_KEYPAIR_EDDSA
+  language: java
+  pattern: '\bKeyPairGenerator\.getInstance\(\s*"(?P<algo>Ed25519|Ed448|EdDSA)"'
+  raw_name: '{algo}'
+  kind_hint: algorithm
+  usage: signature
+  library: java.security
+
+- id: JAVA_KEYPAIR_EDDSA_REF
+  language: java
+  pattern: '\bKeyPairGenerator\.getInstance\(\s*(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]'
+  raw_name: '{algo}'
+  kind_hint: algorithm
+  usage: signature
+  library: java.security
+  values_must_match:
+    algo: 'Ed25519|Ed448|EdDSA'
+
 - id: JAVA_KEYPAIR_OTHER
   language: java
   absorbed_by: [JAVA_KEYPAIR_EC_CURVE]
-  pattern: '\bKeyPairGenerator\.getInstance\(\s*"(?P<algo>(?!RSA"|DH"|DiffieHellman"|DSA")[^"]+)"'
+  pattern: '\bKeyPairGenerator\.getInstance\(\s*"(?P<algo>(?!RSA"|DH"|DiffieHellman"|DSA"|Ed25519"|Ed448"|EdDSA")[^"]+)"'
   raw_name: '{algo}'
   kind_hint: algorithm
   usage: unknown
@@ -156,7 +176,7 @@
   usage: unknown
   library: java.security
   values_must_match:
-    algo: '(?!RSA$).+'
+    algo: '(?!RSA$|Ed25519$|Ed448$|EdDSA$).+'
 
 # Key agreement and KEM. The usage is the primitive's own.
 - id: JAVA_KEY_AGREEMENT

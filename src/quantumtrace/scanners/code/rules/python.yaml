@@ -44,6 +44,16 @@
   values_must_match:
     name: '(?i)md5|sha1|sha224|sha256|sha384|sha512'
 
+# hashlib.scrypt(password, *, salt, n, r, p, maxmem=0, dklen=64): reported as the KDF alone (M1 session 26:
+# raw name "scrypt", usage kdf, no n, r or p and no underlying hash). # verify
+- id: PY_HASHLIB_SCRYPT
+  language: python
+  pattern: '\bhashlib\.scrypt\('
+  raw_name: scrypt
+  kind_hint: algorithm
+  usage: kdf
+  library: hashlib
+
 # A hash class inside a PBKDF2HMAC(...) call is part of that composite and is not reported twice
 # (absorbed_by: the match of PY_PBKDF2 runs from PBKDF2HMAC( to the hash). The same class handed to
 # HKDF, OAEP or any other call is reported.
