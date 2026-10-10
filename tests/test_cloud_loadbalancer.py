@@ -146,7 +146,8 @@ def test_malformed_listeners_are_scan_errors(tmp_path: Path) -> None:
 def test_matches_sample_fixture_lb_findings() -> None:
     sample = ScanResult.model_validate_json(SAMPLE.read_text())
     expected = {f.id: f for f in sample.findings if f.detector == "cloud.loadbalancer"}
-    assert {f.id: f for f in _scan() if isinstance(f, Finding)} == expected
+    # The pipeline scans each input directory as the scan root, so Location.file is relative to cloud-posture/.
+    assert {f.id: f for f in _scan(LB, LB.parent) if isinstance(f, Finding)} == expected
 
 
 def test_symmetric_default_depends_on_the_partition() -> None:

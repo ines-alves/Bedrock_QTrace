@@ -51,7 +51,8 @@ def test_facts_match_appendix_d5() -> None:
 def test_matches_sample_fixture_kms_findings() -> None:
     sample = ScanResult.model_validate_json(SAMPLE.read_text())
     expected = {f.id: f for f in sample.findings if f.detector == "cloud.kms"}
-    assert {f.id: f for f in _scan()} == expected
+    # The pipeline scans each input directory as the scan root, so Location.file is relative to cloud-posture/.
+    assert {f.id: f for f in KmsScanner().scan(KMS, KMS.parent)} == expected  # type: ignore[arg-type]
 
 
 def test_missing_identifier_is_a_scan_error(tmp_path: Path) -> None:
