@@ -20,6 +20,12 @@ from quantumtrace.output.cyclonedx import build_cbom
 from quantumtrace.output.markdown import render_markdown_summary
 
 
+@pytest.fixture(autouse=True)
+def _no_scan_roots(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The Docker image sets QTRACE_SCAN_ROOTS; tests must not depend on the environment they run in."""
+    monkeypatch.delenv("QTRACE_SCAN_ROOTS", raising=False)
+
+
 @pytest.fixture
 def sample(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> ScanResult:
     """The bundled sample, with out/report.json redirected so no real scan output interferes."""
