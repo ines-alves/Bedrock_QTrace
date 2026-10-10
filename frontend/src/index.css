@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #1a1f2e;
+  --color-panel: #232938;
+  --color-steel: #4a90b8;
+  --color-aqua: #5bbfb5;
+  --color-jade: #4caf82;
+  --color-paper: #f0f4f8;
+  --font-head: "Familjen Grotesk", sans-serif;
+  --font-mono: "DM Mono", monospace;
+  --font-sub: "Piazzolla", serif;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-mono);
+}

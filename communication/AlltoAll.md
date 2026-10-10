@@ -72,6 +72,15 @@ Nobody edits another member's files. A needed change is a new item in the pair f
 - `kb/tls_registry.yaml` is keyed by hex string, with `iana` and an `openssl` alias list per entry. It holds no tier (`M2M4-04`).
 - The live probe is optional P2, behind `--probe host:port`. Nothing touches the network without it (`M1M2-05`).
 
+M1 consumption follow-up, user-relayed 2026-10-10 (M1M2-06; M2 confirmation
+and tested commit review pending):
+
+- ClientHello-only session_id groups can lack a session finding/extra.session while retaining offers and ScanError. ServerHello-only groups may have null offered_* values. Missing metadata is incompleteness, not conflicting evidence.
+- HelloRetryRequest alone establishes no negotiated selection; its session finding is negotiated=false.
+- Protocol-version findings keep labels and optional version codepoints, resolved only through versions. M1 dispatches by kind_hint; namespace-specific pcap.tls.* detectors avoid ID collisions.
+- TLS 1.2 ECDHE groups use ServerKeyExchange evidence frames.
+- Session IDs depend on scan-root-relative file paths. Golden evaluation fixes the repository root and portable rows avoid literal session_id selectors; ambiguous matches fail.
+
 ### Code (M3)
 - A size passes from a key generation to a consumer only through a demonstrated same-file flow link. Otherwise `key_size` is None, `unresolved`, confidence at most 0.5 (`M1M3-01`).
 - Bare Java `AES` leaves `mode` None. Go ECB needs affirmative `block_loop` evidence. Explicit transform strings set `mode` directly (`M1M3-06`).
