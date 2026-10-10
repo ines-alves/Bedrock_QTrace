@@ -151,3 +151,84 @@ risk tiers. The existing dated KB remains the source for algorithm policy/PQC fa
   groups/signature/hybrid facts reuse the sourced KB.
 - [RFC 8701](https://www.rfc-editor.org/rfc/rfc8701.html), section 2:
   reserved GREASE structure. SCSV names/values follow RFC 5746 and RFC 7507.
+
+# Central classification
+
+`classify(EvidenceNode, KnowledgeBase, *, scan_started_at: datetime | None = None)
+-> ClassifiedNode` interprets one decomposed tree. It neither loads resources nor
+reads the clock, aggregates evidence, builds sessions or assigns risk points.
+`ClassifiedNode` and `Advice` are frozen; `walk()` retains the tree. Each row holds
+its original node/Finding, confidence, exclusions, tier/threat, primitive, flags,
+verified optional facts, rationale and ordered deduplicated advice. The original
+Finding remains read-only, including all owner metadata and negotiated/source
+state. `to_asset()` returns an independent CryptoAsset with stable node links,
+copied Location, original finding ID and zero scoring placeholders. Aggregation
+in 1.7 must replace per-evidence asset IDs with canonical aggregate IDs and update
+relationships; never collapse the private records to Location alone.
+
+Eligibility is `row.scoreable`: derived containers, hybrid trace halves,
+hygiene-only/plaintext/library/version observations and KB exclusions are excluded
+from quantum scoring and readiness. Unknown crypto stays eligible. Hygiene on a
+crypto observation does not exclude its actual cryptographic policy. Do not feed
+trace halves into session/composite mechanism summaries or scoring denominators.
+Container flags summarize children; e.g. group14 has an unbroken 2048-bit DH
+component but its SHA-1 exchange-hash component carries the KB collision-use flag.
+The container is unscored, so this never multiplies DH risk twice.
+
+Atomic hybrids follow their combiner policy, irrespective of classical trace
+children. `summarize_verdict(components, *, require_authentication=False,
+authentication_observable=None) -> VerdictSummary` combines actual mechanisms
+with CRITICAL > MEDIUM > UNKNOWN > SAFE. Session assembly must set
+`require_authentication=True` and pass observed authentication separately. Unknown
+observability or missing authentication adds UNKNOWN, preserving known critical/
+medium verdicts. Observability True does not supply a missing key. Cipher-suite
+containers apply this authentication guard too. This helper creates no TLSSession
+and never interprets encrypted/absent certificates as guessed RSA/ECDSA evidence.
+
+Classify scanner/name conflicts conservatively: parameter-only uncertainty cannot
+make any-size RSA/DH/ECC quantum-safe, but no parameter-dependent classical flag
+or verified facts are asserted. Identity/namespace/usage conflicts and unknown
+resolution prevent an established critical identity; other conflicting records
+are UNKNOWN. Unknown AES size is MEDIUM with confidence capped at 0.5 (raw
+confidence unchanged); unsupported observed cipher sizes remain UNKNOWN. AES-192
+uses the approved configurable KB policy. Modes are lowercase schema values;
+GCM/CCM have `ae` primitive; observed ECB gets separate hygiene advice. No provider
+default is inferred. HMAC/KDF hash use does not inherit collision-use flags.
+Generic CMAC/GMAC requires observed underlying cipher; generic HMAC requires hash.
+KDFs follow observed underlying hash/cipher when available, otherwise their KB
+quantum-policy default; this does not audit work factor or hand-rolled code.
+
+HNDL applies to Shor-vulnerable key_exchange in PCAP/live/SSH/LB evidence only;
+signature/authentication and encryption usage alone do not imply recorded traffic.
+Negotiation remains untouched for the later scoring floor. Static RSA key transport
+retains false forward secrecy and its recorded-session risk. No forward secrecy
+is invented for generic or hybrid mechanisms. Recommendations distinguish signing
+from key establishment; KEM replacement for encryption explicitly requires a data
+encryption construction. SAFE assets need no migration recommendation; observed
+hygiene can still require advice. Explicit truncated hash/XOF outputs without a
+packaged verified output policy remain UNKNOWN.
+
+OID/security facts only come from the dated KB, keyed by verified parameter sets
+or exact AES-GCM size/mode. Nominal key bits never produce NIST quantum categories.
+Legacy Kyber/Dilithium/draft observations retain their flag and notes, while final
+OID/category/standard fields are withheld; alias lookup is not final conformity.
+Falcon/HQC final facts remain absent. Parameter-category claims are conditional
+on conforming implementations, and hybrid recognition never certifies a combiner.
+
+Cloud hygiene derives from retained source_timestamp, then an explicit timezone-
+aware scan_started_at fallback. Missing reference/invalid expiry leaves advice
+unresolved; no hidden current date. Imported/external/pending-deletion/rotation,
+expired ISSUED in-use certificates, <90-day expiry and SHA-1 certificate signatures
+are explained in rationale/advice, with HSM and multi-region as context. Raw
+Findings are not rewritten and no CryptoAsset.extra field is introduced.
+
+Classification sources checked 2026-10-10: existing dated KB policy/fact sources
+remain authoritative. Additional primary checks are
+[FIPS 180-4](https://csrc.nist.gov/pubs/fips/180-4/upd1/final) for distinct digest
+lengths (including SHA-512/256),
+[FIPS 202](https://csrc.nist.gov/pubs/fips/202/final) for SHA-3/XOF distinction,
+[RFC 6151](https://www.rfc-editor.org/rfc/rfc6151.html) for collision use versus
+HMAC-MD5, and the [CycloneDX 1.6 schema](https://cyclonedx.org/schema/bom-1.6.schema.json)
+for primitive/mode enums. Tier/default hygiene thresholds are repository policy,
+not additional standards or security-level facts. Production registry integration,
+real scanner/golden evaluation and full session construction remain later gates.
