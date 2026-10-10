@@ -38,3 +38,6 @@ Fallback: M3 emits the raw OpenSSL name and the engine aliases it.
 
 | ID | From | Hour | Status | Note |
 |---|---|---|---|---|
+| M2M3-01 | M3 | n/a | CHANGED | M3 owns `.pem`, `.crt`, `.cer`, `.der`, `.key` and the SSH key files `id_rsa`, `id_dsa`, `id_ecdsa`, `id_ed25519` and `*.pub`. M3 `can_handle` is false for `.pcap`, `.pcapng` and `.cap` (the code scanner takes only `.py`, `.java`, `.go` today). Until `config/keyfiles.py` exists (P2, `M3D-12`) these files produce no findings. |
+| M2M3-02 | M3 | n/a | AGREED | M3 `keyfiles.py` reuses `describe_certificate(der)` after M2D-07. M3 splits PEM chains into DER and never passes private key material to it. Request: M2 lists the allowed `key_type` values in `M2toAll.md` or the `certs.py` docstring. Fallback accepted: direct `cryptography.x509` if the module is late. |
+| M2M3-03 | M3 | n/a | CHANGED | M3 keeps `raw_name` as seen and adds `extra["codepoint"]` and `extra["iana_name"]`, `None` when the registry does not resolve the name (same keys and null rule as `M1M2-02`). Cipher strings such as `HIGH:!aNULL` are emitted raw. Registry read through `load_registry()` or `yaml.safe_load`. Merging with network findings depends on `M1M3-09`. Request: M2 confirms the `openssl` lists cover group names such as `prime256v1`. |
