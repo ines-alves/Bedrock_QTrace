@@ -20,6 +20,9 @@ dependencies = [
     "python-multipart>=0.0.9",
 ]
 
+[project.scripts]
+qtrace = "quantumtrace.cli:main"
+
 [project.optional-dependencies]
 probe = ["sslyze>=6"]
 dev = ["pytest>=8", "pytest-cov", "ruff>=0.6", "mypy", "types-PyYAML"]
