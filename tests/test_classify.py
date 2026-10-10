@@ -390,7 +390,8 @@ def test_private_records_and_public_payloads_retain_metadata(kb):
     )
     before = raw.model_dump_json()
     row = classify(decompose(raw, kb).root, kb)
-    assert row.tier == Tier.UNKNOWN and not row.scoreable
+    # A TLS 1.3 suite carries no key exchange or authentication: its tier is its components'.
+    assert row.tier == Tier.SAFE and not row.scoreable
     for child in row.walk():
         assert child.node.normalized.finding is raw and child.confidence == 0.7
         asset = child.to_asset()
@@ -604,3 +605,18 @@ def test_block_cipher_rationale_states_policy_not_a_wrong_observation(kb):
     (row,) = result(kb, "AES/ECB/PKCS5Padding", usage=Usage.ENCRYPTION, key_size=128).children
     assert "Unknown key size" not in row.rationale and "SIV" not in row.rationale
     assert "tier follows the observed key size" in row.rationale and "ECB" in row.rationale
+
+
+@pytest.mark.parametrize(
+    "suite,tier",
+    [
+        ("TLS_AES_256_GCM_SHA384", Tier.SAFE),
+        ("TLS_CHACHA20_POLY1305_SHA256", Tier.SAFE),
+        ("TLS_AES_128_GCM_SHA256", Tier.MEDIUM),
+        ("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", Tier.CRITICAL),
+    ],
+)
+def test_tls13_suites_take_component_tier_and_leave_authentication_to_sessions(suite, tier, kb):
+    row = result(kb, suite, kind_hint=KindHint.CIPHER_SUITE, usage=Usage.UNKNOWN)
+    assert row.tier == tier and not row.scoreable
+    assert ("Authentication is UNKNOWN" in row.rationale) is (tier == Tier.CRITICAL)
