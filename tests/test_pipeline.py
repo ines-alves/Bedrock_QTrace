@@ -191,8 +191,16 @@ def test_published_adapters_and_incomplete_starter_coverage():
     assert sum(raw.location.source_type == SourceType.KMS for raw in result.findings) == 10
     assert any(raw.location.source_type == SourceType.CODE for raw in result.findings)
     assert any(raw.location.source_type == SourceType.LOADBALANCER for raw in result.findings)
-    assert not result.sessions  # M2 has not yet supplied a registered capture adapter.
-    assert any(error.path.endswith(".pcap") for error in result.errors)
+    assert sum(session.transport == "tls" for session in result.sessions) == 97
+    assert sum(session.transport == "ssh" for session in result.sessions) == 24
+    assert (
+        sum(
+            raw.kind_hint == KindHint.PLAINTEXT and raw.location.source_type == SourceType.PCAP
+            for raw in result.findings
+        )
+        == 14
+    )
+    assert not any(Path(error.path or "").suffix == ".pcap" for error in result.errors)
     assert sum(raw.location.source_type == SourceType.ACM for raw in result.findings) == 5
     assert not any("acm" in (error.path or "") for error in result.errors)
     assert result.summary.counts_by_source["kms"]["CRITICAL"] > 0
@@ -322,3 +330,42 @@ def test_manifest_loader_inventory_exclusion_and_markdown_integration(tmp_path):
     assert len(partial.errors) == 1 and partial.errors[0].detector == "code.java.manifest"
     assert "not well-formed XML" in partial.errors[0].message
     assert "not well-formed XML" in render_markdown_summary(partial)
+
+
+def test_real_pcap_selection_stability_and_unobservable_authentication():
+    from quantumtrace.models import Tier
+
+    root = Path(__file__).resolve().parents[1]
+    capture = root / "network-capture" / "network.pcap"
+    options = ScanOptions(scanner_names=["pcap"])
+    first = pipeline.run([capture], options=options)
+    second = pipeline.run([capture], options=options)
+    assert not first.errors and not second.errors
+    assert first.scan_id == second.scan_id
+    assert first.findings == second.findings and first.assets == second.assets
+    assert first.sessions == second.sessions and first.summary == second.summary
+    assert len(first.sessions) == 121
+    assert all(raw.location.file == "network.pcap" for raw in first.findings)
+    assert not any(raw.kind_hint == KindHint.CERTIFICATE for raw in first.findings)
+    tls_ids = {session.session_id for session in first.sessions if session.transport == "tls"}
+    observed_auth = [
+        raw.extra["authentication_observable"]
+        for raw in first.findings
+        if "authentication_observable" in raw.extra and raw.session_id in tls_ids
+    ]
+    assert observed_auth and not any(observed_auth)
+    tls = [session for session in first.sessions if session.transport == "tls"]
+    assert all(session.cert_key is None and session.cert_sig_alg is None for session in tls)
+    hybrids = [session for session in tls if session.pq_status == "pq_hybrid"]
+    assert hybrids and all(session.verdict_tier == Tier.UNKNOWN for session in hybrids)
+    assert ScanResult.model_validate_json(first.model_dump_json()) == first
+
+
+def test_registered_pcap_empty_capture_error(tmp_path):
+    path = tmp_path / "empty.PCAP"
+    path.touch()
+    result = pipeline.run([path], options=ScanOptions(scanner_names=["pcap"]))
+    assert not result.findings and not result.sessions
+    assert len(result.errors) == 1
+    assert result.errors[0].detector == "pcap" and result.errors[0].path == "empty.PCAP"
+    assert result.errors[0].message == "capture is empty"

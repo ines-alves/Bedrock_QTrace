@@ -25,6 +25,7 @@ _ADAPTER_MODULES = (
     "quantumtrace.scanners.cloud.loadbalancer",
     "quantumtrace.scanners.code.engine",
     "quantumtrace.scanners.code.manifests",
+    "quantumtrace.scanners.network.pcap_scanner",
 )
 
 

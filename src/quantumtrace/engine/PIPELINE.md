@@ -3,7 +3,7 @@
 `quantumtrace.pipeline.run(inputs, probes=None, options=None) -> ScanResult` uses
 the frozen ScanOptions/ScanResult contracts. It imports the currently published
 self-registering owner adapters: `cloud.acm`, `cloud.kms`, `cloud.loadbalancer`,
-`code.regex` and `code.manifest`.
+`code.regex`, `code.manifest` and `pcap`.
 Scanners match content/extensions through their own can_handle, in scanner-name
 order; names containing `generic_json` are tried last. The first accepting handler
 runs once. Explicit scanner selection restricts handlers; unavailable selections
@@ -31,13 +31,21 @@ Scores/session IDs do not depend on wall-clock time; expiry advice can legitimat
 change when the explicit reference changes. Findings containing a source timestamp
 keep it in the serialized ScanResult. Native JSON round-trips through ScanResult.
 
-Currently no registered PCAP adapter or config/keyfile/binary scanner or optional
-probe adapter is published on main. Their files are reported
-as unsupported by run; requested probes return explicit unavailable-adapter errors
-and never trigger implicit network traffic. M2 owns the registered capture/probe
-adapter. M4 ACM is now wired into the loader and verified with its five resources.
-Published raw parser helpers work and are exercised in session tests, but they do
-not satisfy the end-to-end registered-scanner H6 gate.
+M2's registered `pcap` adapter handles `.pcap`, `.pcapng` and `.cap` extensions
+case-insensitively. One adapter yields TLS, SSH and plaintext Findings; there is
+no separate SSH registration. The real starter capture produces 97 TLS sessions,
+24 SSH sessions and 14 plaintext flows with the built-in parser. TLS certificate
+extraction is not delivered yet: authentication remains explicitly unobservable,
+with no guessed keys or signatures. Parser diagnostics stay in ScanResult.errors,
+including cross-check warnings and usable partial results. The frozen ScanError
+contract has no severity field, so callers retain the diagnostic text rather than
+inventing one.
+
+Config/keyfile/binary scanners and the optional probe adapter remain unavailable.
+Their files or requested probes produce explicit coverage errors; scans never
+trigger implicit network traffic. M4 ACM is loaded and its five resources verified.
+Real registered capture routing is verified; full H6 still waits for the CLI,
+CBOM/API integration and owner checks requiring tshark.
 M3 manifests are routed through the registered adapter; their library Findings
 remain inventory and are excluded from quantum counts, readiness and scoring.
 M3 Markdown output is available through `output.markdown.write_markdown_summary`;
