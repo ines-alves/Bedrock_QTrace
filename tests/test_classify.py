@@ -589,3 +589,12 @@ def test_unobserved_use_or_variant_keeps_known_shor_tier(name, kb):
 def test_pbkdf2_follows_its_observed_underlying_hash(kb):
     assert result(kb, "PBKDF2-HMAC-MD5", usage=Usage.KDF).tier == Tier.MEDIUM
     assert result(kb, "PBKDF2-HMAC-SHA3_256", usage=Usage.KDF).tier == Tier.SAFE
+
+
+def test_migration_text_never_names_an_unobserved_use(kb):
+    unknown = result(kb, "Ed25519", usage=Usage.UNKNOWN)
+    known = result(kb, "Ed25519", usage=Usage.SIGNATURE)
+    assert [a.action for a in unknown.recommendations if a.action.startswith("Migrate")] == [
+        "Migrate to ML-DSA-65."
+    ]
+    assert "Migrate signature to ML-DSA-65." in [a.action for a in known.recommendations]

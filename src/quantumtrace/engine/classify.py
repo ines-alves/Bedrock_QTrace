@@ -474,7 +474,9 @@ def classify(
                 target = _replacement(ref)
                 if identity.usage == Usage.MAC and entry.primitive_by_usage.get("default") in {"hash", "xof"}:
                     target = "HMAC-" + target
-                action = f"Migrate {identity.usage.value} to {target}."
+                # Unobserved use is not a use to name; the text stays a roadmap grouping key.
+                usage_text = "" if identity.usage == Usage.UNKNOWN else f"{identity.usage.value} "
+                action = f"Migrate {usage_text}to {target}."
                 if ref.algorithm_id == "ML-KEM" and identity.usage == Usage.ENCRYPTION:
                     action = f"Use {target} for key establishment with authenticated data encryption; a KEM is not bulk encryption."
                 advice.append(Advice(action, target, ref.standard, 1 if tier == Tier.CRITICAL else 2))
