@@ -47,7 +47,7 @@ def _dump(value: Any) -> str:
 
 
 def _files(
-    inputs: list[str | Path], options: ScanOptions, errors: list[ScanError]
+    inputs: list[str | Path], options: ScanOptions, errors: list[ScanError], scan_root: Path | None = None
 ) -> list[tuple[Path, Path]]:
     files: dict[Path, tuple[Path, Path]] = {}
     excluded = set(options.exclude_dirs)
@@ -73,7 +73,7 @@ def _files(
     paths = sorted({Path(item).absolute() for item in inputs}, key=lambda path: (len(path.parts), str(path)))
     for path in paths:
         try:
-            visit(path, path if path.is_dir() else path.parent)
+            visit(path, scan_root if scan_root is not None else (path if path.is_dir() else path.parent))
         except OSError as exc:
             errors.append(ScanError(detector="pipeline", path=str(path), message=f"input traversal: {exc}"))
     return sorted(files.values(), key=lambda item: (str(item[1]), str(item[0])))
@@ -97,6 +97,17 @@ def run(
     inputs: list[str | Path], probes: list[str] | None = None, options: ScanOptions | None = None
 ) -> ScanResult:
     """Run published adapters, preserve partial results, and return the native shared model."""
+    return _run(inputs, probes, options)
+
+
+def _run(
+    inputs: list[str | Path],
+    probes: list[str] | None = None,
+    options: ScanOptions | None = None,
+    *,
+    scan_root: Path | None = None,
+) -> ScanResult:
+    """Internal orchestration; evaluation fixes evidence paths without changing run()."""
     started = datetime.now(UTC)
     settings = options if options is not None else ScanOptions()
     errors = _load_adapters()
@@ -106,7 +117,7 @@ def run(
         errors.append(ScanError(detector="pipeline", message=str(exc)))
         scanners = []
     findings = []
-    for path, root in _files(inputs, settings, errors):
+    for path, root in _files(inputs, settings, errors, scan_root):
         scanner = _route(path, scanners, errors)
         if scanner is None:
             errors.append(

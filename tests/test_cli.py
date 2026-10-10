@@ -127,10 +127,10 @@ def test_repeated_explicit_probes_delegate_without_changing_targets(sample, monk
     assert len(ScanResult.model_validate_json((tmp_path / "report.json").read_text()).errors) == 2
 
 
-def test_eval_unavailable_is_explicit(monkeypatch, tmp_path):
+def test_eval_missing_repository_is_explicit(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(cli.app, ["eval"])
-    assert result.exit_code == 2 and "planned for task 1.12" in result.output
+    assert result.exit_code == 2 and "Evaluation setup failed" in result.output
 
 
 def test_ui_uses_owner_app_and_uvicorn_without_starting_server(monkeypatch):

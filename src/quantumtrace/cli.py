@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib
-import subprocess
 import sys
 from pathlib import Path
 from typing import Annotated, Any, NoReturn
@@ -116,16 +115,12 @@ def scan(
 
 @app.command("eval")
 def evaluate() -> None:
-    """Evaluate golden accuracy when task 1.12 is available."""
-    script = Path.cwd() / "scripts" / "eval.py"
-    if not script.is_file():
-        _fail("Evaluation is unavailable: scripts/eval.py is planned for task 1.12.")
-    try:
-        completed = subprocess.run([sys.executable, str(script)], check=False)
-    except OSError as exc:
-        _fail(f"Evaluation failed: {exc}")
-    if completed.returncode:
-        raise typer.Exit(2)
+    """Measure owner-confirmed golden accuracy and fail incomplete coverage."""
+    from quantumtrace.evaluation import main as evaluate_main
+
+    code = evaluate_main([])
+    if code:
+        raise typer.Exit(code)
 
 
 @app.command()
