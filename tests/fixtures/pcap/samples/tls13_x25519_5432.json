@@ -1,0 +1,359 @@
+[
+  {
+    "id": "45278c5728e8",
+    "raw_name": "TLS 1.3",
+    "kind_hint": "protocol_version",
+    "usage": "unknown",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.3",
+    "negotiated": true,
+    "in_test_code": false,
+    "detector": "pcap.tls.version",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49159->192.0.2.18:5432",
+      "sni": "db04.lab",
+      "frame": 109,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "2f7dc3caec20",
+    "extra": {
+      "codepoint": "0x0304",
+      "iana_name": null,
+      "session": {
+        "flow": "192.0.2.10:49159->192.0.2.18:5432",
+        "sni": "db04.lab",
+        "version": "TLS 1.3",
+        "offered_groups": [
+          "0x001D",
+          "0x0017"
+        ],
+        "negotiated_group": "0x001D",
+        "offered_cipher_suites": [
+          "0x1301",
+          "0x1302",
+          "0x1303"
+        ],
+        "negotiated_cipher_suite": "0x1301",
+        "offered_sig_schemes": [
+          "0x0403",
+          "0x0804"
+        ],
+        "cert_key": null,
+        "cert_sig_alg": null,
+        "transport": "tls",
+        "service": "postgres",
+        "peer_banners": null
+      },
+      "authentication_observable": false,
+      "certificate_state": "encrypted"
+    }
+  },
+  {
+    "id": "0ac3c25041bb",
+    "raw_name": "0x1301",
+    "kind_hint": "cipher_suite",
+    "usage": "unknown",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.3",
+    "negotiated": false,
+    "in_test_code": false,
+    "detector": "pcap.tls.cipher_suite",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49159->192.0.2.18:5432",
+      "sni": "db04.lab",
+      "frame": 109,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "2f7dc3caec20",
+    "extra": {
+      "codepoint": "0x1301",
+      "iana_name": "TLS_AES_128_GCM_SHA256"
+    }
+  },
+  {
+    "id": "709e4fe2ccf5",
+    "raw_name": "0x1302",
+    "kind_hint": "cipher_suite",
+    "usage": "unknown",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.3",
+    "negotiated": false,
+    "in_test_code": false,
+    "detector": "pcap.tls.cipher_suite",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49159->192.0.2.18:5432",
+      "sni": "db04.lab",
+      "frame": 109,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "2f7dc3caec20",
+    "extra": {
+      "codepoint": "0x1302",
+      "iana_name": "TLS_AES_256_GCM_SHA384"
+    }
+  },
+  {
+    "id": "941a21867830",
+    "raw_name": "0x1303",
+    "kind_hint": "cipher_suite",
+    "usage": "unknown",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.3",
+    "negotiated": false,
+    "in_test_code": false,
+    "detector": "pcap.tls.cipher_suite",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49159->192.0.2.18:5432",
+      "sni": "db04.lab",
+      "frame": 109,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "2f7dc3caec20",
+    "extra": {
+      "codepoint": "0x1303",
+      "iana_name": "TLS_CHACHA20_POLY1305_SHA256"
+    }
+  },
+  {
+    "id": "de56e5d5776c",
+    "raw_name": "0x1301",
+    "kind_hint": "cipher_suite",
+    "usage": "unknown",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.3",
+    "negotiated": true,
+    "in_test_code": false,
+    "detector": "pcap.tls.cipher_suite",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49159->192.0.2.18:5432",
+      "sni": "db04.lab",
+      "frame": 111,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "2f7dc3caec20",
+    "extra": {
+      "codepoint": "0x1301",
+      "iana_name": "TLS_AES_128_GCM_SHA256"
+    }
+  },
+  {
+    "id": "8055634be882",
+    "raw_name": "0x001D",
+    "kind_hint": "group",
+    "usage": "key_exchange",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.3",
+    "negotiated": false,
+    "in_test_code": false,
+    "detector": "pcap.tls.group",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49159->192.0.2.18:5432",
+      "sni": "db04.lab",
+      "frame": 109,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "2f7dc3caec20",
+    "extra": {
+      "codepoint": "0x001D",
+      "iana_name": "x25519"
+    }
+  },
+  {
+    "id": "fd20cf5b89ed",
+    "raw_name": "0x0017",
+    "kind_hint": "group",
+    "usage": "key_exchange",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.3",
+    "negotiated": false,
+    "in_test_code": false,
+    "detector": "pcap.tls.group",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49159->192.0.2.18:5432",
+      "sni": "db04.lab",
+      "frame": 109,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "2f7dc3caec20",
+    "extra": {
+      "codepoint": "0x0017",
+      "iana_name": "secp256r1"
+    }
+  },
+  {
+    "id": "36c973edcb80",
+    "raw_name": "0x001D",
+    "kind_hint": "group",
+    "usage": "key_exchange",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.3",
+    "negotiated": true,
+    "in_test_code": false,
+    "detector": "pcap.tls.group",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49159->192.0.2.18:5432",
+      "sni": "db04.lab",
+      "frame": 111,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "2f7dc3caec20",
+    "extra": {
+      "codepoint": "0x001D",
+      "iana_name": "x25519"
+    }
+  },
+  {
+    "id": "680f6ce726b0",
+    "raw_name": "0x0403",
+    "kind_hint": "signature_scheme",
+    "usage": "signature",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.3",
+    "negotiated": false,
+    "in_test_code": false,
+    "detector": "pcap.tls.signature_scheme",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49159->192.0.2.18:5432",
+      "sni": "db04.lab",
+      "frame": 109,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "2f7dc3caec20",
+    "extra": {
+      "codepoint": "0x0403",
+      "iana_name": "ecdsa_secp256r1_sha256"
+    }
+  },
+  {
+    "id": "a0cf01acb429",
+    "raw_name": "0x0804",
+    "kind_hint": "signature_scheme",
+    "usage": "signature",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.3",
+    "negotiated": false,
+    "in_test_code": false,
+    "detector": "pcap.tls.signature_scheme",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49159->192.0.2.18:5432",
+      "sni": "db04.lab",
+      "frame": 109,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "2f7dc3caec20",
+    "extra": {
+      "codepoint": "0x0804",
+      "iana_name": "rsa_pss_rsae_sha256"
+    }
+  }
+]

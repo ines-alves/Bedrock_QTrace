@@ -99,7 +99,7 @@ class HttpInfo:
     host: str | None = None
     server: str | None = None
     status: int | None = None
-    frame: int | None = None  # packet where the request line starts
+    frame: int | None = None  # packet where the request head ends
 
 
 @dataclass
@@ -477,7 +477,9 @@ def _parse_http(c2s: bytes, s2c: bytes, c_marks: list[tuple[int, int]]) -> HttpI
     if not m:
         return None
     info = HttpInfo(m.group(1).decode(), m.group(2).decode("ascii", "replace"))
-    info.frame = _frame_at(c_marks, 0)
+    head_end = c2s.find(b"\r\n\r\n")
+    # the request head ends at the blank line; an unterminated head keeps the first packet
+    info.frame = _frame_at(c_marks, head_end + 3 if head_end >= 0 else 0)
     head = c2s.split(b"\r\n\r\n", 1)[0]
     h = re.search(rb"(?im)^host:[ \t]*(\S+)", head)
     info.host = h.group(1).decode("ascii", "replace") if h else None

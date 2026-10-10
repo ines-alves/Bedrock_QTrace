@@ -210,12 +210,15 @@ def test_upgrade_requests_are_recorded_on_tls_flows():
     assert [f.upgrade_request for f in res.flows] == ["smtp-starttls", "postgres-sslrequest"]
 
 
-def test_upgrade_request_never_followed_by_tls_is_not_a_tls_flow():
+def test_upgrade_request_never_followed_by_tls_is_a_plaintext_flow():
     smtp = row(
         frame__number="5", tcp__stream="0", ip__src="10.0.0.1", tcp__srcport="50000",
         ip__dst="10.0.0.2", tcp__dstport="587", smtp__command_line="STARTTLS\\r\\n",
     )  # fmt: skip
-    assert flows(smtp).flows == []  # belongs to the plaintext task, not to a TLS session
+    flow = flows(smtp).flows[0]
+    assert flow.kind == "plaintext" and flow.upgrade_request == "smtp-starttls"
+    assert flow.client == ("10.0.0.1", 50000) and flow.server == ("10.0.0.2", 587)
+    assert flow.client_hello is None and flow.server_hello is None
 
 
 def test_streams_are_ordered_and_stream_id_is_the_tcp_stream():
@@ -369,6 +372,95 @@ def test_ssh_and_tls_streams_coexist():
     assert [f.kind for f in res.flows] == ["ssh", "tls"]
 
 
+# --- HTTP canned rows ---------------------------------------------------------------------
+
+
+def http_request_row(frame=447, stream=0, **over):
+    base = dict(
+        frame__number=str(frame),
+        frame__time_epoch="1700000000.5",
+        tcp__stream=str(stream),
+        ip__src="10.0.0.1",
+        tcp__srcport="50000",
+        ip__dst="10.0.0.2",
+        tcp__dstport="80",
+        http__request__method="GET",
+        http__request__uri="/status",
+        http__host="intranet03.lab",
+    )
+    base.update(over)
+    return row(**base)
+
+
+def http_response_row(frame=449, stream=0, **over):
+    base = dict(
+        frame__number=str(frame),
+        frame__time_epoch="1700000000.6",
+        tcp__stream=str(stream),
+        ip__src="10.0.0.2",
+        tcp__srcport="80",
+        ip__dst="10.0.0.1",
+        tcp__dstport="50000",
+        http__server="Apache/2.4.58",
+        http__response__code="200",
+    )
+    base.update(over)
+    return row(**base)
+
+
+def test_http_flow_is_built_from_request_and_response_rows():
+    res = flows(http_request_row(), http_response_row())
+    assert res.errors == [] and len(res.flows) == 1
+    flow = res.flows[0]
+    assert flow.kind == "http" and flow.flow == "10.0.0.1:50000->10.0.0.2:80"
+    info = flow.http
+    assert (info.method, info.path, info.host) == ("GET", "/status", "intranet03.lab")
+    assert (info.server, info.status, info.frame) == ("Apache/2.4.58", 200, 447)
+
+
+def test_http_request_without_response_has_no_server_or_status():
+    info = flows(http_request_row()).flows[0].http
+    assert info.server is None and info.status is None
+
+
+def test_http_response_without_request_is_not_a_flow():
+    assert flows(http_response_row()).flows == []
+
+
+def test_http_keeps_the_first_request_and_first_response_only():
+    res = flows(
+        http_request_row(frame=10),
+        http_response_row(frame=12),
+        http_request_row(frame=20, http__request__uri="/other"),
+        http_response_row(frame=22, http__response__code="404", http__server="x"),
+    )
+    info = res.flows[0].http
+    assert (info.path, info.frame, info.status, info.server) == ("/status", 10, 200, "Apache/2.4.58")
+
+
+def test_http_uri_with_a_comma_is_not_split():
+    info = flows(http_request_row(http__request__uri="/a,b")).flows[0].http
+    assert info.path == "/a,b"
+
+
+def test_http_request_without_host_header():
+    assert flows(http_request_row(http__host="")).flows[0].http.host is None
+
+
+def test_http_ipv6_endpoints_are_bracketed():
+    req = http_request_row(ip__src="", ipv6__src="2001:db8::1", ip__dst="", ipv6__dst="2001:db8::2")
+    assert flows(req).flows[0].flow == "[2001:db8::1]:50000->[2001:db8::2]:80"
+
+
+def test_http_http_and_tls_streams_coexist_in_stream_order():
+    res = flows(
+        client_row(frame=20, stream=1),
+        server_row(frame=22, stream=1),
+        http_request_row(stream=0),
+    )
+    assert [f.kind for f in res.flows] == ["http", "tls"]
+
+
 # --- command line and runner ------------------------------------------------------------
 
 
@@ -448,13 +540,15 @@ def test_unreadable_files_are_errors(tmp_path):
 
 
 @needs_tshark
-def test_kit_has_97_tls_and_24_ssh_flows_and_no_errors():
+def test_kit_has_97_tls_24_ssh_and_14_http_flows_and_no_errors():
     res = tshark.read_flows_tshark(KIT)
     assert res.errors == []
     tls = [f for f in res.flows if f.kind == "tls"]
-    assert len(tls) == 97 and len(res.flows) == 97 + 24
+    assert len(tls) == 97 and len(res.flows) == 97 + 24 + 14
     assert all(f.client_hello and f.server_hello for f in tls)
     assert sum(f.kind == "ssh" for f in res.flows) == 24
+    assert sum(f.kind == "http" for f in res.flows) == 14
+    assert not any(f.kind == "plaintext" for f in res.flows)  # all 11 STARTTLS flows upgrade
 
 
 @needs_tshark
@@ -490,3 +584,18 @@ def test_kit_ssh_flows_match_purepy_on_every_field():
                 stream_id,
                 side,
             )
+
+
+@needs_tshark
+def test_kit_http_flows_match_purepy_on_every_field():
+    ts = {f.stream_id: f for f in tshark.read_flows_tshark(KIT).flows if f.kind == "http"}
+    pp = {f.stream_id: f for f in purepy.read_flows(KIT).flows if f.kind == "http"}
+    assert set(ts) == set(pp) and len(ts) == 14
+    for stream_id, expected in pp.items():
+        actual = ts[stream_id]
+        assert (actual.client, actual.server, actual.warnings) == (
+            expected.client,
+            expected.server,
+            expected.warnings,
+        )
+        assert dataclasses.asdict(actual.http) == dataclasses.asdict(expected.http), stream_id

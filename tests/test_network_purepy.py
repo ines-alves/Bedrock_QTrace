@@ -503,3 +503,11 @@ def test_server_key_exchange_group_and_frame(tmp_path):
     assert flow.server_key_exchange_group == 0x0017
     assert flow.server_key_exchange_frame == 4
     assert flow.certificate_state == "observed"
+
+
+def test_http_frame_is_the_packet_where_the_request_head_ends(tmp_path):
+    head = b"GET /status HTTP/1.1\r\nHost: a.lab\r\n"
+    p = _flow_pcap(tmp_path, c2s=[head, b"User-Agent: x\r\n\r\n"], dport=80)
+    flow = [f for f in purepy.read_flows(p).flows if f.kind == "http"][0]
+    assert flow.http.host == "a.lab"
+    assert flow.http.frame == 2  # second client packet, where the blank line arrives

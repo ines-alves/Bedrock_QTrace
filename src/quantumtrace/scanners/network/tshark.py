@@ -2,8 +2,8 @@
 
 One ``tshark -T fields`` pass over the handshake messages (plus the STARTTLS / SSLRequest upgrade
 requests and the SSH banner / KEXINIT packets) is turned into ``PureResult``/``Flow``/``TlsHello``/
-``SshSide`` objects, so ``tls_session.py`` and ``ssh.py`` build findings from either parser and the
-two can be compared field by field. Plaintext HTTP extraction arrives with the plaintext task.
+``SshSide``/``HttpInfo`` objects, so ``tls_session.py``, ``ssh.py`` and ``plaintext.py`` build
+findings from either parser and the two can be compared field by field.
 
 Detect-only and never raises: every failure is recorded in ``PureResult.errors``.
 """
@@ -15,7 +15,14 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from quantumtrace.scanners.network.purepy import HRR_RANDOM, Flow, PureResult, SshSide, TlsHello
+from quantumtrace.scanners.network.purepy import (
+    HRR_RANDOM,
+    Flow,
+    HttpInfo,
+    PureResult,
+    SshSide,
+    TlsHello,
+)
 from quantumtrace.scanners.network.registry import SIGNALLING_SUITES, is_grease
 
 DEFAULT_TIMEOUT = 120.0
@@ -28,7 +35,8 @@ DISPLAY_FILTER = (
     "tls.handshake.type == 11 or tls.handshake.type == 12 or "
     'smtp.command_line contains "STARTTLS" or '
     "pgsql.request_code == 80877103 or "  # 0x04D2162F, the Postgres SSLRequest
-    "ssh.protocol or ssh.message_code == 20"
+    "ssh.protocol or ssh.message_code == 20 or "
+    "http.request or http.response"
 )
 
 # Column order is the contract between the command line and `parse_rows`.
@@ -70,6 +78,11 @@ COLUMNS = (
     "ssh.mac_algorithms_server_to_client",
     "ssh.compression_algorithms_client_to_server",
     "ssh.compression_algorithms_server_to_client",
+    "http.request.method",
+    "http.request.uri",
+    "http.host",
+    "http.server",
+    "http.response.code",
 )
 _COL = {name: i for i, name in enumerate(COLUMNS)}
 _AGGREGATOR = ","
@@ -176,6 +189,8 @@ class _Acc:
     saw_ske_row: bool = False
     ssh: dict[str, SshSide] = field(default_factory=dict)  # "client" / "server"
     ssh_warnings: list[str] = field(default_factory=list)
+    http: HttpInfo | None = None
+    saw_http_response: bool = False
 
 
 # --- row parsing (pure) --------------------------------------------------------------------
@@ -275,6 +290,35 @@ def _ssh_row(acc: _Acc, cells: list[str], frame: int, src, dst, res: PureResult)
     side.comp_s2c = _names(cells[_COL["ssh.compression_algorithms_server_to_client"]])
 
 
+def _http_row(acc: _Acc, cells: list[str], frame: int, src, dst) -> None:
+    """The first request of the stream and the first response to it; later ones are ignored."""
+    method_cell = cells[_COL["http.request.method"]]
+    method = _first_text(method_cell)
+    if method:
+        if acc.http is not None:
+            return
+        # One occurrence is the whole cell (a URI may contain the aggregator character); several
+        # pipelined requests in one frame are joined, and then the first one is meant.
+        pipelined = _AGGREGATOR in method_cell
+
+        def one(name: str) -> str:
+            cell = cells[_COL[name]].strip()
+            return cell.split(_AGGREGATOR)[0].strip() if pipelined else cell
+
+        acc.http = HttpInfo(
+            method=method, path=one("http.request.uri"), host=one("http.host") or None, frame=frame
+        )
+        sender, receiver = _endpoint(src), _endpoint(dst)
+        if sender and receiver:
+            acc.client, acc.server = sender, receiver  # the request sender is the client
+        return
+    status = _first_num(cells[_COL["http.response.code"]])
+    if acc.http is not None and status is not None and not acc.saw_http_response:
+        acc.saw_http_response = True
+        acc.http.status = status
+        acc.http.server = cells[_COL["http.server"]].strip().split(_AGGREGATOR)[0].strip() or None
+
+
 def _names(cell: str) -> list[str]:
     return [t.strip() for t in cell.split(_AGGREGATOR) if t.strip()]
 
@@ -311,6 +355,11 @@ def parse_rows(text: str) -> PureResult:
                 acc.first_ts = 0.0
         if _first_text(cells[_COL["ssh.protocol"]]) or _SSH_KEXINIT in _nums(cells[_COL["ssh.message_code"]]):
             _ssh_row(acc, cells, frame, src, dst, res)
+            continue
+        if _first_text(cells[_COL["http.request.method"]]) or (
+            _first_num(cells[_COL["http.response.code"]]) is not None
+        ):
+            _http_row(acc, cells, frame, src, dst)
             continue
         types = _nums(cells[_COL["tls.handshake.type"]])
         sender = _endpoint(src)
@@ -359,10 +408,21 @@ def _flow(stream_id: int, acc: _Acc) -> Flow | None:
         flow.ssh_client, flow.ssh_server = acc.ssh.get("client"), acc.ssh.get("server")
         flow.warnings.extend(acc.ssh_warnings)
         return flow
-    if not acc.client_hellos and not acc.server_hellos:
-        return None  # an upgrade request that was never followed by TLS: plaintext task, not TLS
+    if acc.http is not None:
+        if acc.client is None or acc.server is None:
+            return None
+        flow = Flow(stream_id, acc.client, acc.server, acc.first_ts or 0.0)
+        flow.kind, flow.http = "http", acc.http
+        return flow
     if acc.client is None or acc.server is None:
         return None
+    if not acc.client_hellos and not acc.server_hellos:
+        if acc.upgrade is None:
+            return None
+        # an upgrade was requested and no TLS followed: the traffic stayed in the clear
+        flow = Flow(stream_id, acc.client, acc.server, acc.first_ts or 0.0)
+        flow.kind, flow.upgrade_request = "plaintext", acc.upgrade
+        return flow
     flow = Flow(stream_id, acc.client, acc.server, acc.first_ts or 0.0)
     flow.kind = "tls"
     flow.upgrade_request = acc.upgrade
