@@ -31,7 +31,9 @@ function RowView({ row }: { row: Row }) {
       <div className="min-w-0">
         <div className="flex flex-wrap items-baseline gap-x-3">
           <span className="font-medium">{f.raw_name}</span>
-          {row.asset && <span className="text-paper/50">{row.asset.canonical_name}</span>}
+          {row.asset && row.asset.canonical_name.toLowerCase() !== f.raw_name.toLowerCase() && (
+            <span className="text-paper/50">{row.asset.canonical_name}</span>
+          )}
           {details(row) && <span className="text-paper/50">{details(row)}</span>}
           <span className="text-paper/40">{languageOf(f)}</span>
           {f.in_test_code && <span className={`${tag} border border-paper/30 text-paper/60`}>test code</span>}

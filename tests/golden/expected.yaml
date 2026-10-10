@@ -222,11 +222,10 @@
   source: sample-repos/java/DeviceAttestation.java
   source_type: code
   canonical: Ed25519
-  usage: unknown
+  usage: signature
   line: 12
   tier: CRITICAL
   classically_broken: false
-  note: "key generation; usage not stated at this site"
 - kind: asset
   source: sample-repos/java/DeviceAttestation.java
   source_type: code
