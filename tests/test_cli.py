@@ -53,7 +53,8 @@ def test_real_starter_partial_scan_writes_all_requested_valid_reports(tmp_path):
     assert result.roadmap and result.summary.score == 60
     assert len(result.errors) == 3
     cbom = json.loads((tmp_path / "cbom.json").read_text())
-    assert validate_cbom(cbom) == [] and len(cbom["components"]) == 670
+    # 659 assets less 6 hygiene/library/plaintext wrappers that the CBOM leaves out (M3M4-05).
+    assert validate_cbom(cbom) == [] and len(cbom["components"]) == 664
     markdown = (tmp_path / "summary.md").read_text()
     assert "cryptography" in markdown and "Phase 0" in markdown
 

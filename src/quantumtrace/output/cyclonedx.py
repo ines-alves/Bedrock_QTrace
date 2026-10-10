@@ -186,13 +186,22 @@ def _library(finding: Finding) -> dict[str, Any]:
     )
 
 
+def _is_wrapper(asset: CryptoAsset, findings: dict[str, Finding]) -> bool:
+    """An asset made only of hygiene warnings or library declarations: not a cryptographic primitive (M3M4-05)."""
+    return all(
+        findings[fid].extra.get("hygiene_only") or findings[fid].kind_hint == KindHint.LIBRARY
+        for fid in asset.finding_ids
+    )
+
+
 def build_cbom(result: ScanResult) -> dict[str, Any]:
     """Build a CycloneDX 1.6 CBOM dict from a classified ScanResult, deterministically."""
     findings = {finding.id: finding for finding in result.findings}
     sessions = {session.session_id: session for session in result.sessions}
     suite_codes = {row["iana"]: code for code, row in TLSRegistry().data["cipher_suites"].items()}
     owner = {fid: asset.asset_id for asset in result.assets for fid in asset.finding_ids}
-    components = [_asset_component(asset, findings, sessions, suite_codes) for asset in result.assets]
+    assets = [asset for asset in result.assets if not _is_wrapper(asset, findings)]
+    components = [_asset_component(asset, findings, sessions, suite_codes) for asset in assets]
     components += [
         _key_material(finding, owner)
         for finding in result.findings
@@ -215,7 +224,7 @@ def build_cbom(result: ScanResult) -> dict[str, Any]:
         "components": components,
         "dependencies": [
             {"ref": asset.asset_id, "dependsOn": list(asset.components)}
-            for asset in result.assets
+            for asset in assets
             if asset.components
         ],
     }
