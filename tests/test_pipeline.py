@@ -411,8 +411,10 @@ def test_reports_keep_inputs_as_given_and_no_local_path_prefix(tmp_path, monkeyp
     monkeypatch.chdir(tmp_path)
     result = pipeline.run(["kit", "./kit/"])
     assert result.inputs == ["kit"]
-    assert [error.path for error in result.errors if error.detector == "pipeline"] == ["kit/README.md"]
-    assert str(tmp_path) not in result.model_dump_json()
+    assert result.errors == []
+    named = pipeline.run(["kit/README.md"])
+    assert [error.path for error in named.errors if error.detector == "pipeline"] == ["kit/README.md"]
+    assert str(tmp_path) not in result.model_dump_json() + named.model_dump_json()
     assert pipeline.run(["kit"]).scan_id == result.scan_id
 
 
@@ -424,6 +426,16 @@ def test_inputs_outside_working_directory_stay_absolute(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path / "work")
     result = pipeline.run([outside])
     assert result.inputs == [outside.as_posix()]
-    assert [error.path for error in result.errors if error.detector == "pipeline"] == [
+    assert result.errors == []
+    named = pipeline.run([outside / "README.md"])
+    assert [error.path for error in named.errors if error.detector == "pipeline"] == [
         (outside / "README.md").as_posix()
     ]
+
+
+def test_unsupported_files_found_in_a_folder_are_not_errors(fake, monkeypatch, tmp_path):
+    monkeypatch.setattr(base, "REGISTRY", [fake])
+    (tmp_path / "README.md").write_text("docs")
+    assert pipeline.run([tmp_path]).errors == []
+    named = pipeline.run([tmp_path / "README.md"])
+    assert [error.message for error in named.errors] == ["no selected scanner supports input"]

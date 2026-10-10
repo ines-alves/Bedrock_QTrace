@@ -133,14 +133,17 @@ def _run(
         errors.append(ScanError(detector="pipeline", message=str(exc)))
         scanners = []
     findings = []
+    named = {Path(item).absolute() for item in inputs}
     for path, root in _files(inputs, settings, errors, scan_root):
         scanner = _route(path, scanners, errors)
         if scanner is None:
-            errors.append(
-                ScanError(
-                    detector="pipeline", path=_display(path), message="no selected scanner supports input"
+            # A file the user named is an error; files found by walking a folder (README, images) are not input.
+            if path in named:
+                errors.append(
+                    ScanError(
+                        detector="pipeline", path=_display(path), message="no selected scanner supports input"
+                    )
                 )
-            )
             continue
         try:
             for item in scanner.scan(path, root):
