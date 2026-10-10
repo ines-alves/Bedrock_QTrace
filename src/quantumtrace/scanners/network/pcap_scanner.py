@@ -28,6 +28,7 @@ EXTENSIONS = frozenset({".pcap", ".pcapng", ".cap"})
 # purepy reads the whole file into memory; the second opinion is only worth its cost on small files.
 CROSS_CHECK_MAX_BYTES = 32 * 1024 * 1024
 PUREPY_MAX_BYTES = 256 * 1024 * 1024
+MIN_CAPTURE_BYTES = 24  # the classic pcap global header; a pcapng section header is longer
 
 _KINDS = ("tls", "ssh", "plaintext")
 
@@ -92,6 +93,8 @@ class PcapScanner:
             return [self._error(rel, "capture cannot be read")]
         if size == 0:
             return [self._error(rel, "capture is empty")]
+        if size < MIN_CAPTURE_BYTES:
+            return [self._error(rel, "file is too short to be a capture")]
 
         result = self._parse(path, size)
         errors = [self._error(rel, message) for message in _unique(result.errors)]
@@ -135,8 +138,9 @@ class PcapScanner:
                 result.errors = [*result.errors, *fallback.errors]
             return self._finish(result, path)
 
-        if not result.errors and result.flows and classic and size <= CROSS_CHECK_MAX_BYTES:
-            result.errors.extend(self._disagreements(result, purepy.read_flows(path)))
+        if not result.errors and classic and size <= CROSS_CHECK_MAX_BYTES:
+            # Also when tshark found nothing: a link type it cannot decode is a clean, empty run.
+            result.errors.extend(self._second_opinion(result, purepy.read_flows(path)))
         return self._finish(result, path)
 
     @staticmethod
@@ -149,9 +153,11 @@ class PcapScanner:
         return purepy.read_flows(path)
 
     @staticmethod
-    def _disagreements(primary: PureResult, second: PureResult) -> list[str]:
-        if second.errors:  # the second parser could not read it all; nothing to compare
-            return []
+    def _second_opinion(primary: PureResult, second: PureResult) -> list[str]:
+        if second.errors:
+            # With flows in hand the second parser merely could not read it all and there is nothing
+            # to compare. Without any, its errors are the only evidence of an unreadable capture.
+            return [] if primary.flows else list(second.errors)
         left, right = _counts(primary), _counts(second)
         return [
             f"parsers disagree on {kind} flows: tshark {left[kind]}, built-in parser {right[kind]}; "

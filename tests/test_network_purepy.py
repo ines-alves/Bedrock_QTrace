@@ -511,3 +511,85 @@ def test_http_frame_is_the_packet_where_the_request_head_ends(tmp_path):
     flow = [f for f in purepy.read_flows(p).flows if f.kind == "http"][0]
     assert flow.http.host == "a.lab"
     assert flow.http.frame == 2  # second client packet, where the blank line arrives
+
+
+# --- damaged and unusual captures ---------------------------------------------------------------
+
+
+def test_trailing_bytes_shorter_than_a_packet_header_are_reported(tmp_path):
+    ch = _client_hello([0x1301], [0x001D], [0x0304])
+    base = _pcap([_frame(ch, 1)])
+    for extra in (1, 8, 15):
+        p = tmp_path / f"t{extra}.pcap"
+        p.write_bytes(base + b"\x00" * extra)
+        res = purepy.read_flows(p)
+        assert len(res.flows) == 1
+        assert res.errors == ["truncated packet header at end of file"]
+
+
+def test_header_only_capture_is_a_valid_empty_capture(tmp_path):
+    p = tmp_path / "h.pcap"
+    p.write_bytes(_pcap([]))
+    res = purepy.read_flows(p)
+    assert res.flows == [] and res.errors == []
+
+
+def _sni(res):
+    return [f.client_hello.sni for f in res.flows]
+
+
+def test_reused_four_tuple_after_close_is_a_new_connection(tmp_path):
+    a, b = (
+        _client_hello([0x1301], [0x001D], [0x0304], sni="a.lab"),
+        _client_hello([0x1301], [0x001D], [0x0304], sni="b.lab"),
+    )
+    frames = [
+        _frame(b"", 100, flags=0x02),
+        _frame(a, 101),
+        _frame(b"", 101 + len(a), flags=0x11),
+        _frame(b"", 900, flags=0x02),
+        _frame(b, 901),
+    ]
+    p = tmp_path / "r.pcap"
+    p.write_bytes(_pcap(frames))
+    res = purepy.read_flows(p)
+    assert _sni(res) == ["a.lab", "b.lab"]
+    assert [f.stream_id for f in res.flows] == [0, 1]
+    assert [f.client_hello.frame for f in res.flows] == [2, 5]
+
+
+def test_reused_four_tuple_without_a_close_is_still_a_new_connection(tmp_path):
+    a, b = (
+        _client_hello([0x1301], [0x001D], [0x0304], sni="a.lab"),
+        _client_hello([0x1301], [0x001D], [0x0304], sni="b.lab"),
+    )
+    frames = [_frame(b"", 100, flags=0x02), _frame(a, 101), _frame(b"", 100, flags=0x02), _frame(b, 101)]
+    p = tmp_path / "r.pcap"
+    p.write_bytes(_pcap(frames))
+    assert _sni(purepy.read_flows(p)) == ["a.lab", "b.lab"]
+
+
+def test_syn_retransmission_stays_in_its_connection(tmp_path):
+    a = _client_hello([0x1301], [0x001D], [0x0304], sni="a.lab")
+    frames = [_frame(b"", 100, flags=0x02), _frame(b"", 100, flags=0x02), _frame(a, 101)]
+    p = tmp_path / "r.pcap"
+    p.write_bytes(_pcap(frames))
+    res = purepy.read_flows(p)
+    assert _sni(res) == ["a.lab"] and [f.stream_id for f in res.flows] == [0]
+
+
+def test_kit_twice_gives_double_counts_and_matches_tshark(tmp_path):
+    data = KIT.read_bytes()
+    p = tmp_path / "twice.pcap"
+    p.write_bytes(data + data[24:])
+    res = purepy.read_flows(p)
+    assert res.errors == []
+    assert Counter(f.kind for f in res.flows) == {"tls": 194, "ssh": 48, "http": 28}
+    assert [f.stream_id for f in res.flows] == list(range(len(res.flows)))
+    if shutil.which("tshark"):
+        from quantumtrace.scanners.network import tshark
+
+        other = tshark.read_flows_tshark(p)
+        assert [(f.stream_id, f.flow, f.kind) for f in res.flows] == [
+            (f.stream_id, f.flow, f.kind) for f in other.flows
+        ]
