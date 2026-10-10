@@ -638,6 +638,23 @@ root and observations; direct-file and repository-root scans may differ. M1
 plans consumption accordingly; M2's tested commit/fixture verification remains
 pending under M1M2-06. Frozen contracts remain unchanged.
 
+**RSA usage provenance (M1M3-10):** M3 may add extra.usage_source with the
+single value flow only to an RSA generation finding upgraded from unknown to
+signature (Python rsa.generate_private_key, Java KeyPairGenerator.getInstance("RSA"),
+Go rsa.GenerateKey). Every RSA sign/verify/encrypt/decrypt sink in the file must
+resolve through an unambiguous same-file flow to exactly one generation; this
+generation must have at least one linked sink and all of its linked sinks must
+sign or verify. Mixed usage, unresolved/ambiguous flows, reassigned bindings,
+imported keys, sinks unreachable from a generation and generations without linked
+sinks retain unknown usage and omit the key. Directly observed generation usage
+is preserved. Upgraded finding confidence is at most 0.8. M3 also detects RSA
+encrypt/decrypt sinks with usage=encryption, raw_name RSA or the observed Java
+transform, and observed OAEP/PKCS1v15 padding. M1 retains the metadata and usage
+identity; unknown, signature and encryption are not merged to match a golden row.
+M3 owns implementation/regressions after go.yaml, before the sample-repos diff
+and golden check. This evidence-key agreement changes no frozen model fields
+and does not establish verified scanner implementation.
+
 **Finding.extra evidence conventions (initial freeze):** this dictionary remains
 an extensible, JSON-compatible evidence payload. Keys below are optional; omit
 unobserved values or represent them as `None`, and do not infer observations from
