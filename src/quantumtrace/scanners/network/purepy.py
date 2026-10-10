@@ -16,10 +16,11 @@ import struct
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from quantumtrace.scanners.network.registry import SIGNALLING_SUITES, is_grease
+
 log = logging.getLogger(__name__)
 
 MAX_STREAM_BYTES = 1 << 20  # per direction; hellos and KEXINIT are tiny
-SIGNALLING_SUITES = frozenset({0x00FF, 0x5600})  # EMPTY_RENEGOTIATION_INFO_SCSV, FALLBACK_SCSV
 HRR_RANDOM = bytes.fromhex("cf21ad74e59a6111be1d8c021e65b891c2a211167abb8c5e079e09e2c8a8339c")
 
 EXT_SNI, EXT_GROUPS, EXT_SIGALGS, EXT_ALPN = 0, 10, 13, 16
@@ -41,11 +42,6 @@ _FRAGMENT = object()  # sentinel: IP fragment, not reassembled
 def _endpoint(ep: tuple[str, int]) -> str:
     host, port = ep
     return f"[{host}]:{port}" if ":" in host else f"{host}:{port}"
-
-
-def is_grease(v: int) -> bool:
-    """RFC 8701 GREASE value: 0x0A0A, 0x1A1A ... 0xFAFA."""
-    return (v & 0x0F0F) == 0x0A0A and (v >> 8) == (v & 0xFF)
 
 
 # --- result types -------------------------------------------------------------------
