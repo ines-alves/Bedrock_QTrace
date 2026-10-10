@@ -598,3 +598,9 @@ def test_migration_text_never_names_an_unobserved_use(kb):
         "Migrate to ML-DSA-65."
     ]
     assert "Migrate signature to ML-DSA-65." in [a.action for a in known.recommendations]
+
+
+def test_block_cipher_rationale_states_policy_not_a_wrong_observation(kb):
+    (row,) = result(kb, "AES/ECB/PKCS5Padding", usage=Usage.ENCRYPTION, key_size=128).children
+    assert "Unknown key size" not in row.rationale and "SIV" not in row.rationale
+    assert "tier follows the observed key size" in row.rationale and "ECB" in row.rationale
