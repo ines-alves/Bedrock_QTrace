@@ -29,10 +29,13 @@
   values_must_match:
     name: '(?i)md5|sha1|sha224|sha256|sha384|sha512'
 
-# A hash class handed to PBKDF2HMAC as algorithm= is part of that composite and is not reported twice.
+# A hash class inside a PBKDF2HMAC(...) call is part of that composite and is not reported twice
+# (absorbed_by: the match of PY_PBKDF2 runs from PBKDF2HMAC( to the hash). The same class handed to
+# HKDF, OAEP or any other call is reported.
 - id: PY_CRYPTOGRAPHY_HASH
   language: python
-  pattern: '(?<!algorithm=)(?<!algorithm= )\bhashes\.(?P<name>MD5|SHA1|SHA224|SHA256|SHA384|SHA512)\(\)'
+  pattern: '\bhashes\.(?P<name>MD5|SHA1|SHA224|SHA256|SHA384|SHA512)\(\)'
+  absorbed_by: [PY_PBKDF2]
   raw_name: '{name}'
   kind_hint: algorithm
   usage: hash

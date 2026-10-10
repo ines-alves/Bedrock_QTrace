@@ -44,9 +44,15 @@ KDFS = {"pbkdf2-hmac-sha256", "pbkdf2withhmacsha256"}
 
 
 @pytest.fixture(scope="module")
-def rows() -> list[dict]:
-    # The file is shared with the cloud and network sections; this test owns only the code rows.
-    return [row for row in yaml.safe_load(GOLDEN.read_text()) if row.get("source_type") == "code"]
+def all_rows() -> list[dict]:
+    """Every row of the shared file: M2, M3 and M4 each own their rows in it."""
+    return yaml.safe_load(GOLDEN.read_text())
+
+
+@pytest.fixture(scope="module")
+def rows(all_rows) -> list[dict]:
+    """Only the code rows (source_type code), the ones M3 owns."""
+    return [r for r in all_rows if r.get("source_type") == "code"]
 
 
 @pytest.fixture(scope="module")
@@ -111,16 +117,15 @@ def match(expected: list[tuple], found: list[tuple], key) -> tuple[list[tuple], 
     return missing, unused
 
 
-def test_rows_validate_against_the_schema(rows):
+def test_rows_validate_against_the_schema(all_rows):
     schema = json.loads(SCHEMA.read_text())
-    errors = list(Draft202012Validator(schema).iter_errors(rows))
+    errors = list(Draft202012Validator(schema).iter_errors(all_rows))
     assert not errors, [e.message for e in errors[:5]]
 
 
-def test_every_row_is_a_code_row_for_a_kit_file(rows, findings, library_findings):
+def test_every_code_row_is_for_a_kit_file(rows, findings, library_findings):
     assert rows
     for row in rows:
-        assert row["source_type"] == "code", row
         assert row["source"] in findings or row["source"] in library_findings, row
 
 
@@ -142,7 +147,7 @@ def test_asset_tiers_and_flags_follow_the_plan_7_1_policy(rows):
 
 
 def test_rows_carry_no_key_material(rows):
-    text = GOLDEN.read_text()
+    text = yaml.safe_dump(rows)
     for needle in ("BEGIN", "PRIVATE KEY", "b'", 'b"'):
         assert needle not in text
 
