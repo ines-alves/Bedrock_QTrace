@@ -74,3 +74,5 @@ When all rows have AGREED or CHANGED from every named member, M4 sets `Status: A
 
 | ID | From | Hour | Status | Note |
 |---|---|---|---|---|
+| M4C-01 | M1 | unknown | CHANGED | M1 dependencies/deliverables accepted subject to M1M4 replies, docs/GOLDEN.md, and milestone integration; H times are targets, not claims of implemented code. |
+| M4C-04 | M1 | unknown | AGREED | Section 4 accepted. Preserve raw facts and source_timestamp; keep verdict and pq_status distinct, no keys, frozen models, verified mappings, deterministic output and tested member branches. |

@@ -1,6 +1,7 @@
 # Local M1 agent instructions, skills, plans, and handoffs
 /AGENTS.md
 /agents/
+/docs/DECISIONS.md
 
 # Python environments, caches, and build products
 .venv/
