@@ -639,3 +639,12 @@ def test_obsolete_protocol_versions_from_code_are_broken_hygiene(name, kb):
     row = result(kb, name, kind_hint=KindHint.PROTOCOL_VERSION, usage=Usage.UNKNOWN)
     assert row.classically_broken and not row.scoreable
     assert any("Migrate obsolete transport" in a.action for a in row.recommendations)
+
+
+@pytest.mark.parametrize("name", ["HMAC-SHA1", "HMAC-MD5"])
+def test_weak_mac_migration_cites_the_hmac_standard(kb, name):
+    row = result(kb, name, usage=Usage.MAC)
+    advice = [a for a in row.recommendations if a.target_algorithm == "HMAC-SHA384"]
+    assert [(a.action, a.standard) for a in advice] == [
+        ("Use a maintained HMAC-SHA384 implementation.", "NIST FIPS 198-1")
+    ]
