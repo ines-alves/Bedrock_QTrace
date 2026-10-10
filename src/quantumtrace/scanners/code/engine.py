@@ -23,7 +23,8 @@ Rule fields (YAML list of mappings):
   literal_key: <family>                                      hard-coded key rule: see below
   values_must_match: {group: regex}                          drop the hit unless each named group's value,
                                                              after constant resolution, fully matches
-                                                             (an unresolved identifier never does)
+                                                             (an identifier that did not resolve is
+                                                             always dropped, whatever its spelling)
   absorbed_by: [RULE_ID, ...]                                drop the hit when its match starts inside the
                                                              match of a hit of one of these rules
   emit: false                                                record only, produce no finding
@@ -699,7 +700,7 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
                 values[name] = value
 
         if any(
-            not (value := values.get(group)) or not pattern.fullmatch(value)
+            group in unresolved or not (value := values.get(group)) or not pattern.fullmatch(value)
             for group, pattern in rule.values_must_match
         ):
             continue
