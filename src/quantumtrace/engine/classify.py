@@ -492,8 +492,14 @@ def classify(
                     action = f"Use {target} for key establishment with authenticated data encryption; a KEM is not bulk encryption."
                 advice.append(Advice(action, target, ref.standard, 1 if tier == Tier.CRITICAL else 2))
             elif identity.usage == Usage.MAC:
+                # HMAC is specified by FIPS 198-1 (sourced on the KB HMAC-SHA384 entry).
                 advice.append(
-                    Advice("Use a maintained HMAC-SHA384 implementation.", "HMAC-SHA384", priority=2)
+                    Advice(
+                        "Use a maintained HMAC-SHA384 implementation.",
+                        "HMAC-SHA384",
+                        "NIST FIPS 198-1",
+                        priority=2,
+                    )
                 )
         if (
             entry.id == "SHA-1"

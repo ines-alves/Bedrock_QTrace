@@ -521,6 +521,11 @@
     length is retained separately.
   sources:
   - *id001
+  - url: https://csrc.nist.gov/pubs/fips/198-1/final
+    checked_on: '2026-10-11'
+    note: HMAC specification cited by the MAC migration advice. NIST proposed withdrawing
+      FIPS 198-1 in favour of SP 800-224 (Federal Register 2025-11497, June 2025); whether
+      the withdrawal is effective was not verified.
   aliases:
   - HMAC_384
 - id: HMAC-SHA512
