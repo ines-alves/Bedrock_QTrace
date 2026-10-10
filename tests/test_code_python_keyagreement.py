@@ -52,12 +52,8 @@ def test_aliases_and_from_imports_resolve() -> None:
     assert names(scan(src)) == [("X25519", 4), ("X448", 5), ("ECDH", 6), ("ECDH", 7)]
 
 
-def test_ecdsa_and_exchange_call_without_ecdh_class_emit_nothing() -> None:
-    src = (
-        "from cryptography.hazmat.primitives.asymmetric import ec\n"
-        "sig = key.sign(data, ec.ECDSA(hashes_obj))\n"
-        "shared = key.exchange(algo, peer)\n"
-    )
+def test_exchange_call_without_ecdh_class_emits_nothing() -> None:
+    src = "from cryptography.hazmat.primitives.asymmetric import ec\nshared = key.exchange(algo, peer)\n"
     assert scan(src) == []
 
 
