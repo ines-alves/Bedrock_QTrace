@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any, NoReturn
 
@@ -13,7 +14,7 @@ from rich.markup import escape
 from rich.table import Table
 
 from quantumtrace.models import ScanResult, Tier
-from quantumtrace.output.report_json import write_json_document, write_report_json
+from quantumtrace.output.report_json import render_json_document, write_json_document, write_report_json
 from quantumtrace.pipeline import run
 
 app = typer.Typer(no_args_is_help=True, help="Inventory cryptography and plan post-quantum migration.")
@@ -44,7 +45,14 @@ def _writers(formats: str) -> tuple[tuple[str, ...], dict[str, Any]]:
     return names, writers
 
 
-def _summary(result: ScanResult) -> None:
+class FailOn(str, Enum):
+    """CI thresholds over classified, scoreable assets; medium means MEDIUM or worse."""
+
+    CRITICAL = "critical"
+    MEDIUM = "medium"
+
+
+def _summary(result: ScanResult, console: Console) -> None:
     summary = result.summary
     console.print(
         f"Grade {summary.grade} | Risk score {summary.score}/100 | "
@@ -83,9 +91,27 @@ def scan(
     probe: Annotated[
         list[str] | None, typer.Option("--probe", help="Explicit host:port; repeatable.")
     ] = None,
+    fail_on: Annotated[
+        FailOn | None,
+        typer.Option(
+            "--fail-on",
+            case_sensitive=False,
+            help="Exit 1 when classified assets reach this tier (medium includes critical).",
+        ),
+    ] = None,
 ) -> None:
-    """Scan inputs, write selected reports and display risk and coverage."""
+    """Scan inputs, write selected reports and display risk and coverage.
+
+    `--out -` writes only the native JSON report to stdout; tables and errors go to stderr.
+    Exit codes: 2 for invocation, scan, export errors or partial coverage; otherwise 1 when
+    the --fail-on threshold is reached; 0 on success.
+    """
     names, writers = _writers(formats)
+    stdout = str(out) == "-"
+    if stdout and names != ("json",):
+        _fail(
+            "--out - writes only the native JSON report to stdout; use --format json or an output directory."
+        )
     try:
         inputs: list[str | Path] = list(paths)
         result = run(inputs, probes=probe)
@@ -96,7 +122,10 @@ def scan(
             if validation:
                 _fail("CBOM validation failed: " + "; ".join(validation))
         for name in names:
-            if name == "json":
+            if stdout:
+                sys.stdout.write(render_json_document(result.model_dump(mode="json")))
+                sys.stdout.flush()
+            elif name == "json":
                 write_report_json(result, out / "report.json")
             elif name == "cbom":
                 assert cbom is not None
@@ -107,10 +136,33 @@ def scan(
         raise
     except Exception as exc:
         _fail(f"Scan or report generation failed: {exc}")
-    _summary(result)
-    console.print("Reports: " + escape(str(out)))
+    # In stdout mode the JSON document is the only stdout content.
+    _summary(result, errors if stdout else console)
+    if not stdout:
+        console.print("Reports: " + escape(str(out)))
+    breached = _threshold(result, fail_on)
     if result.errors:
         raise typer.Exit(2)
+    if breached:
+        raise typer.Exit(1)
+
+
+def _threshold(result: ScanResult, fail_on: FailOn | None) -> bool:
+    """Count classified assets only; UNKNOWN is reported separately and never counted."""
+    if fail_on is None:
+        return False
+    tiers = [Tier.CRITICAL] + ([Tier.MEDIUM] if fail_on == FailOn.MEDIUM else [])
+    counts = result.summary.counts_by_tier
+    reached = sum(counts.get(tier.value, 0) for tier in tiers)
+    unknown = counts.get(Tier.UNKNOWN.value, 0)
+    label = " or ".join(tier.value for tier in tiers)
+    if reached:
+        errors.print(f"[red]Threshold --fail-on {fail_on.value}: {reached} {label} asset(s).[/red]")
+    else:
+        errors.print(f"Threshold --fail-on {fail_on.value}: no {label} assets.")
+    if unknown:
+        errors.print(f"{unknown} UNKNOWN asset(s) are not counted by the threshold; review them separately.")
+    return reached > 0
 
 
 @app.command("eval")

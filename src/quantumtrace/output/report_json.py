@@ -11,13 +11,18 @@ from typing import Any
 from quantumtrace.models import ScanResult
 
 
+def render_json_document(document: dict[str, Any]) -> str:
+    """Serialize one JSON document exactly as the report files contain it."""
+    return json.dumps(document, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
+
+
 def write_json_document(document: dict[str, Any], path: str | Path) -> None:
     """Serialize before touching the destination, then replace it atomically.
 
     File failures propagate as OSError with destination context. An unsuccessful
     write leaves the previous destination intact and cleans the temporary file.
     """
-    payload = json.dumps(document, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
+    payload = render_json_document(document)
     target = Path(path)
     temporary: Path | None = None
     try:

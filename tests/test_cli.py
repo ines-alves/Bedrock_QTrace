@@ -49,11 +49,12 @@ def test_real_starter_partial_scan_writes_all_requested_valid_reports(tmp_path):
     )
     assert invocation.exit_code == 2 and "Coverage incomplete: 3" in invocation.output
     result = ScanResult.model_validate_json((tmp_path / "report.json").read_text())
-    assert (len(result.findings), len(result.assets), len(result.sessions)) == (1056, 660, 121)
+    assert (len(result.findings), len(result.assets), len(result.sessions)) == (1056, 659, 121)
     assert result.roadmap and result.summary.score == 60
     assert len(result.errors) == 3
     cbom = json.loads((tmp_path / "cbom.json").read_text())
-    assert validate_cbom(cbom) == [] and len(cbom["components"]) == 665
+    # 659 assets less 6 hygiene/library/plaintext wrappers that the CBOM leaves out (M3M4-05).
+    assert validate_cbom(cbom) == [] and len(cbom["components"]) == 664
     markdown = (tmp_path / "summary.md").read_text()
     assert "cryptography" in markdown and "Phase 0" in markdown
 
@@ -160,3 +161,67 @@ def test_ui_server_start_failure_is_exit_two(monkeypatch):
     monkeypatch.setattr(cli.importlib, "import_module", lambda name: owner if name == "api.main" else server)
     result = runner.invoke(cli.app, ["ui"])
     assert result.exit_code == 2 and "UI server failed to start" in result.output
+
+
+def test_stdout_mode_emits_only_one_native_json_document(sample, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["scan", "input", "--out", "-"])
+    assert result.exit_code == 0
+    assert ScanResult.model_validate_json(result.stdout) == sample
+    assert json.loads(result.stdout) == sample.model_dump(mode="json")
+    assert "Grade" in result.stderr and "Grade" not in result.stdout and "Reports:" not in result.output
+    assert not (tmp_path / "out").exists() and not (tmp_path / "-").exists()
+
+
+@pytest.mark.parametrize("formats", ["cbom", "json,md", "json,cbom"])
+def test_stdout_mode_rejects_non_json_formats_before_scanning(formats, monkeypatch):
+    monkeypatch.setattr(cli, "run", lambda *args, **kwargs: pytest.fail("must not scan"))
+    result = runner.invoke(cli.app, ["scan", "input", "--out", "-", "--format", formats])
+    assert result.exit_code == 2 and result.stdout == ""
+    assert "only the native JSON report" in " ".join(result.stderr.split())
+
+
+@pytest.mark.parametrize("threshold", ["critical", "CRITICAL", "medium"])
+def test_threshold_reached_exits_one_after_writing_reports(sample, threshold, tmp_path):
+    assert sample.summary.counts_by_tier.get("CRITICAL")
+    result = runner.invoke(cli.app, ["scan", "input", "--out", str(tmp_path), "--fail-on", threshold])
+    assert result.exit_code == 1 and "Threshold --fail-on" in result.stderr
+    assert ScanResult.model_validate_json((tmp_path / "report.json").read_text()) == sample
+
+
+def test_threshold_counts_classified_tiers_and_reports_unknown_separately(sample, tmp_path):
+    sample.summary.counts_by_tier = {"CRITICAL": 0, "MEDIUM": 4, "SAFE": 7, "UNKNOWN": 3}
+    critical = runner.invoke(cli.app, ["scan", "input", "--out", str(tmp_path), "--fail-on", "critical"])
+    assert critical.exit_code == 0
+    stderr = " ".join(critical.stderr.split())
+    assert "no CRITICAL assets" in stderr and "3 UNKNOWN asset(s) are not counted" in stderr
+    medium = runner.invoke(cli.app, ["scan", "input", "--out", str(tmp_path), "--fail-on", "medium"])
+    assert medium.exit_code == 1 and "4 CRITICAL or MEDIUM asset(s)" in " ".join(medium.stderr.split())
+
+
+def test_partial_scan_takes_precedence_over_threshold_and_still_emits_json(sample):
+    sample.errors = [ScanError(detector="pipeline", path="kit/README.md", message="no selected scanner")]
+    result = runner.invoke(cli.app, ["scan", "input", "--out", "-", "--fail-on", "critical"])
+    assert result.exit_code == 2 and "Threshold --fail-on critical" in result.stderr
+    assert ScanResult.model_validate_json(result.stdout).errors == sample.errors
+
+
+def test_invalid_threshold_is_an_invocation_error(sample):
+    result = runner.invoke(cli.app, ["scan", "input", "--fail-on", "high"])
+    assert result.exit_code == 2 and result.stdout == ""
+
+
+def test_real_pipeline_stdout_threshold_and_partial_precedence():
+    root = Path(__file__).resolve().parents[1]
+    capture = runner.invoke(
+        cli.app,
+        ["scan", str(root / "network-capture" / "network.pcap"), "--out", "-", "--fail-on", "critical"],
+    )
+    report = ScanResult.model_validate_json(capture.stdout)
+    assert capture.exit_code == 1 and len(report.sessions) == 121 and not report.errors
+    kit = runner.invoke(
+        cli.app,
+        ["scan", *(str(root / name) for name in ("sample-repos", "cloud-posture", "network-capture"))]
+        + ["--out", "-", "--fail-on", "critical"],
+    )
+    assert kit.exit_code == 2 and len(ScanResult.model_validate_json(kit.stdout).errors) == 3
