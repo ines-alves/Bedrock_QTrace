@@ -189,6 +189,48 @@
   usage: signature
   library: cryptography
 
+# ---- DH and DSA ---------------------------------------------------------------------------------
+
+# Finite-field Diffie-Hellman only agrees keys and DSA only signs, so the usage is the algorithm's own.
+# The size comes from the key_size argument: a literal, or a file-scope constant.
+- id: PY_DH_GENERATE
+  language: python
+  pattern: >-
+    \bdh\.generate_parameters\((?:[^()]|\([^()]*\))*?\bkey_size\s*=\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))
+  raw_name: DH
+  kind_hint: algorithm
+  usage: key_exchange
+  library: cryptography
+
+# dh.generate_parameters(generator, key_size): the size is the second positional argument.
+- id: PY_DH_GENERATE_POSITIONAL
+  language: python
+  pattern: >-
+    \bdh\.generate_parameters\(\s*[^,()=]+,\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*[,)]
+  raw_name: DH
+  kind_hint: algorithm
+  usage: key_exchange
+  library: cryptography
+
+- id: PY_DSA_GENERATE
+  language: python
+  pattern: >-
+    \bdsa\.generate_(?:private_key|parameters)\((?:[^()]|\([^()]*\))*?\bkey_size\s*=\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))
+  raw_name: DSA
+  kind_hint: algorithm
+  usage: signature
+  library: cryptography
+
+# dsa.generate_private_key(key_size) takes the size as its first positional argument.
+- id: PY_DSA_GENERATE_POSITIONAL
+  language: python
+  pattern: >-
+    \bdsa\.generate_(?:private_key|parameters)\(\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*[,)]
+  raw_name: DSA
+  kind_hint: algorithm
+  usage: signature
+  library: cryptography
+
 # ---- AES ----------------------------------------------------------------------------------------
 
 # Key source: os.urandom of a named or literal length. Never reported on its own.

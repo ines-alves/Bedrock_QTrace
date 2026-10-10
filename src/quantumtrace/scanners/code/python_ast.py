@@ -36,6 +36,8 @@ import ast
 QUALIFIERS = frozenset(
     {
         "algorithms",
+        "dh",
+        "dsa",
         "ec",
         "ed25519",
         "hashes",
