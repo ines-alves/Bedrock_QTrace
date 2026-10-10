@@ -76,7 +76,7 @@ Findings of a session:
 
 | Finding | `kind_hint` | `usage` | `negotiated` | Carries |
 |---|---|---|---|---|
-| Session finding, one per session | `PROTOCOL_VERSION` | `UNKNOWN` | true | `raw_name` `TLS 1.3`, `TLS 1.2`, `SSH-2.0` etc. `extra["session"]` and `extra["authentication_observable"]` |
+| Session finding, one per session | `PROTOCOL_VERSION` | `UNKNOWN` | true | `raw_name` `TLS 1.3`, `TLS 1.2`, `SSH-2.0` etc. `extra["session"]`, `extra["authentication_observable"]` and `extra["certificate_state"]` (`observed`, `encrypted`, `absent`) |
 | Offered cipher suite, one each | `CIPHER_SUITE` | `UNKNOWN` | false | `raw_name` `"0x1301"` |
 | Negotiated cipher suite | `CIPHER_SUITE` | `UNKNOWN` | true | same |
 | Offered group, one each | `GROUP` | `KEY_EXCHANGE` | false | `raw_name` `"0x11EC"` |
@@ -88,6 +88,20 @@ Every finding has `source_type` PCAP (SSH for SSH), `Location.file`, `Location.f
 
 `extra["session"]` keys, named as the `TLSSession` fields: `flow`, `sni`, `version`, `offered_groups`, `negotiated_group`, `offered_cipher_suites`, `negotiated_cipher_suite`, `offered_sig_schemes`, `cert_key`, `cert_sig_alg`, `transport` (`tls` or `ssh`), `service` (`https`, `ldaps`, `imaps`, `smtp-starttls`, `postgres`, `ssh`, `other`), `peer_banners`. Lists hold hex strings in client order for TLS and algorithm names for SSH. Absent values are `null`.
 
+## 7. Reference: certificate description (`certs.py`, task 2.9)
+
+`describe_certificate(der: bytes) -> dict | None`. One certificate per call. Returns `None` for bytes that do not decode and never raises. The result never holds private key material.
+
+| Key | Values |
+|---|---|
+| `key_type` | `RSA`, `EC`, `Ed25519`, `Ed448`, `DSA`, `unknown` |
+| `key_size` | bits for `RSA` and `DSA`, otherwise `None` |
+| `curve` | library curve name for `EC` (`secp256r1`, `secp384r1`, `secp521r1`), otherwise `None` |
+| `signature_algorithm` | library name when known, otherwise the dotted OID |
+| `signature_algorithm_oid` | dotted OID, always present |
+| `not_before`, `not_after` | ISO 8601 with timezone |
+| `self_signed` | boolean, subject equals issuer |
+
 ## Replies
 
 | ID | From | Hour | Status | Note |
@@ -96,3 +110,5 @@ Every finding has `source_type` PCAP (SSH for SSH), `Location.file`, `Location.f
 | M2C-04 | M1 | n/a | CHANGED | Promises accepted with M1M2-02/03 qualifications: hex names apply to TLS numeric namespaces, SSH retains wire names, and nonnumeric observations need no invented codepoint. Preserve offered/negotiated evidence and actual source/frame; client offers do not prove negotiated values. Output sorts deterministically while retaining client order inside raw lists. Keep observed absence of certificates distinct from unobservable authentication; no guessed cert keys. Unknown registry entries and unsupported parser/capture paths yield explicit uncertainty/errors. Communications go directly to main and implementation stays on member branches until tested milestone integration. |
 | M2C-02 | M3 | n/a | CHANGED | `M2D-03` and `M2D-07` to M3 and `M2N-05` from M3 are correct. Both M2 deliveries feed only the P2 config scanners (`M3D-12`), so they are not on M3's critical path. Extension ownership is answered in `M2M3-01`. |
 | M2C-04 | M3 | n/a | AGREED | Section 4 is acceptable. |
+| M2C-01 | M2 | n/a | AGREED | M1 notes accepted, including that verify-only registry rows cannot pass a golden gate. Tested commit reference: parser and per-stream tests are in `tests/test_network_purepy.py` on branch `m2/purepy-reader`. The commit hash is not available until the branch is pushed; M2 adds it in a follow-up row here. |
+| M2C-04 | M2 | n/a | CHANGED | Qualifications accepted. One refinement for "observed absence of certificates distinct from unobservable authentication": the session finding also carries `extra["certificate_state"]` with `observed` (a Certificate was parsed), `encrypted` (TLS 1.3, messages after ServerHello are encrypted) or `absent` (TLS 1.2 or older, plaintext handshake, no Certificate in the capture; the whole kit). `authentication_observable` stays a boolean as agreed with M4: true only for `observed`. This is an additional `extra` key and changes no model. |
