@@ -232,3 +232,63 @@ HMAC-MD5, and the [CycloneDX 1.6 schema](https://cyclonedx.org/schema/bom-1.6.sc
 for primitive/mode enums. Tier/default hygiene thresholds are repository policy,
 not additional standards or security-level facts. Production registry integration,
 real scanner/golden evaluation and full session construction remain later gates.
+
+# Deterministic aggregation
+
+`aggregate(roots: Iterable[ClassifiedNode]) -> Aggregation` consumes classified
+roots with their children. It produces sorted independent public `assets`, a
+read-only `evidence_index` keyed by aggregate asset ID, and sorted `issues` for
+missing explicit cloud certificate references. It does not load resources, read
+the clock, assign points, infer usage, or build sessions. Public assets can be
+updated by scoring; their Locations/recommendations do not alias raw Findings.
+Original Findings held by private records must still be treated as read-only.
+
+Asset IDs hash the complete canonical identity (including padding, underlying
+hash/cipher, variant, output size, conflicts, usage and asset type), node kind,
+eligibility/exclusions and resource scope. Resolved aliases share identity.
+Unknown sizes/usages/conflicts never borrow values from nearby findings. Resource
+IDs keep keys, certificates and listener policies distinct; absent material IDs
+fall back to physical evidence. Code/config algorithm observations without resource
+IDs merge across files, including generation/call observations with the same
+observed usage. Containers with flow/session evidence retain session scope;
+algorithm components may be shared and have multiple parents. Hybrid trace-only
+halves cannot merge into scored classical atoms or override the atomic hybrid.
+IDs exclude timestamps, detector, confidence and input order. Links are sorted,
+bidirectional and remapped from classified trees to aggregate IDs.
+
+Each `EvidenceOccurrence(occurrence_id, records)` groups one physical site with
+all distinct `ClassifiedNode` detector/state/provenance records. Physical sites use
+source, file, line, flow, resource, target and session; frame/SNI distinguish packets
+without a flow/session/resource/line. Repeated packets in a known flow/session and
+multiple detector emissions at the same site count once. Without any locator,
+the scanner finding ID is the conservative fallback. Snippet/negotiation/test
+state/confidence/extra do not create extra occurrences. Identical records supplied
+repeatedly are idempotent. Different records with the same finding ID survive.
+All original Locations, frames, snippets, raw aliases and arbitrary extra keys
+remain in the private records even when one deterministic representative Location
+is selected per public occurrence. `occurrence_id` identifies the site, with the
+asset ID supplying its cryptographic context.
+
+Task 1.8 must filter each occurrence's `records` by `scoreable` and source before
+counting sites, taking maximum applicable confidence/exposure, or applying the
+negotiated HNDL floor. Effective confidence is `record.confidence`; original
+scanner confidence stays on `record.node.normalized.finding`. Exclusions, normalized
+provenance and all raw cloud/source/usage evidence remain available. Never compute
+source summaries or the floor using public union flags: the public HNDL flag and
+negotiation flag can originate from different observations. `negotiated` is True
+if any record is True, False if all are False, otherwise None. Test-only is True
+only with at least one code record and all code records marked test-only; other
+source exposure remains independent in the index. Public facts/forward secrecy
+require unanimous observed agreement; a final name cannot certify a legacy alias.
+Flags/rationale/advice are deterministic unions and tier uses the frozen precedence.
+
+Cloud joins connect LOADBALANCER POLICY roots only through explicit
+`extra.certificate_arns` to observed CERTIFICATE root resource IDs, never by an
+assumed equal listener/certificate ARN. Certificate components remain under their
+own resource identities. Linked certificate tier, classical/HNDL flags and renewal
+advice reach the listener summary; containers stay excluded from scoring. Missing
+references add issues and UNKNOWN authentication without guessing keys; known
+CRITICAL/MEDIUM components dominate UNKNOWN. No material inventory asset is
+created or scored: M4 builds that inventory from original KEY findings. Unavailable
+policy registry coverage remains unresolved in the retained classification; real
+owner adapter review/integration and complete session views remain later gates.
