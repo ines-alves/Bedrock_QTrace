@@ -1126,19 +1126,24 @@ Task 1.12 adds evaluation to this gate once it exists. Run before every push to
 
 ## 11. Git Workflow & Conventions
 
-- **Milestone integration**: main advances at significant milestones rather than
-  after every task. Commit and push tested `m<N>/<topic>` branches. Independent
-  work starts from current origin/main; dependent tasks may branch from a verified
-  tested predecessor awaiting integration, recording pending ancestors. Default
-  M1 milestones are core engine (1.3–1.8), runnable CLI/native reports
-  (1.9/1.11/1.10), and verified evaluation/starter integration (1.12/integration).
-  Prefer PRs with cumulative green checks; reconcile upstream, preserve other
-  members' work and protections, and never force-push main. Optional work stays on
-  branches until a designated release milestone. Teams/users can revise checkpoints.
+- **M1 implementation branch**: reuse the persistent `m1` branch for every M1
+  implementation task. Fetch origin, synchronize with origin/m1 and merge current
+  origin/main as needed, preserving published history and recording pending commits.
+  Do not create a new M1 branch per task.
+- **Communications**: all members publish communications directly to `main`, with
+  associated shared plan updates. Reconcile current origin/main and run applicable
+  checks before pushing; preserve other members' work and repository protections.
+  Pending implementation stays on member branches.
+- **Milestone integration**: integrate implementation into main at significant
+  milestones. Default M1 milestones are core engine (1.3–1.8), runnable CLI/native
+  reports (1.9/1.11/1.10), and evaluation/starter integration (1.12/integration).
+  Prefer PRs with cumulative green checks, preserve ownership and protections,
+  and never force-push main. Optional work waits for a designated release milestone.
+  Communications can advance main between implementation milestones.
 - **Commit messages**: `area: imperative summary` (e.g. `engine: classify X25519 as Shor-vulnerable`).
 - **M1 identity**: use configured author and committer `David Correia <davidfgcorreia@gmail.com>`. Do not add Codex co-author trailers to commits or PR merge/squash messages. Verify identity before committing; do not change global Git settings.
 - **Task completion**: plan, implement, validate, save the local handoff, commit
-  and push the task branch, and verify its remote commit. Record main integration
+  and push the implementation branch (`m1` for M1), and verify its remote commit. Record main integration
   separately as pending until a designated milestone is merged and its remote
   ancestry verified. A local commit alone is not remote publication.
 - **Code style**: type hints everywhere, ruff default + `I` (isort), max line 110, docstrings on public functions, `logging` (no `print` outside CLI/UI).
@@ -1215,7 +1220,7 @@ Members retain their ownership boundaries. M1 uses a fresh session for each task
 Paste at the beginning of each coding-agent session (adjust the task number).
 
 **M1**
-> I am M1 (Core & Risk Engine) on QuantumTrace. Read AGENTS.md, agents/STATUS.md, agents/IMPLEMENTATION.md, the previous task handoff, and agents/tasks/1.1.md. Read the task-cycle skill and relevant docs/PLAN.md sections. Start only task 1.1: refresh its written plan, create its branch from current origin/main, implement the project foundation, and validate it. Use my configured Git profile without Codex co-author trailers; publish the tested branch and integrate only at a designated milestone, save the 1.2 handoff, and end the session. Establish contracts in a separate fresh 1.2 session.
+> I am M1 (Core & Risk Engine) on QuantumTrace. Read AGENTS.md, agents/STATUS.md, agents/IMPLEMENTATION.md, the previous task handoff, and agents/tasks/1.1.md. Read the task-cycle skill and relevant docs/PLAN.md sections. Start only task 1.1: refresh its written plan, reuse the persistent m1 branch synchronized with current origin/main, implement the project foundation, and validate it. Use my configured Git profile without Codex co-author trailers; publish the tested branch and integrate only at a designated milestone, save the 1.2 handoff, and end the session. Establish contracts in a separate fresh 1.2 session.
 
 **M2**
 > I am M2 (Network Layer) on QuantumTrace. Read docs/PLAN.md sections 6, 7.1, 7.3, 7.4, Appendix D.2/D.3 and my work package §8-M2. I own scanners/network/**, kb/tls_registry.yaml, kb/iana/, scripts/gen_pcaps.sh. First run `tshark -G fields | grep "tls.handshake"` and `tshark -r network-capture/network.pcap -Y tls.handshake -T json | head -200`, and confirm the counts in Appendix D.2 (97 TLS sessions: 54 TLS1.2 static-RSA, 36 TLS1.3 x25519, 7 X25519MLKEM768; 24 SSH sessions). Then implement 2.2 (pure-Python parser), 2.4 (tshark runner) and 2.5 (session assembly) producing Findings per §6. Use numeric codepoints and filter GREASE.

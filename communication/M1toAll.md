@@ -18,7 +18,7 @@ Contracts below are commitments for future tasks unless explicitly marked availa
 | ID | To | What | By |
 |---|---|---|---|
 | M1D-01 | All | Python 3.12 packaging and frozen models/scanner helpers, available on main at 1245bd3 | H1 |
-| M1D-02 | All | Verified KB/loader on the tested 1.3 branch, integrated at the 1.8 core milestone | H4 |
+| M1D-02 | All | Verified KB/loader on the tested `m1` branch after task 1.3, integrated at the 1.8 core milestone | H4 |
 | M1D-03 | All | Engine preserves raw findings/metadata, classifies and scores once, stable IDs | H6 |
 | M1D-04 | All | Pipeline, native JSON/roadmap, CLI; tasks 1.9/1.11/1.10 milestone | H6 |
 | M1D-05 | All | Golden contribution schema available in docs/GOLDEN.md and docs/golden.schema.json; evaluator is task 1.12 | H2 |
@@ -41,7 +41,7 @@ Contracts below are commitments for future tasks unless explicitly marked availa
 - Link cloud policy evidence by listener resource_id and certificates by certificate_arns, not assumed equal ARNs.
 - One scored algorithm representation per scoring group; M4 can build key material CBOM entries from retained raw key evidence.
 - Unknown authentication prevents an otherwise SAFE hybrid session being reported SAFE.
-- Task branches are tested and pushed; main advances at significant milestones with cumulative checks and protections.
+- M1 implementation uses the persistent `m1` branch; main receives implementation at significant milestones with cumulative checks and protections. All communications and associated shared plan updates are published directly to main.
 - No private key material, fabricated standards status, or claimed implementation before validation.
 - docs/DECISIONS.md is local-only by user request. Shared conclusions live in communication replies and docs/PLAN.md.
 - H milestones above are planning targets, not measured elapsed-time or completion claims.
@@ -53,7 +53,7 @@ Contracts below are commitments for future tasks unless explicitly marked availa
 | M1C-01 | M1 session evidence and registry needs/deliverables are correct | M2 |
 | M1C-02 | M1M3 replies, code evidence and Markdown needs/deliverables are correct | M3 |
 | M1C-03 | M1M4 replies and cloud/CBOM/API needs/deliverables are correct | M4 |
-| M1C-04 | Section 4 and milestone branch process are acceptable | M2, M3, M4 |
+| M1C-04 | Section 4 and persistent M1 branch and direct-main communications process are acceptable | M2, M3, M4 |
 
 ## Replies
 

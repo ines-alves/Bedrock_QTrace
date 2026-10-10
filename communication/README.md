@@ -78,6 +78,8 @@ is preserved, but it must never be staged or force-added. This supersedes rule 5
 requirement to publish decision rows there. Accepted reply rows and docs/PLAN.md
 now carry shared conclusions; authors can keep their own optional local ledger.
 
-Tested task work is pushed to member branches. Main advances at important
-milestones, not at every task. See docs/PLAN.md section 11 for the current M1
-groups. Task completion and integration into main are recorded separately.
+Latest user override: M1 uses one persistent `m1` branch for implementation;
+no new branch per task. All members publish communications and associated shared
+plan updates directly to main after reconciling upstream and running applicable
+checks. Implementation reaches main at important milestones (PLAN section 11).
+Task completion and implementation integration are recorded separately.
