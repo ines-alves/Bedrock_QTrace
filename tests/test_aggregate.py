@@ -523,3 +523,14 @@ def test_hand_rolled_sites_form_their_own_asset_and_keep_library_ids(kb):
     hand = [a for a in both.assets if a.asset_id != alone.assets[0].asset_id][0]
     assert any("hand-rolled" in action for action in advice[hand.asset_id])
     assert not any("hand-rolled" in action for action in advice[alone.assets[0].asset_id])
+
+
+def test_single_part_code_composites_publish_only_their_part(kb):
+    transform = aggregate([classified(kb, finding("AES/ECB/PKCS5Padding", key_size=128))])
+    assert [(a.asset_type, a.canonical_name, a.component_of) for a in transform.assets] == [
+        ("algorithm", "AES", [])
+    ]
+    assert transform.assets[0].finding_ids == ["a"]
+    composite = aggregate([classified(kb, finding("SHA1withRSA", usage=Usage.SIGNATURE, key_size=1024))])
+    assert sorted(a.canonical_name for a in composite.assets) == ["RSA", "SHA-1", "SHA1withRSA"]
+    assert_graph(composite)

@@ -173,6 +173,16 @@ def aggregate(roots: Iterable[ClassifiedNode]) -> Aggregation:
     listeners: dict[str, set[str]] = {}
 
     def visit(row: ClassifiedNode) -> str:
+        # A single-part code composite (e.g. AES/ECB/PKCS5Padding -> AES) adds no asset of its own:
+        # its evidence is a subset of its part, which carries it. Protocol, certificate and cloud
+        # resource containers, and composites with several parts (SHA1withRSA), stay published.
+        if (
+            row.node.kind == "container"
+            and len(row.children) == 1
+            and row.node.normalized.identity.asset_type == "algorithm"
+            and row.node.normalized.finding.location.source_type == SourceType.CODE
+        ):
+            return visit(row.children[0])
         key = _key(row)
         asset_id = _id("asset-", json.loads(key))
         grouped.setdefault(asset_id, {})[_record_key(row)] = row
