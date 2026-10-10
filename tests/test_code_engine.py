@@ -867,3 +867,28 @@ def test_scanner_skips_oversized_files(tmp_path, monkeypatch):
     target.write_text("x = 1234567890\n", encoding="utf-8")
     results = list(CodeScanner(rules_dir=tmp_path).scan(target, tmp_path))
     assert len(results) == 1 and isinstance(results[0], ScanError)
+
+
+ABSORB_RULES = """
+- {id: OUTER, language: go, pattern: 'wrap[(](?:[^()]|[(][^()]*[)])*?inner[(][)]', raw_name: WRAP, kind_hint: algorithm, usage: kdf}
+- {id: INNER, language: go, pattern: 'inner[(][)]', raw_name: INNER, kind_hint: algorithm, usage: hash, absorbed_by: [OUTER]}
+"""
+
+
+def test_absorbed_by_drops_a_hit_inside_the_match_of_the_named_rule(tmp_path):
+    source = "x := wrap(a,\n    b, inner())\ny := inner()\n"
+    found = scan(tmp_path, "go", ABSORB_RULES, source)
+    assert [(f.raw_name, f.location.line) for f in found] == [("WRAP", 1), ("INNER", 3)]
+
+
+def test_absorbed_by_keeps_the_hit_when_the_absorbing_rule_does_not_match(tmp_path):
+    found = scan(tmp_path, "go", ABSORB_RULES, "x := other(inner())\n")
+    assert [f.raw_name for f in found] == ["INNER"]
+
+
+def test_absorbed_by_is_validated(tmp_path):
+    base = "- {id: A, language: go, pattern: x, raw_name: X, kind_hint: algorithm, usage: hash, "
+    with pytest.raises(ValueError, match="absorbed_by"):
+        rules_for(tmp_path, "go", base + "absorbed_by: B}")
+    with pytest.raises(ValueError, match="unknown rule"):
+        rules_for(tmp_path, "go", base + "absorbed_by: [B]}")

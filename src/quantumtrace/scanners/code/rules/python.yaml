@@ -16,10 +16,26 @@
   usage: hash
   library: hashlib
 
-# A hash class handed to PBKDF2HMAC as algorithm= is part of that composite and is not reported twice.
+# hashlib.new(name): the name is a literal or a file-scope constant or parameter default. Anything else
+# (an unresolved identifier, an algorithm outside the list) emits nothing, see values_must_match.
+- id: PY_HASHLIB_NEW
+  language: python
+  pattern: >-
+    \bhashlib\.new\(\s*(?:[bB]?["'](?P<name>(?i:md5|sha1|sha224|sha256|sha384|sha512))["']|(?P<name_ref>[A-Za-z_]\w*))\s*[,)]
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: hash
+  library: hashlib
+  values_must_match:
+    name: '(?i)md5|sha1|sha224|sha256|sha384|sha512'
+
+# A hash class inside a PBKDF2HMAC(...) call is part of that composite and is not reported twice
+# (absorbed_by: the match of PY_PBKDF2 runs from PBKDF2HMAC( to the hash). The same class handed to
+# HKDF, OAEP or any other call is reported.
 - id: PY_CRYPTOGRAPHY_HASH
   language: python
-  pattern: '(?<!algorithm=)(?<!algorithm= )\bhashes\.(?P<name>MD5|SHA1|SHA224|SHA256|SHA384|SHA512)\(\)'
+  pattern: '\bhashes\.(?P<name>MD5|SHA1|SHA224|SHA256|SHA384|SHA512)\(\)'
+  absorbed_by: [PY_PBKDF2]
   raw_name: '{name}'
   kind_hint: algorithm
   usage: hash
@@ -36,6 +52,19 @@
   usage: mac
   library: hmac
 
+# digestmod given as a string: hmac.new(k, m, "sha1") or hmac.new(k, m, digestmod="sha1"). A digest
+# named through a variable bound to hashlib.sha1 is not followed (known gap).
+- id: PY_HMAC_STRING
+  language: python
+  pattern: >-
+    \bhmac\.new\((?:(?:\s*(?:[^,()]|\([^()]*\))+,){2}|(?:\s*(?:[^,()]|\([^()]*\))+,){1,2}\s*digestmod\s*=)\s*(?P<q>["'])(?P<name>(?i:md5|sha1|sha224|sha256|sha384|sha512))(?P=q)
+  raw_name: 'HMAC-{name}'
+  kind_hint: algorithm
+  usage: mac
+  library: hmac
+
+# A positional first argument (PBKDF2HMAC(hashes.SHA1(), ...)) is given the algorithm= keyword in the
+# masked text by python_ast.py before this rule runs.
 - id: PY_PBKDF2
   language: python
   pattern: >-
@@ -104,6 +133,104 @@
   usage: signature
   library: cryptography
 
+# ---- X25519, X448, ECDH -------------------------------------------------------------------------
+
+# Key agreement only. Generating or loading a private key, or loading a peer public key, is evidence.
+# X25519PrivateKey and friends are written bare (python_ast.BARE_MEMBERS), the module prefix is optional.
+- id: PY_X25519
+  language: python
+  pattern: >-
+    \b(?:x25519\.)?(?:X25519PrivateKey\.(?:generate|from_private_bytes)|X25519PublicKey\.from_public_bytes)\(
+  raw_name: X25519
+  kind_hint: algorithm
+  usage: key_exchange
+  library: cryptography
+
+- id: PY_X448
+  language: python
+  pattern: >-
+    \b(?:x448\.)?(?:X448PrivateKey\.(?:generate|from_private_bytes)|X448PublicKey\.from_public_bytes)\(
+  raw_name: X448
+  kind_hint: algorithm
+  usage: key_exchange
+  library: cryptography
+
+# private_key.exchange(ec.ECDH(), peer_public_key). The curve comes from the key, not from this call, so
+# none is reported here (the EC key rules carry it).
+- id: PY_ECDH
+  language: python
+  pattern: '\bec\.ECDH\(\)'
+  raw_name: ECDH
+  kind_hint: algorithm
+  usage: key_exchange
+  library: cryptography
+
+# ---- EC keys and ECDSA --------------------------------------------------------------------------
+
+# A named curve class is the evidence of an EC key (generate_private_key, derive_private_key,
+# from_encoded_point, public numbers all take one), so the curve class is matched instead of each
+# consumer. The usage is not known from the curve: raw_name EC, usage unknown. The curve classes are
+# the cryptography.hazmat.primitives.asymmetric.ec names (SECP, SECT, Brainpool families). # verify
+- id: PY_EC_CURVE
+  language: python
+  pattern: '\bec\.(?P<curve>SECP(?:192R1|224R1|256K1|256R1|384R1|521R1)|SECT(?:163K1|163R2|233[KR]1|283[KR]1|409[KR]1|571[KR]1)|BrainpoolP(?:256|384|512)R1)\b'
+  raw_name: EC
+  kind_hint: algorithm
+  usage: unknown
+  curve: '{curve}'
+  library: cryptography
+
+# ec.ECDSA(hash) is the signature algorithm argument of sign and verify. The curve belongs to the key.
+- id: PY_ECDSA
+  language: python
+  pattern: '\bec\.ECDSA\('
+  raw_name: ECDSA
+  kind_hint: algorithm
+  usage: signature
+  library: cryptography
+
+# ---- DH and DSA ---------------------------------------------------------------------------------
+
+# Finite-field Diffie-Hellman only agrees keys and DSA only signs, so the usage is the algorithm's own.
+# The size comes from the key_size argument: a literal, or a file-scope constant.
+- id: PY_DH_GENERATE
+  language: python
+  pattern: >-
+    \bdh\.generate_parameters\((?:[^()]|\([^()]*\))*?\bkey_size\s*=\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))
+  raw_name: DH
+  kind_hint: algorithm
+  usage: key_exchange
+  library: cryptography
+
+# dh.generate_parameters(generator, key_size): the size is the second positional argument.
+- id: PY_DH_GENERATE_POSITIONAL
+  language: python
+  pattern: >-
+    \bdh\.generate_parameters\(\s*[^,()=]+,\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*[,)]
+  raw_name: DH
+  kind_hint: algorithm
+  usage: key_exchange
+  library: cryptography
+
+- id: PY_DSA_GENERATE
+  language: python
+  pattern: >-
+    \bdsa\.generate_(?:private_key|parameters)\((?:[^()]|\([^()]*\))*?\bkey_size\s*=\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))
+  raw_name: DSA
+  kind_hint: algorithm
+  usage: signature
+  library: cryptography
+
+# dsa.generate_private_key(key_size) takes the size as its first positional argument.
+- id: PY_DSA_GENERATE_POSITIONAL
+  language: python
+  pattern: >-
+    \bdsa\.generate_(?:private_key|parameters)\(\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*[,)]
+  raw_name: DSA
+  kind_hint: algorithm
+  usage: signature
+  library: cryptography
+
 # ---- AES ----------------------------------------------------------------------------------------
 
 # Key source: os.urandom of a named or literal length. Never reported on its own.
@@ -117,12 +244,13 @@
   provides_key_size: AES
   emit: false
 
-# Cipher(algorithms.AES(key), modes.X(...)). The mode is stated by the call. The key size comes from
+# Cipher(algorithms.AES(key), modes.X(...)), algorithm and mode positional or keyword. The mode is
+# stated by the call. The key size comes from
 # a parameter default or constant directly, otherwise through a flow link.
 - id: PY_AES_CIPHER
   language: python
   pattern: >-
-    \bCipher\(\s*algorithms\.AES\(\s*(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*))\s*\)\s*,\s*modes\.(?P<mode>[A-Za-z0-9]+)\(
+    \bCipher\(\s*(?:algorithm\s*=\s*)?algorithms\.AES\(\s*(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*))\s*\)\s*,\s*(?:mode\s*=\s*)?modes\.(?P<mode>[A-Za-z0-9]+)\(
   raw_name: AES
   kind_hint: algorithm
   usage: encryption
