@@ -1,0 +1,41 @@
+[
+  {
+    "id": "ffce849923e4",
+    "raw_name": "HTTP",
+    "kind_hint": "plaintext",
+    "usage": "unknown",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "http",
+    "negotiated": null,
+    "in_test_code": false,
+    "detector": "pcap.plaintext.http",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49181->192.0.2.40:80",
+      "sni": null,
+      "frame": 447,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": null,
+    "extra": {
+      "hygiene_only": true,
+      "http": {
+        "method": "GET",
+        "path": "/status",
+        "host": "intranet03.lab",
+        "server": "Apache/2.4.58",
+        "status": 200
+      }
+    }
+  }
+]
