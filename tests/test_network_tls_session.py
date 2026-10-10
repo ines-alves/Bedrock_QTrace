@@ -3,16 +3,20 @@ hand-built flows for the cases the kit does not contain."""
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import shutil
 from collections import Counter
 from pathlib import Path
 
 import pytest
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ed25519
 
 from quantumtrace.models import Finding, KindHint, ScanError, SourceType, Usage
 from quantumtrace.scanners.base import finding_id
-from quantumtrace.scanners.network import purepy, registry, tls_session, tshark
+from quantumtrace.scanners.network import certs, purepy, registry, tls_session, tshark
 from quantumtrace.scanners.network.purepy import Flow, PureResult, TlsHello
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -292,15 +296,115 @@ def test_ecdhe_group_uses_the_server_key_exchange_frame():
     assert session.location.frame == 3 and session.protocol == "TLS 1.2"
 
 
-def test_parsed_certificate_makes_authentication_observable_but_never_guesses_a_key():
-    ch = hello(1, suites=[0xC02B], frame=3)
+def _fixture_certificate_message() -> bytes:
+    result = purepy.read_flows(ROOT / "tests" / "fixtures" / "pcap" / "tls12_ecdhe_ecdsa_p256.pcap")
+    message = result.flows[0].server_certificate_msg
+    assert message is not None
+    return message
+
+
+def _tls12_flow(message, **kw):
+    ch = hello(1, suites=[0xC02B], groups=[0x0017], sni="e.lab", frame=3)
     sh = hello(2, suites=[0xC02B], frame=5)
-    flow = make_flow(ch=ch, sh=sh, server_certificate_msg=b"\x00\x00\x00", certificate_frame=5)
-    findings, _ = convert(flow)
+    return make_flow(ch=ch, sh=sh, server_certificate_msg=message, certificate_frame=6, **kw)
+
+
+def test_decoded_certificate_is_one_finding_and_makes_authentication_observable():
+    findings, errors = convert(_tls12_flow(_fixture_certificate_message()))
+    assert errors == []
     session = findings[0]
+    (cert,) = [f for f in findings if f.kind_hint == KindHint.CERTIFICATE]
     assert session.extra["authentication_observable"] is True
     assert session.extra["certificate_state"] == "observed"
+    assert session.extra["session"]["cert_key"] == cert.raw_name == "EC"
+    assert session.extra["session"]["cert_sig_alg"] == cert.extra["signature_algorithm"]
+    assert (cert.detector, cert.usage, cert.negotiated) == (
+        "pcap.tls.certificate",
+        Usage.AUTHENTICATION,
+        True,
+    )
+    assert (cert.key_size, cert.curve, cert.confidence) == (None, "secp256r1", 1.0)
+    assert cert.session_id == session.session_id and cert.protocol == "TLS 1.2"
+    assert cert.location.frame == 6 and cert.location.flow == session.location.flow
+    assert cert.location.sni == "e.lab" and cert.location.source_type == SourceType.PCAP
+    assert cert.extra == {
+        "key_algorithm": "EC",
+        "signature_algorithm": "ecdsa-with-SHA256",
+        "signature_algorithm_oid": "1.2.840.10045.4.3.2",
+        "not_before": "2026-10-10T18:25:08+00:00",
+        "not_after": "2027-10-10T18:25:08+00:00",
+        "self_signed": True,
+    }
+    assert not (FORBIDDEN_KEYS & set(cert.extra))
+    assert len({f.id for f in findings}) == len(findings)
+
+
+def test_certificate_falls_back_to_the_server_hello_frame():
+    flow = _tls12_flow(_fixture_certificate_message())
+    flow.certificate_frame = None
+    findings, _ = convert(flow)
+    (cert,) = [f for f in findings if f.kind_hint == KindHint.CERTIFICATE]
+    assert cert.location.frame == 5
+
+
+def test_only_the_leaf_certificate_is_emitted():
+    (der,) = certs.split_certificate_message(_fixture_certificate_message())
+    chain = b"".join(len(d).to_bytes(3, "big") + d for d in (der, der, der))
+    findings, errors = convert(_tls12_flow(len(chain).to_bytes(3, "big") + chain))
+    assert errors == []
+    assert len([f for f in findings if f.kind_hint == KindHint.CERTIFICATE]) == 1
+
+
+@pytest.mark.parametrize("message", [b"\x00\x00\x00", b"\x00\x00\x06\x00\x00\x03abc", b"junk"])
+def test_undecodable_certificate_message_is_an_error_not_authentication(message):
+    findings, errors = convert(_tls12_flow(message))
+    session = findings[0]
+    assert not [f for f in findings if f.kind_hint == KindHint.CERTIFICATE]
+    assert session.extra["authentication_observable"] is False
+    assert session.extra["certificate_state"] == "observed"
     assert session.extra["session"]["cert_key"] is None and session.extra["session"]["cert_sig_alg"] is None
+    assert len(errors) == 1 and "Certificate message could not be decoded" in errors[0].message
+    assert errors[0].message.startswith("stream 0 10.0.0.1:50000->10.0.0.2:443: ")
+
+
+def test_no_certificate_message_gives_no_certificate_finding():
+    findings, errors = convert(_tls12_flow(None))
+    assert errors == []
+    assert not [f for f in findings if f.kind_hint == KindHint.CERTIFICATE]
+    assert findings[0].extra["authentication_observable"] is False
+    assert findings[0].extra["certificate_state"] == "absent"
+
+
+def test_certificate_with_an_unknown_key_carries_the_key_oid():
+    key = ed25519.Ed25519PrivateKey.generate()
+    start = dt.datetime(2026, 1, 1, tzinfo=dt.UTC)
+    name = x509.Name([x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, "a.lab")])
+    der = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(1)
+        .not_valid_before(start)
+        .not_valid_after(start + dt.timedelta(days=1))
+        .sign(key, None)
+        .public_bytes(serialization.Encoding.DER)
+        .replace(bytes.fromhex("06032b6570"), bytes.fromhex("06032b657f"))
+    )
+    message = (len(der) + 3).to_bytes(3, "big") + len(der).to_bytes(3, "big") + der
+    findings, errors = convert(_tls12_flow(message))
+    assert errors == []
+    (cert,) = [f for f in findings if f.kind_hint == KindHint.CERTIFICATE]
+    assert cert.raw_name == cert.extra["key_algorithm"] == "1.3.101.127"
+    assert findings[0].extra["session"]["cert_key"] == "1.3.101.127"
+
+
+def test_certificate_needs_a_server_hello():
+    ch = hello(1, suites=[0xC02B], frame=3)
+    flow = make_flow(ch=ch, sh=None, server_certificate_msg=_fixture_certificate_message())
+    findings, errors = convert(flow)
+    assert not [f for f in findings if f.kind_hint == KindHint.CERTIFICATE]
+    assert not any("Certificate message" in e.message for e in errors)
 
 
 def test_unknown_codepoints_keep_hex_and_a_null_name():

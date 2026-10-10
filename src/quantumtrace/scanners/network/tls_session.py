@@ -4,6 +4,9 @@ Detect-only: findings carry raw facts (hex codepoints, offered vs selected, evid
 never a tier, threat, score, ``pq_status`` or verdict. The engine (M1) builds every ``TLSSession``
 from the findings that share a ``session_id``; this module never instantiates one.
 
+The leaf certificate of a TLS <= 1.2 Certificate message becomes one ``CERTIFICATE`` finding through
+``certs.py``; an undecodable message is a ``ScanError`` and authentication stays unobserved.
+
 Shape of the output: ``communication/M2toAll.md`` section 6.
 """
 
@@ -15,7 +18,7 @@ from typing import Any
 
 from quantumtrace.models import Finding, KindHint, Location, ScanError, SourceType, Usage
 from quantumtrace.scanners.base import finding_id
-from quantumtrace.scanners.network import registry
+from quantumtrace.scanners.network import certs, registry
 from quantumtrace.scanners.network.purepy import Flow, PureResult, TlsHello
 
 SCANNER = "pcap"
@@ -23,6 +26,7 @@ DETECTOR_VERSION = "pcap.tls.version"
 DETECTOR_SUITE = "pcap.tls.cipher_suite"
 DETECTOR_GROUP = "pcap.tls.group"
 DETECTOR_SIGNATURE = "pcap.tls.signature_scheme"
+DETECTOR_CERTIFICATE = "pcap.tls.certificate"
 
 # STARTTLS / SSLRequest evidence wins over the port; the vocabulary is the one agreed in M2M4-02.
 _UPGRADE_SERVICES = {"smtp-starttls": "smtp-starttls", "postgres-sslrequest": "postgres"}
@@ -110,12 +114,16 @@ def _finding(
     sid: str,
     protocol: str | None,
     extra: dict[str, Any],
+    key_size: int | None = None,
+    curve: str | None = None,
 ) -> Finding:
     return Finding(
         id=finding_id(detector, raw_name, location),
         raw_name=raw_name,
         kind_hint=kind,
         usage=usage,
+        key_size=key_size,
+        curve=curve,
         protocol=protocol,
         negotiated=negotiated,
         detector=detector,
@@ -186,6 +194,18 @@ def _flow_findings(flow: Flow, file: str) -> list[Finding | ScanError]:
             group_frame = flow.server_key_exchange_frame or selected.frame
 
     certificate_state = flow.certificate_state
+    # Only a leaf certificate that decodes is observed authentication (M2M4-02). A Certificate message
+    # that does not decode keeps certificate_state "observed" with authentication false and a
+    # ScanError, and the session certificate fields stay null (M1 answer to Q2).
+    certificate = None
+    certificate_undecodable = False
+    if selected is not None and flow.server_certificate_msg is not None:
+        certificate = certs.describe_certificate_message(flow.server_certificate_msg)
+        certificate_undecodable = certificate is None
+    key_name: str | None = None
+    if certificate is not None:
+        key_type = certificate["key_type"]
+        key_name = certificate["public_key_algorithm_oid"] if key_type == certs.UNKNOWN else key_type
     if sh is not None:
         session = {
             "flow": flow.flow,
@@ -196,8 +216,8 @@ def _flow_findings(flow: Flow, file: str) -> list[Finding | ScanError]:
             "offered_cipher_suites": _hexes(ch.cipher_suites) if ch is not None else None,
             "negotiated_cipher_suite": _hex(negotiated_suite),
             "offered_sig_schemes": _hexes(ch.signature_algorithms) if ch is not None else None,
-            "cert_key": None,  # never guessed; filled only from a parsed certificate (certs.py)
-            "cert_sig_alg": None,
+            "cert_key": key_name,  # never guessed; only from a decoded certificate (certs.py)
+            "cert_sig_alg": certificate["signature_algorithm"] if certificate is not None else None,
             "transport": "tls",
             "service": service_label(flow),
             "peer_banners": None,
@@ -216,7 +236,7 @@ def _flow_findings(flow: Flow, file: str) -> list[Finding | ScanError]:
                     "codepoint": _hex(version_code),
                     "iana_name": None,
                     "session": session,
-                    "authentication_observable": certificate_state == "observed",
+                    "authentication_observable": certificate is not None,
                     "certificate_state": certificate_state,
                 },
             )
@@ -257,6 +277,38 @@ def _flow_findings(flow: Flow, file: str) -> list[Finding | ScanError]:
             ch.signature_algorithms,
             offered_frame,
             False,
+        )
+
+    if certificate is not None and key_name is not None:
+        out.append(
+            _finding(
+                detector=DETECTOR_CERTIFICATE,
+                raw_name=key_name,
+                kind=KindHint.CERTIFICATE,
+                usage=Usage.AUTHENTICATION,
+                negotiated=True,
+                location=at(flow.certificate_frame or selected_frame),
+                sid=sid,
+                protocol=protocol,
+                key_size=certificate["key_size"],
+                curve=certificate["curve"],
+                extra={
+                    "key_algorithm": key_name,
+                    "signature_algorithm": certificate["signature_algorithm"],
+                    "signature_algorithm_oid": certificate["signature_algorithm_oid"],
+                    "not_before": certificate["not_before"],
+                    "not_after": certificate["not_after"],
+                    "self_signed": certificate["self_signed"],
+                },
+            )
+        )
+    if certificate_undecodable:
+        out.append(
+            ScanError(
+                detector=SCANNER,
+                path=file,
+                message=f"{where}: Certificate message could not be decoded; authentication is not observed",
+            )
         )
 
     for warning in flow.warnings:
