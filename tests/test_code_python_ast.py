@@ -184,7 +184,9 @@ def test_aliased_and_canonical_spelling_give_the_same_findings() -> None:
 
 def test_no_rewrite_on_kit_and_existing_fixtures() -> None:
     files = sorted((REPO / "sample-repos" / "python").glob("*.py"))
-    files += [p for p in sorted((FIXTURES / "python").glob("*.py")) if p.name != "aliases.py"]
+    files += [
+        p for p in sorted((FIXTURES / "python").glob("*.py")) if p.name not in ("aliases.py", "gaps.py")
+    ]
     assert len(files) >= 9
     for path in files:
         text = path.read_text(encoding="utf-8")

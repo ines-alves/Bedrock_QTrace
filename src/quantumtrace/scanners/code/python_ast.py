@@ -14,6 +14,8 @@ Properties:
     assignment, parameter, loop or with target, comprehension target, def or class of the same
     name, a conflicting import, or a conflicting binding of the replacement's root skips it.
   - Strings are never rewritten: only ast.Name nodes and plain-import dotted attribute chains.
+  - The one insertion: PBKDF2HMAC(hashes.SHA1(), ...) gets `algorithm=` before its positional hash
+    class (any line layout), so the keyword rule and the plain-hash dedupe see one canonical form.
 
 Canonical form:
   import hashlib as h                     h        -> hashlib
@@ -149,6 +151,35 @@ def _dotted(node: ast.AST) -> str | None:
     return ".".join(reversed(parts))
 
 
+def _positional_algorithm(
+    call: ast.Call, mapping: dict[str, str], dotted: dict[str, str], names: dict[str, list[_Binding]]
+) -> tuple[int, int] | None:
+    """Position of the first argument of PBKDF2HMAC(hashes.X(), ...) when it is a positional hash class."""
+    func = call.func
+    callee = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
+    if mapping.get(callee, callee) != "PBKDF2HMAC":
+        return None
+    if isinstance(func, ast.Name) and ("other",) in names.get(func.id, []):
+        return None
+    if not call.args or any(k.arg in (None, "algorithm") for k in call.keywords):
+        return None
+    first = call.args[0]
+    if not isinstance(first, ast.Call) or first.args or first.keywords:
+        return None
+    path = _dotted(first.func)
+    if path is None:
+        return None
+    module, _, member = path.rpartition(".")
+    if module in dotted:
+        canonical = f"{dotted[module]}.{member}"
+    else:
+        root, _, rest = path.partition(".")
+        canonical = mapping.get(root, root) + (f".{rest}" if rest else "")
+    if not canonical.startswith("hashes.") or canonical.count(".") != 1:
+        return None
+    return first.lineno, first.col_offset
+
+
 def resolve_aliases(text: str, masked: str) -> str:
     """Return `masked` with aliased names and dotted import paths rewritten to canonical spelling.
 
@@ -162,11 +193,14 @@ def resolve_aliases(text: str, masked: str) -> str:
     names = _bindings(tree)
     mapping = _name_map(names)
     dotted = _dotted_imports(tree, names)
-    if not mapping and not dotted:
-        return masked
 
     edits: list[tuple[int, int, int, str, str]] = []
     for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            at = _positional_algorithm(node, mapping, dotted, names)
+            if at is not None:
+                edits.append((at[0], at[1], at[1], "", "algorithm="))
+            continue
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id in mapping:
             old, new = node.id, mapping[node.id]
         elif isinstance(node, ast.Attribute) and dotted:

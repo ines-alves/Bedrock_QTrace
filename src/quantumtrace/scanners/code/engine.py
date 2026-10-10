@@ -21,6 +21,9 @@ Rule fields (YAML list of mappings):
   extra: {key: json value}                                   static extra (hygiene_only, hand_rolled, ...)
   redact: true                                               replace string literals in the snippet
   literal_key: <family>                                      hard-coded key rule: see below
+  values_must_match: {group: regex}                          drop the hit unless each named group's value,
+                                                             after constant resolution, fully matches
+                                                             (an unresolved identifier never does)
   emit: false                                                record only, produce no finding
 
 Pattern groups: a group named X holds a literal; a group named X_ref holds an identifier that is
@@ -107,6 +110,7 @@ _RULE_KEYS = {
     "forbids",
     "scope",
     "literal_key",
+    "values_must_match",
 }
 _CASE_KEYS = {"mode", "mode_source", "requires", "forbids"}
 _RESERVED_EXTRA = {
@@ -164,6 +168,7 @@ class Rule:
     forbids: tuple[re.Pattern[str], ...] = ()
     scope: str = "file"
     literal_key: str | None = None
+    values_must_match: tuple[tuple[str, re.Pattern[str]], ...] = ()
 
     @property
     def expects_key_size(self) -> bool:
@@ -230,6 +235,9 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         groups = _compile(raw["pattern"], where).groupindex
         if not isinstance(literal_key, str) or not ({"key_arg", "literal"} & set(groups)):
             raise ValueError(f"{where}: literal_key needs a family name and a key_arg or literal group")
+    must_match = raw.get("values_must_match") or {}
+    if not isinstance(must_match, dict) or not all(isinstance(v, str) for v in must_match.values()):
+        raise ValueError(f"{where}: values_must_match must map group names to regex strings")
     cases = []
     for case in raw.get("mode_cases") or []:
         bad = set(case) - _CASE_KEYS
@@ -273,6 +281,7 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         forbids=conditions["forbids"],
         scope=scope,
         literal_key=literal_key,
+        values_must_match=tuple((group, _compile(p, where)) for group, p in must_match.items()),
     )
 
 
@@ -668,6 +677,12 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
                     unresolved.append(base)
             else:
                 values[name] = value
+
+        if any(
+            not (value := values.get(group)) or not pattern.fullmatch(value)
+            for group, pattern in rule.values_must_match
+        ):
+            continue
 
         if rule.refine is not None:
             source_group, pattern = rule.refine
