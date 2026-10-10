@@ -48,9 +48,8 @@ outside GROUP/CIPHER_SUITE/SIGNATURE_SCHEME/PROTOCOL_VERSION remain unknown. Obs
 conflicts retain evidence and prevent a resolved verdict. Unknown hex identity
 uses canonical uppercase four-digit spelling within its original namespace.
 
-Owner registry files are currently absent. No guessed TLS/cloud tables or file
-schemas are implemented. Task 1.5 must connect the published validated owner
-interfaces when available. The synthetic private codepoints in tests exercise
+Task 1.8 connects the published owner files through engine/registries.py.
+Normalization still accepts injected resolvers and supplies no guessed tables. The synthetic private codepoints in tests exercise
 resolver mechanics and make no real-world registry claims. SSH/composite names
 retain their KB identity/components for later decomposition; `ssh-rsa` is not
 rewritten to a bare RSA key, and fixed DH group/hash metadata remains in the KB.
@@ -119,12 +118,12 @@ unscored container and linked children. These interfaces are internal injection
 boundaries, not new shared Finding requirements. Supplied signature_algorithm and
 key_algorithm metadata are observed evidence, not engine-selected defaults.
 
-The current checkout and integrated main lack TLS/cloud registries. M2 has now published a registry on
-its unintegrated owner branch; consumption awaits reviewed integration. Known
+The TLS/cloud registries are now published on main and consumed by the task 1.8
+adapters described below. Known
 key-spec aliases reuse the sourced KB; provider-specific SYMMETRIC_DEFAULT and
 unmapped policies retain explicit absent coverage. Verified fake adapters/private
 codes in tests exercise mechanics and make no production assignment claims.
-Real registry/file adapters await owner publication. Unknown/verify-only inputs
+Task 1.8 supplies production file adapters. Unknown/verify-only inputs
 never gain invented rows, key sizes, parameters, OIDs or standard compliance.
 
 # Decomposition fact references
@@ -230,8 +229,8 @@ lengths (including SHA-512/256),
 [RFC 6151](https://www.rfc-editor.org/rfc/rfc6151.html) for collision use versus
 HMAC-MD5, and the [CycloneDX 1.6 schema](https://cyclonedx.org/schema/bom-1.6.schema.json)
 for primitive/mode enums. Tier/default hygiene thresholds are repository policy,
-not additional standards or security-level facts. Production registry integration,
-real scanner/golden evaluation and full session construction remain later gates.
+not additional standards or security-level facts. Production registry adapters are implemented in task 1.8; full scanner/golden
+evaluation and session construction remain later gates.
 
 # Deterministic aggregation
 
@@ -290,5 +289,60 @@ advice reach the listener summary; containers stay excluded from scoring. Missin
 references add issues and UNKNOWN authentication without guessing keys; known
 CRITICAL/MEDIUM components dominate UNKNOWN. No material inventory asset is
 created or scored: M4 builds that inventory from original KEY findings. Unavailable
-policy registry coverage remains unresolved in the retained classification; real
-owner adapter review/integration and complete session views remain later gates.
+policy registry coverage remains unresolved in the retained classification; complete session views and owner-confirmed golden evaluation remain later gates.
+
+# Scoring and public analysis
+
+`analyze(findings, *, kb=None, scan_started_at=None)` returns the frozen-contract
+`(list[CryptoAsset], RiskSummary)` after decomposition, classification, aggregation
+and scoring. It reads the packaged KB and published TLS/cloud registries, invokes
+no scanner and reads no clock. Normalization occurs within decomposition. The
+optional reference timestamp affects cloud hygiene only. Session views and scan
+orchestration belong to task 1.9.
+
+`score(aggregation, scoring_policy)` returns independent copied assets ordered by
+risk points descending then stable asset ID. It uses only eligible private records:
+filter source first, count unique relevant sites, take maximum effective confidence
+and applicable exposure independently, and derive tier/broken/HNDL flags from those
+records. Points remain full precision. Totals use `math.fsum`; the final score uses
+Python `round`, then clamps to 0–100. Zero maximum points gives score 0/grade A,
+even with zero-confidence active HNDL evidence. Otherwise the HNDL floor requires
+one eligible record with both HNDL exposure and `negotiated=True`.
+
+All weights, grade bands, occurrence cap/divisor, broken multiplier and HNDL floor
+come from validated scoring.yaml. The maximum uses the configured CRITICAL weight
+and broken multiplier. Transit includes PCAP/live/SSH; explicit `False` gets the
+offered weight, while missing negotiation gets production weight. Missing or
+unrecognized KMS state likewise gets production weight; only Enabled, Disabled
+and PendingDeletion select their stated categories. Test exposure applies only
+to code observations. Public listener exposure applies to its component evidence
+as well as the unscored policy container; public policy configuration cannot
+activate a negotiated floor. These categories replace the fallback production
+weight; production is not always included in a maximum that would erase discounts.
+
+Counts by tier/source, HNDL count and readiness describe eligible algorithm assets,
+not warning/container/material rows. Source counts use source-specific tier. Sources
+observed only in excluded records still appear with zero counts/score. UNKNOWN is
+scoreable but excluded from readiness; readiness counts assets, regardless of
+confidence, and is zero with no known eligible assets. Top risks contains all
+positive-point asset IDs ordered like the scored assets; SAFE/zero-point rows stay
+visible in the returned assets.
+
+`engine/registries.py` adapts the published schema-1 owner tables without changing
+owner files. TLS lookup keeps namespaces separate, requires a nonempty name and
+reference, and rejects every `verify` marker. Unique exact OpenSSL aliases resolve
+through their sourced TLS row. Numeric version rows currently lack per-row sources
+and remain unresolved; textual protocol evidence is retained. Cloud recipes accept
+only verified policy rows and sourced cipher names. No classical groups are invented
+when AWS leaves them undocumented; a partial hybrid list does not prove absence of
+other groups. KMS SYMMETRIC_DEFAULT requires a matching observed KMS ARN partition:
+only listed default partitions use the default recipe, aws-cn uses its explicit
+recipe, and absent/unrecognized partitions remain UNKNOWN. Observed parameter
+contradictions survive the existing decomposition checks. Material inventory is
+not scored again.
+
+Primary adapter references checked 2026-10-10: the
+[IANA TLS registry](https://www.iana.org/assignments/tls-parameters),
+[AWS KMS key spec reference](https://docs.aws.amazon.com/kms/latest/developerguide/symm-asymm-choose-key-spec.html)
+and [AWS ALB policy table](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/describe-ssl-policies.html).
+These references establish names/mappings; the repository KB assigns all tiers.
