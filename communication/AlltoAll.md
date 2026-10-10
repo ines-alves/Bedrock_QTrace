@@ -53,7 +53,7 @@ Nobody edits another member's files. A needed change is a new item in the pair f
 | Frozen | `origin`, `state`, `public_exposure`, `source_timestamp`, `hygiene_only`, `hygiene_flags`, `authentication_observable`, `session` | `docs/PLAN.md` section 6 |
 | M2 and M3 | `codepoint`, `iana_name` (None when not verified) | `M1M2-02`, `M1M3-09` |
 | M2 | `certificate_state` (`observed`, `encrypted`, `absent`), `http` (method, path, host, server) | `M2M4-02`, `M2M4-03` |
-| M3 | `rule`, `key_size_source`, `unresolved`, `resolved_from_line`, `hand_rolled`, `mode_source` | `M3toAll` 4 |
+| M3 | `rule`, `key_size_source`, `unresolved`, `resolved_from_line`, `hand_rolled`, `mode_source`, `usage_source` | `M3toAll` 4; `M1M3-10` |
 | M4, KMS | `alias`, `key_usage`, `rotation_status`, `valid_to`, `deletion_date`, `multi_region` | `M1M4-01` |
 | M4, listener | `lb_name`, `lb_type`, `listener_protocol`, `port`, `ssl_policy`, `listener_arn`, `certificate_arns`, `redirects_to_https` | `M1M4-01` |
 | M4, certificate | `domain`, `cert_status`, `not_before`, `not_after`, `in_use_by`, `signature_algorithm`, `key_algorithm` | `M1M4-01` |
@@ -61,6 +61,7 @@ Nobody edits another member's files. A needed change is a new item in the pair f
 - `hygiene_flags` values: `insecure_rng`, `hardcoded_key` (M3); `rotation_disabled`, `multi_region_key`, `redirect_only_listener` (M4).
 - `key_size_source` values: `literal`, `constant`, `param_default`, `lookahead`, `flow`, `ambiguous`, `unresolved`. `flow` replaces `file_scope` (`M1M3-01`).
 - `mode_source` value: `block_loop`. `jca_default` and `provider_assumed` are withdrawn (`M1M3-06`).
+- `usage_source` has the single value `flow`, only on an RSA generation inferred as signature with confidence <=0.8 under M1M3-10. Directly observed usage is preserved; rejected inference adds no key.
 - A member announces a change to any of their keys before making it.
 
 ## 5. Settled facts per area
@@ -83,6 +84,7 @@ and tested commit review pending):
 
 ### Code (M3)
 - A size passes from a key generation to a consumer only through a demonstrated same-file flow link. Otherwise `key_size` is None, `unresolved`, confidence at most 0.5 (`M1M3-01`).
+- RSA generation usage becomes signature only when every RSA sink in the file resolves unambiguously to exactly one same-file generation, this generation has at least one linked sink, and all its linked sinks sign/verify. Mixed usage, unresolved/ambiguous/reassigned/imported key flows, unreachable sinks and unused generations leave unknown usage and no usage_source. RSA encrypt/decrypt findings preserve observed names/padding with usage=encryption; engine identities remain distinct by usage. M3 implements/tests after go.yaml and before the sample-repos diff/golden check (`M1M3-10`).
 - Bare Java `AES` leaves `mode` None. Go ECB needs affirmative `block_loop` evidence. Explicit transform strings set `mode` directly (`M1M3-06`).
 - The hard-coded key warning fires only when a literal reaches an AES key sink. The three HMAC decoy files are outside the rule (`M1M3-02`).
 - AES with an undeterminable size is MEDIUM with the rationale "key size not determinable" (`M1M3-07`).
