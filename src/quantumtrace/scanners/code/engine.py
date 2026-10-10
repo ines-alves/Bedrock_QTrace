@@ -27,7 +27,9 @@ Rule fields (YAML list of mappings):
                                                              always dropped, whatever its spelling)
   absorbed_by: [RULE_ID, ...]                                drop the hit when its match starts inside the
                                                              match of a hit of one of these rules
-  iterations: {arg, keyword, callee, loop_param}             where the PBKDF2 iteration count is: see below
+  iterations: {arg, keyword, callee, loop_param, default}     where the PBKDF2 iteration count is: see below
+  parameter_source: library_default                          the emitted parameter (hash in raw_name) is the
+                                                             documented library default: see below
   emit: false                                                record only, produce no finding
 
 Pattern groups: a group named X holds a literal; a group named X_ref holds an identifier that is
@@ -68,6 +70,13 @@ reached through call-site arguments of the enclosing function (same flow as inhe
 FLOW_DEPTH hops). The finding moves to the line of the literal. Keys that come from a generation, an
 import, a call or an unresolvable call site never qualify. A literal reached through a
 call-site hop has confidence at most 0.8. The size of the literal is never reported.
+
+Library defaults (parameter_source): a rule with `parameter_source: library_default` reports a parameter
+the call did not state, taken from the library's documented default (the hash in raw_name). The finding
+carries extra["parameter_source"] "library_default" and confidence at most 0.8. `iterations.default: N`
+does the same for the count: when the call names no count (no keyword, no positional at that index, no
+star argument) iterations is N and parameter_source is set. The documentation URL and library version go
+in the rule comment, never in extra. A library without a documented default has no such rule.
 
 Local key assignment (M1M3-12): a string or bytes literal assigned to a local of the function that holds
 the sink (`key = b"..."`, `key := []byte("...")`, `byte[] key = "...".getBytes(...)`) also qualifies,
@@ -142,8 +151,9 @@ _RULE_KEYS = {
     "values_must_match",
     "absorbed_by",
     "iterations",
+    "parameter_source",
 }
-_ITERATIONS_KEYS = {"arg", "keyword", "callee", "loop_param"}
+_ITERATIONS_KEYS = {"arg", "keyword", "callee", "loop_param", "default"}
 _CASE_KEYS = {"mode", "mode_source", "requires", "forbids"}
 _RESERVED_EXTRA = {
     "rule",
@@ -153,6 +163,7 @@ _RESERVED_EXTRA = {
     "mode_source",
     "usage_source",
     "iterations",
+    "parameter_source",
 }
 FLOW_DEPTH = 3
 
@@ -176,6 +187,7 @@ class IterationsSpec:
     keyword: str | None
     callee: re.Pattern[str] | None
     loop_param: bool
+    default: int | None = None
 
 
 @dataclass(frozen=True)
@@ -212,6 +224,7 @@ class Rule:
     values_must_match: tuple[tuple[str, re.Pattern[str]], ...] = ()
     absorbed_by: tuple[str, ...] = ()
     iterations: IterationsSpec | None = None
+    parameter_source: str | None = None
 
     @property
     def expects_key_size(self) -> bool:
@@ -299,12 +312,24 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
             raise ValueError(f"{where}: iterations.keyword must be a string")
         if callee is None and not loop_param and "call" not in _compile(raw["pattern"], where).groupindex:
             raise ValueError(f"{where}: iterations needs a `call` group in the pattern or a callee")
+        default = spec.get("default")
+        if default is not None:
+            if not isinstance(default, int) or isinstance(default, bool) or default < 1:
+                raise ValueError(f"{where}: iterations.default must be a positive integer")
+            if loop_param or callee is not None:
+                raise ValueError(
+                    f"{where}: iterations.default needs the call group, not callee or loop_param"
+                )
         iterations = IterationsSpec(
             arg=arg,
             keyword=keyword,
             callee=_compile(callee, where) if callee else None,
             loop_param=loop_param,
+            default=default,
         )
+    parameter_source = raw.get("parameter_source")
+    if parameter_source is not None and parameter_source != "library_default":
+        raise ValueError(f"{where}: parameter_source can only be library_default")
     cases = []
     for case in raw.get("mode_cases") or []:
         bad = set(case) - _CASE_KEYS
@@ -351,6 +376,7 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         values_must_match=tuple((group, _compile(p, where)) for group, p in must_match.items()),
         absorbed_by=tuple(absorbed_by),
         iterations=iterations,
+        parameter_source=parameter_source,
     )
 
 
@@ -670,6 +696,7 @@ class _Hit:
     span: tuple[int, int] = (0, 0)
     call_paren: int | None = None
     iterations: int | None = None
+    parameter_source: str | None = None
 
 
 def _literal_length(value: str | bytes) -> int:
@@ -782,7 +809,7 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
         confidence = rule.confidence
         if unresolved:
             confidence = min(confidence, UNRESOLVED_CONFIDENCE_CAP)
-        if size_source == "lookahead":
+        if size_source == "lookahead" or rule.parameter_source:
             confidence = min(confidence, HEURISTIC_CONFIDENCE_CAP)
 
         yield _Hit(
@@ -803,6 +830,7 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
             visible=frozenset() if rule.redact else frozenset(visible),
             span=m.span(),
             call_paren=m.start("call") - 1 if "call" in groups else None,
+            parameter_source=rule.parameter_source,
         )
 
 
@@ -1218,6 +1246,21 @@ class _Flow:
             counts.add(found.strip())
         return counts.pop() if len(counts) == 1 else None
 
+    def _count_absent(self, hit: _Hit, spec: IterationsSpec) -> bool:
+        """The call names no iteration count at all (and passes no star arguments that could carry it)."""
+        if hit.call_paren is None:
+            return False
+        args = _call_args(self.masked, hit.call_paren)
+        if any(a.strip().startswith("*") for a in args):
+            return False
+        if spec.keyword is not None:
+            for raw in args:
+                keyword = _KEYWORD_ARG.match(raw)
+                if keyword and keyword.group(1) == spec.keyword:
+                    return False
+        positional = [a for a in args if not _KEYWORD_ARG.match(a)]
+        return spec.arg is None or len(positional) <= spec.arg
+
     def apply_iterations(self) -> None:
         """Set the iteration count on PBKDF2 hits: literal, constant, or one call-site hop."""
         for hit in self.hits:
@@ -1227,6 +1270,10 @@ class _Flow:
             scope = self.scope_of(hit.line)
             expr = self._count_expression(hit, spec, scope)
             if expr is None:
+                if spec.default is not None and self._count_absent(hit, spec):
+                    hit.iterations = spec.default
+                    hit.parameter_source = "library_default"
+                    hit.confidence = min(hit.confidence, HEURISTIC_CONFIDENCE_CAP)
                 continue
             value = self._int_of(expr, hit.line)
             if value is None and scope is not None and expr in self.funcs[scope].params:
@@ -1369,6 +1416,8 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
             extra["resolved_from_line"] = hit.resolved_from_line
         if hit.iterations is not None:
             extra["iterations"] = hit.iterations
+        if hit.parameter_source:
+            extra["parameter_source"] = hit.parameter_source
         if hit.key_size_source:
             extra["key_size_source"] = hit.key_size_source
         if hit.unresolved:

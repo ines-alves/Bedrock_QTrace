@@ -335,9 +335,15 @@
 # HMAC.new(key, msg, digestmod), KDF.PBKDF2(..., hmac_hash_module), pkcs1_15.new, PKCS1_OAEP.new). # verify
 #
 # Every rule needs a Crypto or Cryptodome mention in the file, so a bare MD5.new( or HMAC.new( of another
-# library is not reported. Raw names are the tokens as seen. Defaults are not inferred: HMAC.new without
-# digestmod (library default MD5) and PBKDF2 without prf or hmac_hash_module (library default HMAC-SHA1)
-# emit nothing, the same stance as a bare Java "AES" (M1M3-06).
+# library is not reported. Raw names are the tokens as seen. Documented library defaults are reported with
+# extra["parameter_source"] = "library_default" and confidence at most 0.8 (M1 ruling, session 26):
+# HMAC.new without digestmod (default MD5), PBKDF2 without prf or hmac_hash_module (default HMAC-SHA1) and
+# PBKDF2 without count (default 1000). Checked on pycryptodome.readthedocs.io, 2026-10-10:
+# https://pycryptodome.readthedocs.io/en/latest/src/hash/hmac.html  HMAC.new(key, msg=b'', digestmod=None),
+#   "Crypto.Hash.MD5" when None;
+# https://pycryptodome.readthedocs.io/en/latest/src/protocol/kdf.html  PBKDF2(password, salt, dkLen=16,
+#   count=1000, prf=None, hmac_hash_module=None), HMAC-SHA1 when both prf and hmac_hash_module are omitted.
+# The pages state no version; PyPI latest on the same date was pycryptodome 3.24.0. # verify
 
 # Key source: get_random_bytes of a named or literal length. Never reported on its own.
 - id: PYC_RANDOM_KEY
@@ -563,7 +569,7 @@
   library: pycryptodome
 
 # HMAC.new(key, msg, digestmod=SHA256) or digestmod as the third positional argument. Without a
-# digestmod the library default applies and nothing is emitted (see the header).
+# digestmod the library default applies: see PYC_HMAC_DEFAULT.
 - id: PYC_HMAC
   language: python
   pattern: >-
@@ -585,4 +591,33 @@
   kind_hint: algorithm
   usage: kdf
   library: pycryptodome
-  iterations: {arg: 3, keyword: count}
+  iterations: {arg: 3, keyword: count, default: 1000}
+
+# HMAC.new(key[, msg]) with no digestmod (keyword or third positional): the library default is MD5.
+# Documented default, so the hash is reported with parameter_source library_default (see the header).
+- id: PYC_HMAC_DEFAULT
+  language: python
+  pattern: >-
+    \bHMAC\.new\((?!\s*\*)\s*(?:key\s*=\s*)?(?:[^,()=]|\([^()]*\))+(?:,(?!\s*\*)\s*(?:msg\s*=\s*)?(?:[^,()=]|\([^()]*\))+)?\s*\)
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  raw_name: HMAC-MD5
+  kind_hint: algorithm
+  usage: mac
+  library: pycryptodome
+  confidence: 0.8
+  parameter_source: library_default
+
+# KDF.PBKDF2(password, salt[, dkLen[, count]]) with no prf and no hmac_hash_module: the library default
+# is HMAC-SHA1. The count defaults to 1000 when it is not stated (iterations.default, same source flag).
+- id: PYC_PBKDF2_DEFAULT
+  language: python
+  pattern: >-
+    \bPBKDF2\((?P<call>)(?!\s*(?:\*|(?:prf|hmac_hash_module)\s*=))\s*(?:[A-Za-z_]\w*\s*=\s*)?(?:[^,()=]|\([^()]*\))+(?:,(?!\s*(?:\*|(?:prf|hmac_hash_module)\s*=))\s*(?:[A-Za-z_]\w*\s*=\s*)?(?:[^,()=]|\([^()]*\))+){1,3}\s*\)
+  requires: ['\b(?:Crypto|Cryptodome)\b']
+  raw_name: PBKDF2-HMAC-SHA1
+  kind_hint: algorithm
+  usage: kdf
+  library: pycryptodome
+  confidence: 0.8
+  parameter_source: library_default
+  iterations: {arg: 3, keyword: count, default: 1000}

@@ -22,6 +22,10 @@ def by_rule(findings: list[Finding], prefix: str) -> list[Finding]:
     return [f for f in findings if str(f.extra["rule"]).startswith(prefix)]
 
 
+def by_id(findings: list[Finding], rule_id: str) -> list[Finding]:
+    return [f for f in findings if f.extra["rule"] == rule_id]
+
+
 def test_symmetric_ciphers_sizes_and_modes() -> None:
     found = scan_fixture("pycryptodome.py")
     aes = [
@@ -51,11 +55,11 @@ def test_hard_coded_key_warnings_are_redacted_and_paired() -> None:
 def test_hashes_hmac_and_pbkdf2() -> None:
     found = scan_fixture("pycryptodome.py")
     assert [f.raw_name for f in by_rule(found, "PYC_HASH")] == ["MD5", "SHA1", "SHA256", "SHA3_256"]
-    assert [(f.location.line, f.raw_name) for f in by_rule(found, "PYC_HMAC")] == [
+    assert [(f.location.line, f.raw_name) for f in by_id(found, "PYC_HMAC")] == [
         (41, "HMAC-SHA256"),
         (42, "HMAC-SHA1"),
     ]
-    assert [(f.location.line, f.raw_name) for f in by_rule(found, "PYC_PBKDF2")] == [
+    assert [(f.location.line, f.raw_name) for f in by_id(found, "PYC_PBKDF2")] == [
         (48, "PBKDF2-HMAC-SHA256"),
         (49, "PBKDF2-HMAC-SHA1"),
     ]
@@ -160,13 +164,10 @@ def test_names_of_other_libraries_are_not_reported() -> None:
     assert scan(src) == []
 
 
-def test_defaults_and_unresolved_values_emit_nothing() -> None:
+def test_unresolved_values_and_a_prf_callable_emit_nothing() -> None:
     src = (
-        "from Crypto.Hash import HMAC\n"
         "from Crypto.Protocol.KDF import PBKDF2\n"
         "from Crypto.PublicKey import ECC\n"
-        "a = HMAC.new(key, msg)\n"
-        "b = PBKDF2(password, salt, 32, 1000)\n"
         "c = PBKDF2(password, salt, 32, 1000, prf=my_prf)\n"
         "d = ECC.generate(curve=name)\n"
     )

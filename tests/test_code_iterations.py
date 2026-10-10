@@ -24,7 +24,7 @@ PYTHON_EXPECTED = {
     "cryptography_positional": 5000,
     "pycryptodome_keyword": 4000,
     "pycryptodome_positional": 8000,
-    "pycryptodome_default_count": NOT_SET,
+    "pycryptodome_default_count": 1000,
 }
 
 JAVA_EXPECTED = {
