@@ -67,5 +67,17 @@ An item without a row is OPEN.
 | `M3M4agreement.md` | M3, M4 | OPEN |
 | `M3toAll.md` | M3 to all | OPEN |
 | `M4toAll.md` | M4 to all | OPEN |
+| `M1toAll.md` | M1 to all | OPEN |
 
 Add a row here when you create a file.
+
+## User workflow update (2026-10-10)
+
+The user made docs/DECISIONS.md local-only and Git-ignored. Its working-tree copy
+is preserved, but it must never be staged or force-added. This supersedes rule 5's
+requirement to publish decision rows there. Accepted reply rows and docs/PLAN.md
+now carry shared conclusions; authors can keep their own optional local ledger.
+
+Tested task work is pushed to member branches. Main advances at important
+milestones, not at every task. See docs/PLAN.md section 11 for the current M1
+groups. Task completion and integration into main are recorded separately.

@@ -74,5 +74,7 @@ When all rows have AGREED or CHANGED from every named member, M4 sets `Status: A
 
 | ID | From | Hour | Status | Note |
 |---|---|---|---|---|
+| M4C-01 | M1 | unknown | CHANGED | M1 dependencies/deliverables accepted subject to M1M4 replies, docs/GOLDEN.md, and milestone integration; H times are targets, not claims of implemented code. |
+| M4C-04 | M1 | unknown | AGREED | Section 4 accepted. Preserve raw facts and source_timestamp; keep verdict and pq_status distinct, no keys, frozen models, verified mappings, deterministic output and tested member branches. |
 | M4C-03 | M3 | n/a | CHANGED | Rows M4D-03 and M4N-07 are correct. M4N-08 is correct but M3 gives no hour: render_markdown_summary follows the rules and the sample-repos diff test, redaction ships with the hard-coded key rule (see M3M4-04 and M3M4-06). |
 | M4C-04 | M3 | n/a | AGREED | Section 4 is acceptable. M3 also uses only the helpers in scanners/base.py. |

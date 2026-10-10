@@ -1,0 +1,340 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "QuantumTrace golden expectations v1",
+  "type": "array",
+  "items": {
+    "oneOf": [
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "asset"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_type": {
+            "enum": [
+              "pcap",
+              "live",
+              "code",
+              "config",
+              "kms",
+              "loadbalancer",
+              "keyfile",
+              "binary",
+              "ssh",
+              "acm"
+            ]
+          },
+          "resource": {
+            "type": "string",
+            "minLength": 1
+          },
+          "resource_alias": {
+            "type": "string",
+            "minLength": 1
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "note": {
+            "type": "string"
+          },
+          "canonical": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tier": {
+            "enum": [
+              "CRITICAL",
+              "MEDIUM",
+              "SAFE",
+              "UNKNOWN"
+            ]
+          },
+          "usage": {
+            "enum": [
+              "key_exchange",
+              "signature",
+              "encryption",
+              "hash",
+              "mac",
+              "kdf",
+              "rng",
+              "authentication",
+              "unknown"
+            ]
+          },
+          "asset_type": {
+            "enum": [
+              "algorithm",
+              "certificate",
+              "protocol",
+              "related-crypto-material"
+            ]
+          },
+          "classically_broken": {
+            "type": "boolean"
+          },
+          "hndl_exposed": {
+            "type": "boolean"
+          },
+          "negotiated": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "source",
+          "canonical",
+          "tier"
+        ]
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "finding"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_type": {
+            "enum": [
+              "pcap",
+              "live",
+              "code",
+              "config",
+              "kms",
+              "loadbalancer",
+              "keyfile",
+              "binary",
+              "ssh",
+              "acm"
+            ]
+          },
+          "resource": {
+            "type": "string",
+            "minLength": 1
+          },
+          "resource_alias": {
+            "type": "string",
+            "minLength": 1
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "note": {
+            "type": "string"
+          },
+          "kind_hint": {
+            "enum": [
+              "cipher_suite",
+              "group",
+              "signature_scheme",
+              "algorithm",
+              "key",
+              "certificate",
+              "protocol_version",
+              "policy",
+              "library",
+              "plaintext"
+            ]
+          },
+          "raw_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "extra": {
+            "type": "object"
+          },
+          "negotiated": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "source",
+          "kind_hint"
+        ]
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "session"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_type": {
+            "enum": [
+              "pcap",
+              "live",
+              "code",
+              "config",
+              "kms",
+              "loadbalancer",
+              "keyfile",
+              "binary",
+              "ssh",
+              "acm"
+            ]
+          },
+          "resource": {
+            "type": "string",
+            "minLength": 1
+          },
+          "resource_alias": {
+            "type": "string",
+            "minLength": 1
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "note": {
+            "type": "string"
+          },
+          "session_sni": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "session_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "transport": {
+            "enum": [
+              "tls",
+              "ssh"
+            ]
+          },
+          "negotiated_group": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tier_kex": {
+            "enum": [
+              "CRITICAL",
+              "MEDIUM",
+              "SAFE",
+              "UNKNOWN"
+            ]
+          },
+          "tier_session": {
+            "enum": [
+              "CRITICAL",
+              "MEDIUM",
+              "SAFE",
+              "UNKNOWN"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "source",
+          "tier_session"
+        ]
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "count"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_type": {
+            "enum": [
+              "pcap",
+              "live",
+              "code",
+              "config",
+              "kms",
+              "loadbalancer",
+              "keyfile",
+              "binary",
+              "ssh",
+              "acm"
+            ]
+          },
+          "resource": {
+            "type": "string",
+            "minLength": 1
+          },
+          "resource_alias": {
+            "type": "string",
+            "minLength": 1
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "note": {
+            "type": "string"
+          },
+          "metric": {
+            "enum": [
+              "resources",
+              "sessions",
+              "occurrences"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "kind_hint": {
+            "enum": [
+              "cipher_suite",
+              "group",
+              "signature_scheme",
+              "algorithm",
+              "key",
+              "certificate",
+              "protocol_version",
+              "policy",
+              "library",
+              "plaintext"
+            ]
+          },
+          "transport": {
+            "enum": [
+              "tls",
+              "ssh"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "source",
+          "metric",
+          "count"
+        ]
+      }
+    ]
+  }
+}

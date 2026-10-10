@@ -5,7 +5,7 @@
 
 This document is the **single source of truth** for the team and every coding-agent session working on the repo. Read sections 1–6 and **Appendix D** (what the starter kit really contains, with golden expectations) before writing code. Your personal work package is in section 8. If something here conflicts with a later team decision, update this file in the same commit.
 
-**M1 local execution:** M1 keeps root `AGENTS.md` and `agents/` (implementation checklist, status, skills, individual plans, and handoffs) local-only and Git-ignored. These files are not distributed in repository checkouts; other members use this shared plan and their own local instructions. Approved shared workflow and contract refinements are recorded in `docs/DECISIONS.md`. Each M1 task ends with a local contextual handoff; the next task starts in a fresh user-opened session.
+**M1 local execution:** M1 keeps root `AGENTS.md` and `agents/` (implementation checklist, status, skills, individual plans, and handoffs) local-only and Git-ignored. These files are not distributed in repository checkouts; other members use this shared plan and their own local instructions. Shared workflow and contract refinements are recorded in this plan and `communication/`. The optional local `docs/DECISIONS.md` ledger is Git-ignored and is not distributed. Each M1 task ends with a local contextual handoff; the next task starts in a fresh user-opened session.
 
 ---
 
@@ -143,7 +143,7 @@ requires-python = ">=3.12"
 dependencies = [
   "pydantic>=2.12,<3", "typer>=0.12", "rich>=13", "pyyaml>=6",
   "cryptography>=43",
-  "cyclonedx-python-lib>=8", "jsonschema>=4",
+  "cyclonedx-python-lib[json-validation]>=8", "jsonschema>=4",
   "fastapi>=0.115", "uvicorn[standard]>=0.30", "python-multipart>=0.0.9",
 ]
 [project.optional-dependencies]
@@ -216,7 +216,7 @@ quantumtrace/
 ├── sample-repos/ cloud-posture/ network-capture/   starter kit (provided, read-only)
 ├── docs/
 │   ├── PLAN.md                    (this file)
-│   └── DECISIONS.md               [all]  short log of decisions made during the hackathon
+│   └── GOLDEN.md                  [M1]   golden expectation format for owner contributions
 ├── src/quantumtrace/
 │   ├── __init__.py
 │   ├── models.py                  [M1]   FROZEN contracts (section 6)
@@ -298,8 +298,8 @@ Initial contracts are established in task 1.2 (2026-10-10). Import the shared
 models from `quantumtrace.models`; scanner integration lives in
 `quantumtrace.scanners.base`. The model snapshot below includes the approved
 ScanOptions and typed roadmap additions. After this initial freeze, all contract
-changes, including optional additions, require team agreement recorded in
-`docs/DECISIONS.md`; existing fields must not be renamed or removed.
+changes, including optional additions, require AGREED replies from all four members
+in communication/; existing fields must not be renamed or removed.
 
 ```python
 # src/quantumtrace/models.py
@@ -1014,7 +1014,7 @@ All four are generalists, so the split is by **module ownership** with balanced 
 
 | # | Task | Priority | Done when |
 |---|---|---|---|
-| 2.1 | Install tshark; confirm Appendix D numbers (97 TLS sessions, 24 SSH, 14 HTTP) with `tshark -r network.pcap -Y tls.handshake`; note differences in DECISIONS.md | P0 | H1 |
+| 2.1 | Install tshark; confirm Appendix D numbers (97 TLS sessions, 24 SSH, 14 HTTP) with `tshark -r network.pcap -Y tls.handshake`; note differences in communication/ agreements | P0 | H1 |
 | 2.2 | `purepy.py`: pure-Python classic-pcap + Ethernet/IPv4/TCP reader and TLS ClientHello/ServerHello parser (≈ 100 lines; a working prototype logic is described in Appendix D.1). Used when tshark is missing, and as the SSH transport | P0 | parses starter pcap without tshark |
 | 2.3 | `tls_registry.yaml` generator from IANA CSVs + PQC overrides (7.4) + GREASE filter helper | P0 | |
 | 2.4 | `tshark.py`: run `tshark -r <file> -Y "tls.handshake.type==1 or tls.handshake.type==2 or tls.handshake.type==11 or tls.handshake.type==12" -T json`; verify field names with `tshark -G fields \| grep tls.handshake`; request **numeric** values. Ports 587 (SMTP STARTTLS), 5432 (Postgres SSLRequest), 636 (LDAPS), 993 (IMAPS) must all be decoded — add `-d tcp.port==N,tls` and check STARTTLS/pgsql dissectors; otherwise fall back to `purepy.py` | P0 | all 97 sessions found |
@@ -1109,22 +1109,10 @@ Sleep: with 24h, staggered short naps only — two members nap H9–H11, two H12
 
 The starter kit's "intentional patterns" are what judges will check. **Appendix D already contains the hand-verified expectations** (24 code files, 97 TLS sessions, 24 SSH sessions, 10 KMS keys, 7 listeners, 5 certificates). M1 converts Appendix D into `expected.yaml`; each member then adds expectations for their own fixtures:
 
-```yaml
-- source: sample-repos/java/ReceiptSigner.java
-  line: 13
-  canonical: RSA-1024
-  tier: CRITICAL
-  classically_broken: true
-- source: network-capture/network.pcap
-  session_sni: vault01.lab
-  negotiated_group: X25519MLKEM768
-  tier_kex: SAFE
-  tier_session: UNKNOWN         # hybrid KEX, TLS 1.3 authentication unobservable
-- source: cloud-posture/kms_key_inventory.json
-  resource: alias/release-codesigning
-  canonical: RSA-4096
-  tier: CRITICAL                # bigger RSA is not a fix
-```
+Owner contributions follow [GOLDEN.md](GOLDEN.md) and
+[golden.schema.json](golden.schema.json): a top-level list with explicit asset,
+finding, session and count entries. M4 supplies confirmed cloud rows; raw warnings
+and counts do not inflate algorithm accuracy. M1 implements the evaluator in 1.12.
 
 `make eval` matches produced assets/occurrences to the golden list (tolerance ±2 lines) and prints **precision, recall and tier accuracy** per source type plus a list of misses and false positives. Target: ≥ 0.95 recall, ≥ 0.95 precision on the starter kit (it is small — every miss is visible). Show the table in the pitch.
 
@@ -1138,15 +1126,26 @@ Task 1.12 adds evaluation to this gate once it exists. Run before every push to
 
 ## 11. Git Workflow & Conventions
 
-- **Trunk-based**: existing `main` is the integration branch, not a new `master`. M1 uses short-lived branches `m1/<task-id>-<topic>` from current `origin/main`; other members keep `m<N>/<topic>`. Push tested branches and prefer PRs merged by M1 (or self-merge if green and only touching owned files). Reconcile upstream before integration, do not bypass repository protections, and never force-push `main`.
+- **Milestone integration**: main advances at significant milestones rather than
+  after every task. Commit and push tested `m<N>/<topic>` branches. Independent
+  work starts from current origin/main; dependent tasks may branch from a verified
+  tested predecessor awaiting integration, recording pending ancestors. Default
+  M1 milestones are core engine (1.3–1.8), runnable CLI/native reports
+  (1.9/1.11/1.10), and verified evaluation/starter integration (1.12/integration).
+  Prefer PRs with cumulative green checks; reconcile upstream, preserve other
+  members' work and protections, and never force-push main. Optional work stays on
+  branches until a designated release milestone. Teams/users can revise checkpoints.
 - **Commit messages**: `area: imperative summary` (e.g. `engine: classify X25519 as Shor-vulnerable`).
 - **M1 identity**: use configured author and committer `David Correia <davidfgcorreia@gmail.com>`. Do not add Codex co-author trailers to commits or PR merge/squash messages. Verify identity before committing; do not change global Git settings.
-- **Task completion**: plan before implementation, validate behavior, save the handoff, push the branch, and verify its integration into remote `main`. Only then mark the task complete. Record the exact blocker if push/PR/merge/checks are unavailable.
+- **Task completion**: plan, implement, validate, save the local handoff, commit
+  and push the task branch, and verify its remote commit. Record main integration
+  separately as pending until a designated milestone is merged and its remote
+  ancestry verified. A local commit alone is not remote publication.
 - **Code style**: type hints everywhere, ruff default + `I` (isort), max line 110, docstrings on public functions, `logging` (no `print` outside CLI/UI).
 - **No secrets, no real customer data** in the repo. The starter kit stays at the repo root (`sample-repos/`, `cloud-posture/`, `network-capture/`) and is **read-only**; generated output goes to `out/` (gitignored).
 - **Determinism**: sort outputs (assets by risk desc then name; occurrences by file/line); stable IDs.
 - **Performance budget**: full starter-kit scan < 60 s; skip files > 5 MB in code scanner; ignore `.git`, `node_modules`, `venv`, `vendor` (configurable).
-- **Decisions log**: any deviation from this plan → one line in `docs/DECISIONS.md` with date/hour and who.
+- **Decisions log**: any deviation from this plan → an agreement item/reply in `communication/`, reflected in this plan when shared behavior changes.
 
 ---
 
@@ -1159,9 +1158,9 @@ Members retain their ownership boundaries. M1 uses a fresh session for each task
 3. **Plan first**: refresh the individual task plan with current repo facts, dependencies, owned changes, and acceptance checks before implementation. The user-approved roadmap authorizes ordinary implementation choices without a recurring approval gate.
 4. **Contract-first**: import types from `quantumtrace.models`; do not redefine them. Establish the approved initial additions in 1.2, then freeze contracts and coordinate later changes with the team.
 5. **Test meaningful behavior**: use local fixtures and run the checks available at the current stage. Record unavailable checks honestly; no application `make check` exists during workflow-only M1-00.
-6. **Handoff at task end**: record outcome, interface changes, exact checks/results, blockers, branch/commit/PR integration evidence, and the next-session prompt in the local task file. Update local status and checklist after verified integration; these updates do not need another Git commit.
+6. **Handoff at task end**: record outcome, interface changes, exact checks/results, blockers, branch/commit/PR integration evidence, and the next-session prompt in the local task file. Update task completion after remote branch verification and main integration separately after a milestone; local updates need no additional Git commit.
 7. **Fresh context**: end the session after its task handoff. The user opens a new session that reads these files; agents do not claim to clear conversation context or launch concurrent work.
-8. **Ownership and accuracy**: do not silently fix another member's modules; record requests in DECISIONS/handoffs. Never invent codepoints, OIDs, KMS mappings, or standards status; verify primary sources during the owning task and keep uncertain values explicit.
+8. **Ownership and accuracy**: do not silently fix another member's modules; record requests in communication/ and local handoffs. Never invent codepoints, OIDs, KMS mappings, or standards status; verify primary sources during the owning task and keep uncertain values explicit.
 
 ---
 
@@ -1198,7 +1197,7 @@ Members retain their ownership boundaries. M1 uses a fresh session for each task
 | TLS 1.3 certificates encrypted | Missing auth info | Report as UNKNOWN honestly; keylog support (P2); explain in demo as a known limitation |
 | False positives in code (comments, strings, docs) | Accuracy score drops | Comment skipping, test-path down-weighting, import vs call dedupe, golden eval loop after H12 |
 | Double counting the same algorithm | Inflated score | `aggregate.py` dedupe by (canonical, usage); occurrence factor is log-bounded |
-| Contract changes mid-build | Integration hell | Freeze at H1; only additive optional fields; DECISIONS.md |
+| Contract changes mid-build | Integration hell | Freeze at H1; all changes require all-member AGREED replies in communication/ |
 | Agents hallucinate codepoints/OIDs | Wrong classifications | Generate from IANA CSV; *(verify)* markers; unit tests on key values |
 | Live sandbox endpoints unreachable at demo time | Demo hole | Pre-captured pcap of the probe; probe is P2, never on the critical path |
 | Key sizes behind constants (6 of the 24 code files) | Missed/wrong key size → wrong tier | File-scope constant resolution is P0 (task 3.2); look-ahead only a fallback |
@@ -1216,7 +1215,7 @@ Members retain their ownership boundaries. M1 uses a fresh session for each task
 Paste at the beginning of each coding-agent session (adjust the task number).
 
 **M1**
-> I am M1 (Core & Risk Engine) on QuantumTrace. Read AGENTS.md, agents/STATUS.md, agents/IMPLEMENTATION.md, the previous task handoff, and agents/tasks/1.1.md. Read the task-cycle skill and relevant docs/PLAN.md sections. Start only task 1.1: refresh its written plan, create its branch from current origin/main, implement the project foundation, and validate it. Use my configured Git profile without Codex co-author trailers; push and integrate when green, save the 1.2 handoff, and end the session. Establish contracts in a separate fresh 1.2 session.
+> I am M1 (Core & Risk Engine) on QuantumTrace. Read AGENTS.md, agents/STATUS.md, agents/IMPLEMENTATION.md, the previous task handoff, and agents/tasks/1.1.md. Read the task-cycle skill and relevant docs/PLAN.md sections. Start only task 1.1: refresh its written plan, create its branch from current origin/main, implement the project foundation, and validate it. Use my configured Git profile without Codex co-author trailers; publish the tested branch and integrate only at a designated milestone, save the 1.2 handoff, and end the session. Establish contracts in a separate fresh 1.2 session.
 
 **M2**
 > I am M2 (Network Layer) on QuantumTrace. Read docs/PLAN.md sections 6, 7.1, 7.3, 7.4, Appendix D.2/D.3 and my work package §8-M2. I own scanners/network/**, kb/tls_registry.yaml, kb/iana/, scripts/gen_pcaps.sh. First run `tshark -G fields | grep "tls.handshake"` and `tshark -r network-capture/network.pcap -Y tls.handshake -T json | head -200`, and confirm the counts in Appendix D.2 (97 TLS sessions: 54 TLS1.2 static-RSA, 36 TLS1.3 x25519, 7 X25519MLKEM768; 24 SSH sessions). Then implement 2.2 (pure-Python parser), 2.4 (tshark runner) and 2.5 (session assembly) producing Findings per §6. Use numeric codepoints and filter GREASE.
@@ -1256,7 +1255,7 @@ Check items marked *(verify)* against these primary sources.
 
 ## Appendix D — Starter-kit analysis & golden ground truth
 
-> Hand-verified by reading every provided file; the pcap was parsed with a throw-away pure-Python reader (**tshark was not available**, so M2 confirms the numbers with tshark in H0–H1 and records differences in DECISIONS.md). This appendix is the seed for `tests/golden/expected.yaml`. The task PDF says the kit covers "legacy TLS 1.2, modern TLS 1.3 and hybrid PQC" — it does, but only as three uniform profiles (below); anything richer (ECDHE, TLS 1.0, certificates, offered-but-refused ML-KEM) must come from our own fixtures.
+> Hand-verified by reading every provided file; the pcap was parsed with a throw-away pure-Python reader (**tshark was not available**, so M2 confirms the numbers with tshark in H0–H1 and records differences in communication/ agreements). This appendix is the seed for `tests/golden/expected.yaml`. The task PDF says the kit covers "legacy TLS 1.2, modern TLS 1.3 and hybrid PQC" — it does, but only as three uniform profiles (below); anything richer (ECDHE, TLS 1.0, certificates, offered-but-refused ML-KEM) must come from our own fixtures.
 
 ### D.0 What is in the kit
 
@@ -1301,9 +1300,9 @@ Lines are 1-based. **Bold = SAFE decoy (must not be flagged as MEDIUM/CRITICAL).
 | MD5 password hash | `legacy_accounts.py:5` | `CustomerDirectory.java:8` | `member-directory/main.go:10` | MD5 (hash) MEDIUM, classically broken |
 | SHA-1 checksum | `update_feed.py:5` | `PatchFeed.java:8` | `release-feed/main.go:10` | SHA-1 (hash) MEDIUM, classically broken |
 | RSA-1024 + SHA-1 signing | `license_token.py:6` (key_size=1024), `:11`, `:16` (SHA1) | `ReceiptSigner.java:12-13` (`initialize(1024)`), `:18`, `:25` (`SHA1withRSA`) | `invoice-service/main.go:13` (1024), `:17`,`:18`,`:22`,`:23` (SHA1) | RSA-1024 (signature) CRITICAL, classically broken (<2048) **+** SHA-1 MEDIUM broken |
-| Ed25519 signing | `webhook_signature.py:5` | `DeviceAttestation.java:12,17,24` | `agent-enrollment/main.go:4,11,20` | Ed25519 CRITICAL (Shor) — "modern ≠ quantum-safe" |
+| Ed25519 signing | `webhook_signature.py:5` | `DeviceAttestation.java:12,17,24` | `agent-enrollment/main.go:4,11,20,21,25` | Ed25519 CRITICAL (Shor) — "modern ≠ quantum-safe" |
 | **SHA-384 + HMAC-SHA256** | **`artifact_manifest.py:6` (sha384), `:14` (hmac sha256)** | **`ConfigSync.java:10` (SHA-384), `:20` (HmacSHA256)** | **`config-sync/main.go:13` (Sum384), `:22` (hmac+sha256)** | SHA-384 SAFE, HMAC-SHA256 SAFE |
-| **PBKDF2-HMAC-SHA256 (600k it.)** | **`member_credentials.py:13,18`** | **`IdentityVault.java:22`** | **`auth-gateway/main.go:20-35`** (hand-rolled, no pbkdf2 import; HMAC-SHA256 loop) | PBKDF2/KDF SAFE |
+| **PBKDF2-HMAC-SHA256 (600k it.)** | **`member_credentials.py:13,18`** | **`IdentityVault.java:22`** | **`auth-gateway/main.go:19-44`** (anchor L25) (hand-rolled, no pbkdf2 import; HMAC-SHA256 loop) | PBKDF2/KDF SAFE |
 | AES-128-ECB + insecure RNG | `report_export.py:11` — key = `EXPORT_KEY` (16-byte literal, L5) †; `:17` `random.getrandbits` | `BatchExporter.java:14` — `TRANSFORMATION="AES/ECB/PKCS5Padding"` (L10) † ; key 16-byte literal L9; `:21` `new Random()` | `batch-pipeline/main.go:22` — `exportKey` 16 bytes (L10) †; manual `block.Encrypt` loop ⇒ ECB; `:7,:36` `math/rand` | AES-128-ECB MEDIUM (+ ECB warning, hard-coded key); insecure-RNG warning (UNKNOWN tier, excluded from quantum score) |
 | **AES-256-GCM** | **`secure_transfer.py:16,21`** — `KEY_LEN=32` (L6) † | **`SessionCipher.java:18-19`** — `KEY_BITS=256` (L13) †; `:30,:39` `TRANSFORMATION="AES/GCM/NoPadding"` † | **`telemetry-relay/main.go:23,27,40,44`** — `keyLen=32` (L12) † ; `cipher.NewGCM` | AES-256-GCM SAFE |
 
@@ -1360,3 +1359,40 @@ Totals: 6 CRITICAL, 4 SAFE; no PQC key specs; no MEDIUM.
 6. Three of eight code scenarios are SAFE decoys — false positives there cost accuracy points directly.
 7. STARTTLS (587) and Postgres SSLRequest (5432) sessions only appear if non-443 ports/upgrades are handled.
 8. A listener with no `SslPolicy` (HTTP:80) is plaintext, not "UNKNOWN crypto".
+
+## M1 communication conclusions (2026-10-10)
+
+See communication/M1M4agreement.md for the 14 M1 replies and M1toAll.md for
+pending owner confirmations. Existing frozen models remain unchanged. All extra
+keys are retained; engine-derived hygiene advice goes in asset rationale and
+recommendations, while raw Findings remain unchanged. Listener policy evidence
+links by listener resource_id and ACM joins use certificate_arns. KMS resources
+use observed KeyArn, retaining AliasName in extra.alias. One KEY Finding feeds
+scored algorithm assets; M4 constructs per-key CBOM material inventory from those
+Findings without duplicate scoring. Configured policy choices are not negotiated
+traffic. Cloud signature composites are decomposed centrally. Both HTTP listeners
+remain plaintext hygiene observations, distinguished as HTTPS redirect versus
+plaintext forwarding; the initial redirect request is still HTTP.
+
+The validated scoring KB in task 1.3 uses tier_weights, exposure, broken_multiplier,
+occurrence (cap/log_divisor), grade_bands and hndl_floor (score/condition), with
+section 7.5 values. M4 may serve validated data at /api/scoring; no extra ScanResult
+block or invented fallback values. Roadmap dates are product planning targets.
+The CycloneDX json-validation extra is declared explicitly for strict validation
+dependencies. Classified mode strings are lowercase schema values, while raw
+Finding mode strings may remain uppercase.
+
+M3 communication follow-up: communication/M1M3agreement.md has M1 replies to
+all eight items. Key-size inheritance must remain unambiguous and retain bounded
+confidence/provenance; unknown evidence is never merged into a known size based
+solely on sharing a file. Hard-coded-key starter warnings require observed AES
+sinks, with literals redacted. Known hand-rolled PBKDF2 kit evidence uses
+PBKDF2-HMAC-SHA256 and hand_rolled metadata; SAFE is quantum policy, not a general
+implementation audit. Raw ECB/GCM modes are retained, with bare Java AES defaults
+conditioned on verified provider context. SunJCE/SunPKCS11 defaults are provider
+specific ([Oracle provider documentation](https://docs.oracle.com/en/java/javase/25/security/oracle-providers.html)).
+Go independent-block encryption must be distinguished from chained encryption.
+Unknown AES size remains None and classifies MEDIUM. Golden seeding incorporates
+the verified M3 occurrence corrections, with PBKDF2 lines 19–44 anchored at 25
+and Ed25519 verification sites at 21/25. M3's local completion claim needs a
+published tested implementation reference before it is treated as available.
