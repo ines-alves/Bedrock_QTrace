@@ -4,8 +4,10 @@
 # exact: PyPI names are compared after PEP 503 normalization, Maven entries are groupId:artifactId and
 # Go entries are module paths (a major version suffix is a distinct module). Nothing here is tiered.
 #
-# Every entry is unconfirmed until checked against the package's primary source (PyPI project page,
-# Maven Central, pkg.go.dev). # verify
+# Every entry was checked on 2026-10-10 against its public registry (pypi.org/pypi/<name>/json,
+# repo1.maven.org/maven2/<group path>/<artifact>/maven-metadata.xml, pkg.go.dev/<module>): the identity
+# exists and is spelled as written. That confirms existence only, not that the list is complete.
+# The bcprov-jdk15on and bcpkix-jdk15on lines are legacy (last release 1.70, superseded by jdk18on).
 
 python:
   - cryptography
