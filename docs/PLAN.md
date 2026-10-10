@@ -3,7 +3,9 @@
 > **Cryptographic Agility & Post-Quantum Readiness Scanner**
 > Hackathon build plan · 4 members · **24h** · Python (FastAPI) + React · All four challenge vectors
 
-This document is the **single source of truth** for the team and for every Claude Code session working on the repo. Read sections 1–6 and **Appendix D** (what the starter kit really contains, with golden expectations) before writing code. Your personal work package is in section 8. If something here conflicts with a later team decision, update this file in the same commit.
+This document is the **single source of truth** for the team and every coding-agent session working on the repo. Read sections 1–6 and **Appendix D** (what the starter kit really contains, with golden expectations) before writing code. Your personal work package is in section 8. If something here conflicts with a later team decision, update this file in the same commit.
+
+**M1 execution:** read root `AGENTS.md`, `agents/IMPLEMENTATION.md`, `agents/STATUS.md`, and the current task plan in `agents/tasks/`. That checklist expands the M1 work package into individually planned, tested, and integrated tasks. Approved workflow and contract refinements are recorded in `docs/DECISIONS.md`. Each task ends with a contextual handoff; the next task starts in a fresh user-opened session.
 
 ---
 
@@ -20,7 +22,7 @@ This document is the **single source of truth** for the team and for every Claud
 9. [Timeline & Checkpoints](#9-timeline--checkpoints)
 10. [Testing & Accuracy Evaluation](#10-testing--accuracy-evaluation)
 11. [Git Workflow & Conventions](#11-git-workflow--conventions)
-12. [Working with Claude Code](#12-working-with-claude-code)
+12. [Working with coding agents](#12-working-with-coding-agents)
 13. [Demo & Pitch](#13-demo--pitch)
 14. [Risks & Mitigations](#14-risks--mitigations)
 15. [Appendix A — CLAUDE.md (copy to repo root)](#appendix-a--claudemd)
@@ -416,7 +418,7 @@ class TLSSession(BaseModel):         # convenience view for the Network page
     cert_key: str | None = None      # "RSA-2048", "ECDSA-P256", None if TLS1.3 (encrypted)
     cert_sig_alg: str | None = None
     pq_status: Literal["pq_hybrid", "pq_pure", "classical", "unknown"]
-    verdict_tier: Tier               # worst tier among negotiated components
+    verdict_tier: Tier               # CRITICAL > MEDIUM > UNKNOWN > SAFE; unknown auth prevents SAFE
     source: str                      # pcap file or live target
     transport: Literal["tls", "ssh"] = "tls"   # SSH sessions reuse offered_groups=kex list, negotiated_group=kex
     service: str | None = None       # "https", "ldaps", "imaps", "smtp-starttls", "postgres", "ssh"
@@ -470,10 +472,12 @@ def analyze(findings: list[Finding]) -> tuple[list[CryptoAsset], RiskSummary]
 **Pipeline public API** (`pipeline.py`, M1):
 
 ```python
-def run(inputs: list[str | Path], probes: list[str] = [], options: ScanOptions | None = None) -> ScanResult
+def run(inputs: list[str | Path], probes: list[str] | None = None, options: ScanOptions | None = None) -> ScanResult
 ```
 
-**Output public API** (M4):
+`ScanOptions` is established by M1 in initial task 1.2: default excluded directories (`.git`, `node_modules`, `venv`, `.venv`, `vendor`, `out`, `agents`) and optional scanner-name selection. Requested unknown scanner names and unavailable probe adapters produce explicit errors. Optional typed `ScanResult.roadmap` and `RoadmapItem` (phase 0–3, action, asset IDs, occurrence count) are also established in 1.2; absent roadmap is omitted from JSON. Document `Finding.extra` conventions for exposure/state, hygiene, source timestamps, and session observability before the initial contract freeze. Further contract changes require team agreement.
+
+**Output public API** (native JSON: M1; CBOM: M4; Markdown: M3):
 
 ```python
 def write_report_json(result: ScanResult, path: Path) -> None
@@ -537,10 +541,11 @@ React types are generated from `/openapi.json` (`openapi-typescript`); the front
 
 **Composite / session rules**
 
-- A **cipher suite** or **TLS session** is a `protocol` asset; its tier = **worst tier among its negotiated components**.
+- A **cipher suite** or **TLS session** is a `protocol` asset; its tier follows negotiated components with precedence **CRITICAL > MEDIUM > UNKNOWN > SAFE**. Unobservable authentication prevents an overall SAFE verdict. Derived protocol containers summarize components and are excluded from quantum scoring to prevent double counting.
 - **TLS_RSA_WITH_*** (static RSA key transport): key exchange = RSA, `forward_secrecy=false`, `hndl_exposed=true`. Highest risk: one future break of the server key decrypts *all* recorded sessions. Call this out in rationale.
 - **HNDL exposure** = `true` for any Shor-vulnerable **key exchange / key transport** observed in transit (pcap, live, LB policy). Signatures are not HNDL-exposed (authentication can't be retroactively broken for past sessions) — say so in the rationale; this nuance impresses judges.
 - **TLS 1.3**: the certificate and CertificateVerify are encrypted. Cert key type is `unknown` unless a keylog file is provided. Do **not** guess; set `cert_key=None` and emit an UNKNOWN authentication note at session level.
+- **Hybrid KEX + unobservable authentication**: KEX is SAFE, authentication is UNKNOWN, and the overall verdict is UNKNOWN unless an observed component is CRITICAL or MEDIUM. Never report vulnerable certificate authentication that was not observed.
 - **Hybrid KEX + RSA/ECDSA cert**: KEX is SAFE (HNDL protected), authentication still CRITICAL → session verdict CRITICAL with rationale "confidentiality PQ-protected, authentication not". `pq_status = pq_hybrid`.
 - **GREASE values** (`0x0A0A, 0x1A1A, …, 0xFAFA` — pattern `(v & 0x0F0F) == 0x0A0A and (v >> 8) == (v & 0xFF)`) must be **dropped** from cipher suites, groups, sig schemes, versions, extensions. Reporting them is a false positive.
 - **TLS_EMPTY_RENEGOTIATION_INFO_SCSV (0x00FF)** and **TLS_FALLBACK_SCSV (0x5600)** are signalling values, not ciphers — drop.
@@ -780,11 +785,11 @@ base   = 100 * Σ risk_points / Σ max_points
 floor  = 60 if any (hndl_exposed and negotiated) else 0    # an active HNDL exposure can't look "fine"
 score  = round(max(base, floor))                            # 0..100, higher = worse
 grade  = A (0–10) B (11–25) C (26–40) D (41–60) E (61–80) F (81–100)
-readiness_pct = % of assets with tier SAFE (excluding UNKNOWN)
+readiness_pct = % of eligible classified assets with tier SAFE (excluding UNKNOWN)
 score_by_source = same formula restricted to each source_type
 ```
 
-Insecure-RNG and pure-classical warnings are shown but excluded from the quantum score (configurable). All numbers live in `scoring.yaml`; the formula is shown on the dashboard under "How is this calculated?" (transparency scores points).
+Insecure-RNG, plaintext/hygiene-only warnings, libraries, and derived protocol containers are shown but excluded from quantum score/readiness denominators. Unknown cryptographic assets remain scoreable. Preserve per-finding confidence, source, exposure, state, and offered/negotiated status through aggregation. Use maximum applicable exposure and maximum confidence among relevant findings; count unique evidence for occurrences. For source summaries, restrict evidence to that source before applying the same formula and floor. Zero eligible point totals yield score 0/grade A; readiness is 0 when no eligible classified assets exist. All numbers live in `scoring.yaml`; the formula is shown on the dashboard under "How is this calculated?" (transparency scores points).
 
 ### 7.6 CycloneDX 1.6 CBOM mapping (M4, `output/cyclonedx.py`)
 
@@ -804,7 +809,7 @@ Insecure-RNG and pure-classical warnings are shown but excluded from the quantum
 
 ### 7.7 Native report (`report.json`) and `summary.md`
 
-`report.json` = `ScanResult.model_dump(mode="json")` plus a `roadmap` block:
+`report.json` is the JSON serialization of `ScanResult`, including its optional typed `roadmap` field established in initial task 1.2. It must round-trip through `ScanResult.model_validate`; do not append an untyped report-only block. Roadmap phases follow:
 
 ```
 Phase 0 (this week): classically broken items — RSA-1024, MD5, SHA-1, 3DES/CBC suites, TLS ≤ 1.1, SSH group1/ssh-rsa, plaintext HTTP listeners, expired-but-serving certs
@@ -839,7 +844,7 @@ All four are generalists, so the split is by **module ownership** with balanced 
 | 1.7 | `aggregate.py` dedupe: same canonical asset + same usage → one asset with many occurrences; protocol assets link components | P0 | |
 | 1.8 | `score.py` (7.5) | P0 | unit tests with hand-computed values |
 | 1.9 | `pipeline.py` router: walk inputs, dispatch by `can_handle`, collect findings/errors, call engine, build `sessions` from M2's data | P0 | end-to-end on starter kit at **H6** |
-| 1.10 | `cli.py`: `qtrace scan <paths…> [--probe host:port] [--out dir] [--format json,cbom,md] [--fail-on critical]`, Rich tables + score panel; `qtrace eval`; `qtrace ui` | P0 | |
+| 1.10 | `cli.py`: `qtrace scan <paths…> [--probe host:port] [--out dir] [--format json,cbom,md]`, Rich tables + score panel; `qtrace eval`; `qtrace ui`. Unavailable requested adapters/writers give explicit errors; `--fail-on` is task 1.13 | P0 | |
 | 1.11 | `output/report_json.py` + roadmap builder (7.7) *(moved from M4)* | P0 | H8 |
 | 1.12 | `scripts/eval.py` precision/recall vs `tests/golden/expected.yaml` (seeded from Appendix D) | P1 | `make eval` prints table per source + overall |
 | 1.13 | `--fail-on` exit codes for CI use; JSON to stdout option | P2 | |
@@ -955,7 +960,7 @@ The starter kit's "intentional patterns" are what judges will check. **Appendix 
   session_sni: vault01.lab
   negotiated_group: X25519MLKEM768
   tier_kex: SAFE
-  tier_session: CRITICAL        # hybrid KEX, but TLS 1.3 cert unknown / classical auth
+  tier_session: UNKNOWN         # hybrid KEX, TLS 1.3 authentication unobservable
 - source: cloud-posture/kms_key_inventory.json
   resource: alias/release-codesigning
   canonical: RSA-4096
@@ -972,8 +977,10 @@ The starter kit's "intentional patterns" are what judges will check. **Appendix 
 
 ## 11. Git Workflow & Conventions
 
-- **Trunk-based**: `main` always runs. Short-lived branches `m<N>/<topic>` (e.g. `m2/tls-sessions`), PRs merged by M1 (or self-merge if green and only touching own files). Rebase often.
+- **Trunk-based**: existing `main` is the integration branch, not a new `master`. M1 uses short-lived branches `m1/<task-id>-<topic>` from current `origin/main`; other members keep `m<N>/<topic>`. Push tested branches and prefer PRs merged by M1 (or self-merge if green and only touching owned files). Reconcile upstream before integration, do not bypass repository protections, and never force-push `main`.
 - **Commit messages**: `area: imperative summary` (e.g. `engine: classify X25519 as Shor-vulnerable`).
+- **M1 identity**: use configured author and committer `David Correia <davidfgcorreia@gmail.com>`. Do not add Codex co-author trailers to commits or PR merge/squash messages. Verify identity before committing; do not change global Git settings.
+- **Task completion**: plan before implementation, validate behavior, save the handoff, push the branch, and verify its integration into remote `main`. Only then mark the task complete. Record the exact blocker if push/PR/merge/checks are unavailable.
 - **Code style**: type hints everywhere, ruff default + `I` (isort), max line 110, docstrings on public functions, `logging` (no `print` outside CLI/UI).
 - **No secrets, no real customer data** in the repo. The starter kit stays at the repo root (`sample-repos/`, `cloud-posture/`, `network-capture/`) and is **read-only**; generated output goes to `out/` (gitignored).
 - **Determinism**: sort outputs (assets by risk desc then name; occurrences by file/line); stable IDs.
@@ -982,18 +989,18 @@ The starter kit's "intentional patterns" are what judges will check. **Appendix 
 
 ---
 
-## 12. Working with Claude Code
+## 12. Working with coding agents
 
-Each member runs their own Claude Code session in the shared repo. To keep 4 agents from colliding:
+Members retain their ownership boundaries. M1 uses a fresh session for each task:
 
-1. **`CLAUDE.md` at the repo root** (Appendix A) — loaded automatically; it points to this plan and states the rules.
-2. **Start every session with your starter prompt** (Appendix B) so the agent knows its ownership boundaries.
-3. **Contract-first**: agents must import types from `quantumtrace.models` and never redefine them. If an agent "needs" a new field, it stops and tells you; you coordinate with M1.
-4. **Small, testable increments**: ask the agent to write tests with every change and run `make test` before finishing.
-5. **Use plan mode for anything touching > 3 files.** Review the plan before letting it edit.
-6. **Feed it real samples**: paste a starter-kit snippet or `tshark` output into the prompt rather than describing it.
-7. **Don't let agents "fix" other members' modules** — they should open an issue/note in DECISIONS.md instead.
-8. **Knowledge accuracy**: agents must not invent codepoints, OIDs or KMS spec names. Items marked *(verify)* get checked against the primary source (Appendix C) by a human or with web access.
+1. **Repository instructions**: read root `AGENTS.md` and this plan. M1 additionally reads `agents/IMPLEMENTATION.md`, `agents/STATUS.md`, the active task plan, and the previous handoff. `CLAUDE.md` will point to these instructions for Claude sessions.
+2. **Reusable local skills**: root instructions route explicitly to `agents/skills/qtrace-task-cycle/SKILL.md`, `qtrace-core-engine/SKILL.md`, and `qtrace-integration/SKILL.md`. Use writable `agents/`, because `.agents/` is protected; automatic discovery is not assumed.
+3. **Plan first**: refresh the individual task plan with current repo facts, dependencies, owned changes, and acceptance checks before implementation. The user-approved roadmap authorizes ordinary implementation choices without a recurring approval gate.
+4. **Contract-first**: import types from `quantumtrace.models`; do not redefine them. Establish the approved initial additions in 1.2, then freeze contracts and coordinate later changes with the team.
+5. **Test meaningful behavior**: use local fixtures and run the checks available at the current stage. Record unavailable checks honestly; no application `make check` exists during workflow-only M1-00.
+6. **Handoff at task end**: record outcome, interface changes, exact checks/results, blockers, branch/commit/PR integration evidence, and the next-session prompt in the task file. Update status and checklist after verified integration.
+7. **Fresh context**: end the session after its task handoff. The user opens a new session that reads these files; agents do not claim to clear conversation context or launch concurrent work.
+8. **Ownership and accuracy**: do not silently fix another member's modules; record requests in DECISIONS/handoffs. Never invent codepoints, OIDs, KMS mappings, or standards status; verify primary sources during the owning task and keep uncertain values explicit.
 
 ---
 
@@ -1086,7 +1093,7 @@ HNDL exposure = Shor-vulnerable key exchange observed in transit.
 Paste at the beginning of each Claude Code session (adjust the task number).
 
 **M1**
-> I am M1 (Core & Risk Engine) on QuantumTrace. Read CLAUDE.md and docs/PLAN.md sections 3, 5, 6, 7 and Appendix D. I own models.py, pipeline.py, cli.py, kb/algorithms.yaml, kb/scoring.yaml, kb/loader.py, engine/**, scanners/base.py, output/report_json.py, scripts/eval.py. Start with task 1.1 and 1.2: create the skeleton and models.py exactly as specified in §6 (including the additive SSH/ACM/PLAINTEXT enum values), plus scanners/base.py with the Scanner protocol, registry decorator, finding_id and is_test_path helpers. Write tests. Use plan mode first and show me the plan.
+> I am M1 (Core & Risk Engine) on QuantumTrace. Read AGENTS.md, agents/STATUS.md, agents/IMPLEMENTATION.md, the previous task handoff, and agents/tasks/1.1.md. Read the task-cycle skill and relevant docs/PLAN.md sections. Start only task 1.1: refresh its written plan, create its branch from current origin/main, implement the project foundation, and validate it. Use my configured Git profile without Codex co-author trailers; push and integrate when green, save the 1.2 handoff, and end the session. Establish contracts in a separate fresh 1.2 session.
 
 **M2**
 > I am M2 (Network Layer) on QuantumTrace. Read CLAUDE.md and docs/PLAN.md sections 6, 7.1, 7.3, 7.4, Appendix D.2/D.3 and my work package §8-M2. I own scanners/network/**, kb/tls_registry.yaml, kb/iana/, scripts/gen_pcaps.sh. First run `tshark -G fields | grep "tls.handshake"` and `tshark -r network-capture/network.pcap -Y tls.handshake -T json | head -200`, and confirm the counts in Appendix D.2 (97 TLS sessions: 54 TLS1.2 static-RSA, 36 TLS1.3 x25519, 7 X25519MLKEM768; 24 SSH sessions). Then implement 2.2 (pure-Python parser), 2.4 (tshark runner) and 2.5 (session assembly) producing Findings per §6. Use numeric codepoints and filter GREASE.
@@ -1149,7 +1156,7 @@ libpcap header (little-endian, linktype 1) → per packet: Ethernet (handle 0x81
 |---|---|---|---|---|---|---|---|
 | 54 | **Legacy static RSA** | TLS 1.2 (no `supported_versions`) | `0x002F TLS_RSA_WITH_AES_128_CBC_SHA` | — (RSA key transport) | suites `0x0035`, `0x002F` only; sig scheme `0x0401 rsa_pkcs1_sha256` | 443 ×33, 587 ×11 (SMTP **STARTTLS**), 636 ×10 (LDAPS) | CRITICAL; `forward_secrecy=false`, **HNDL exposed**; AES-128-CBC MEDIUM; MAC is HMAC-SHA1 (MEDIUM, *not* classically broken in HMAC use) |
 | 36 | **Modern classical** | TLS 1.3 (`supported_versions` 0x0304) | `0x1301 TLS_AES_128_GCM_SHA256` | `0x001D x25519` | suites 1301/1302/1303; groups x25519, secp256r1; sig `0x0403`, `0x0804` | 443 ×18, 993 ×10 (IMAPS), 5432 ×8 (Postgres **SSLRequest**) | KEX CRITICAL (Shor, HNDL exposed — "modern ≠ quantum-safe"); cipher MEDIUM; cert unknown (encrypted) |
-| 7 | **Hybrid PQC** | TLS 1.3 | `0x1302 TLS_AES_256_GCM_SHA384` | `0x11EC X25519MLKEM768` | groups `0x11EC`, x25519; key_share `0x11EC`, x25519 | 443 (`vaultNN.lab`) | KEX SAFE hybrid; cipher SAFE; **session CRITICAL/unknown auth** (cert encrypted in TLS 1.3 → do not guess) |
+| 7 | **Hybrid PQC** | TLS 1.3 | `0x1302 TLS_AES_256_GCM_SHA384` | `0x11EC X25519MLKEM768` | groups `0x11EC`, x25519; key_share `0x11EC`, x25519 | 443 (`vaultNN.lab`) | KEX SAFE hybrid; cipher SAFE; **session UNKNOWN** (authentication unobservable because cert is encrypted in TLS 1.3; do not guess) |
 
 SNI patterns: `webNN.lab`, `appNN.lab`, `mailNN.lab`, `dbNN.lab`, `dcNN.lab`, `vaultNN.lab`. Only handshake types 1 and 2 were seen as first records — verify with tshark whether Certificate messages exist (task 2.9). No TLS ≤ 1.1, no ECDHE TLS 1.2, no Kyber-draft codepoints, no case where ML-KEM is offered and refused.
 
@@ -1224,7 +1231,7 @@ Totals: 6 CRITICAL, 4 SAFE; no PQC key specs; no MEDIUM.
 
 1. X25519 and Ed25519 are CRITICAL even though they look modern (36 TLS sessions, 3 code files, SSH `ssh-ed25519`).
 2. RSA-3072/4096 stay CRITICAL; only RSA < 2048 gets `classically_broken`.
-3. Hybrid KEX session is **not** automatically SAFE overall — TLS 1.3 certificate is unobservable; report authentication as UNKNOWN, never guess.
+3. Hybrid KEX session is **not** automatically SAFE overall — TLS 1.3 certificate is unobservable; report authentication and the overall session as UNKNOWN unless an observed component is CRITICAL or MEDIUM. Never guess.
 4. HMAC-SHA1 inside `TLS_RSA_WITH_AES_128_CBC_SHA` is not "SHA-1 broken"; SHA-1 in a *signature* or plain checksum is.
 5. Key sizes are behind file-level constants in the AES files (Python `secure_transfer`, Java `SessionCipher`/`BatchExporter`, Go `batch-pipeline`/`telemetry-relay`); Go ECB is a hand-written block loop; Go PBKDF2 is hand-rolled.
 6. Three of eight code scenarios are SAFE decoys — false positives there cost accuracy points directly.
