@@ -44,10 +44,15 @@ PY_RSA = """
     [
         ("- {id: A, language: python, pattern: x, kind_hint: algorithm, usage: hash}", "raw_name"),
         ("- {id: A, language: python, pattern: x, raw_name: X, kind_hint: nope, usage: hash}", "nope"),
-        ("- {id: A, language: python, pattern: '(', raw_name: X, kind_hint: algorithm, usage: hash}",
-         "regex"),
-        ("- {id: A, language: python, pattern: x, raw_name: X, kind_hint: algorithm, usage: hash, bogus: 1}",
-         "unknown keys"),
+        (
+            "- {id: A, language: python, pattern: '(', raw_name: X, kind_hint: algorithm, usage: hash}",
+            "regex",
+        ),
+        (
+            "- {id: A, language: python, pattern: x, raw_name: X, kind_hint: algorithm, "
+            "usage: hash, bogus: 1}",
+            "unknown keys",
+        ),
         ("- {id: A, language: java, pattern: x, raw_name: X, kind_hint: algorithm, usage: hash}", "language"),
         (
             "- {id: A, language: python, pattern: x, raw_name: X, kind_hint: algorithm, usage: hash}\n"
@@ -67,7 +72,7 @@ def test_invalid_rule_files_are_rejected(tmp_path, body, message):
 @pytest.mark.parametrize(
     "language, source, kept, blanked",
     [
-        ("python", 'x = 1  # rsa.generate_private_key\n', "x = 1", "rsa.generate"),
+        ("python", "x = 1  # rsa.generate_private_key\n", "x = 1", "rsa.generate"),
         ("python", 'url = "a#b"\n', 'url = "a#b"', None),
         ("python", '"""rsa.generate_private_key(key_size=1024)"""\nx = 1\n', "x = 1", "rsa.generate"),
         ("python", 'x = """keep # this"""\n', 'x = """keep # this"""', None),
@@ -109,7 +114,7 @@ def test_comment_only_match_produces_no_finding(tmp_path):
 
 def test_python_constants_and_param_defaults():
     src = textwrap.dedent(
-        '''
+        """
         KEY_LEN = 32
         EXPORT_KEY = b"0123456789ABCDEF"
         ALIAS = KEY_LEN
@@ -119,7 +124,7 @@ def test_python_constants_and_param_defaults():
 
         def plain(key):
             return key
-        '''
+        """
     )
     consts = Constants(mask_comments(src, "python"), "python")
     assert consts.resolve("KEY_LEN", 1) == (32, "constant")
@@ -223,56 +228,365 @@ GO_KEY_SOURCE_AND_SINK = """
   emit: false
 - id: GO_AES
   language: go
-  pattern: 'aes\\.NewCipher\\('
+  pattern: 'aes\\.NewCipher\\((?P<key_arg>\\w+)\\)'
   raw_name: AES
   kind_hint: algorithm
   usage: encryption
+  key_size_from_length: true
+  inherit_key_size: AES
+"""
+
+GO_PRODUCER_AND_CONSUMER = """
+const keyLen = 32
+
+func generateKey() []byte {
+    key := make([]byte, keyLen)
+    return key
+}
+
+func encrypt(key, plaintext []byte) {
+    block, _ := aes.NewCipher(key)
+}
+"""
+
+
+def go_flow(tmp_path, source):
+    return scan(tmp_path, "go", GO_KEY_SOURCE_AND_SINK, GO_PRODUCER_AND_CONSUMER + source)
+
+
+def sink(findings):
+    assert len(findings) == 1
+    return findings[0]
+
+
+def test_flow_links_producer_binding_and_consumer(tmp_path):
+    found = sink(go_flow(tmp_path, "func main() {\n    key := generateKey()\n    encrypt(key, nil)\n}\n"))
+    assert (found.raw_name, found.key_size, found.confidence) == ("AES", 256, 0.8)
+    assert found.extra["key_size_source"] == "flow"
+    assert found.extra["resolved_from_line"] == 2
+
+
+def test_flow_follows_a_same_function_allocation(tmp_path):
+    findings = scan(
+        tmp_path,
+        "go",
+        GO_KEY_SOURCE_AND_SINK,
+        """
+        const keyLen = 16
+
+        func run() {
+            key := make([]byte, keyLen)
+            block, _ := aes.NewCipher(key)
+        }
+        """,
+    )
+    assert (sink(findings).key_size, findings[0].extra["key_size_source"]) == (128, "flow")
+
+
+def test_unused_allocation_and_imported_key_stay_unresolved(tmp_path):
+    findings = scan(
+        tmp_path,
+        "go",
+        GO_KEY_SOURCE_AND_SINK,
+        """
+        const keyLen = 32
+
+        func spare() {
+            _ = make([]byte, keyLen)
+        }
+
+        func encrypt(importedKey []byte) {
+            block, _ := aes.NewCipher(importedKey)
+        }
+        """,
+    )
+    found = sink(findings)
+    assert found.key_size is None
+    assert found.extra["key_size_source"] == "unresolved"
+    assert found.confidence == 0.5
+
+
+def test_allocation_that_is_not_the_consumed_key_does_not_link(tmp_path):
+    source = (
+        "func main() {\n    key := generateKey()\n    encrypt(key, nil)\n"
+        "    encrypt(fromElsewhere(), nil)\n}\n"
+    )
+    found = sink(go_flow(tmp_path, source))
+    assert found.key_size is None
+    assert found.extra["key_size_source"] == "unresolved"
+
+
+def test_distinct_keys_of_different_sizes_are_ambiguous(tmp_path):
+    source = """
+const shortKeyLen = 16
+func generateShortKey() []byte {
+    key := make([]byte, shortKeyLen)
+    return key
+}
+func main() {
+    a := generateKey()
+    b := generateShortKey()
+    encrypt(a, nil)
+    encrypt(b, nil)
+}
+"""
+    found = sink(go_flow(tmp_path, source))
+    assert found.key_size is None
+    assert found.extra["key_size_source"] == "ambiguous"
+    assert found.confidence == 0.5
+
+
+def test_distinct_keys_sharing_a_size_both_link_to_that_size(tmp_path):
+    source = (
+        "func main() {\n    a := generateKey()\n    b := generateKey()\n"
+        "    encrypt(a, nil)\n    encrypt(b, nil)\n}\n"
+    )
+    found = sink(go_flow(tmp_path, source))
+    assert (found.key_size, found.extra["key_size_source"]) == (256, "flow")
+
+
+def test_reassigned_binding_does_not_link(tmp_path):
+    source = "func main() {\n    key := generateKey()\n    key = other()\n    encrypt(key, nil)\n}\n"
+    found = sink(go_flow(tmp_path, source))
+    assert found.key_size is None
+    assert found.extra["key_size_source"] == "unresolved"
+
+
+def test_flow_resolves_a_file_scope_literal_key_by_its_length(tmp_path):
+    findings = scan(
+        tmp_path,
+        "go",
+        GO_KEY_SOURCE_AND_SINK,
+        """
+        var exportKey = []byte("0123456789ABCDEF")
+
+        func encrypt(data, key []byte) {
+            block, _ := aes.NewCipher(key)
+        }
+
+        func main() {
+            encrypt(nil, exportKey)
+        }
+        """,
+    )
+    found = sink(findings)
+    assert (found.key_size, found.extra["key_size_source"], found.extra["resolved_from_line"]) == (
+        128,
+        "flow",
+        2,
+    )
+
+
+PY_FLOW = """
+- id: PY_URANDOM
+  language: python
+  pattern: 'os\\.urandom\\(\\s*(?P<key_size_ref>[A-Za-z_]\\w*)'
+  raw_name: AES-KEY
+  kind_hint: key
+  usage: encryption
+  key_size_unit: bytes
+  provides_key_size: AES
+  emit: false
+- id: PY_AESGCM
+  language: python
+  pattern: 'AESGCM\\((?P<key_arg>[A-Za-z_]\\w*)\\)'
+  raw_name: AES
+  kind_hint: algorithm
+  usage: encryption
+  mode: GCM
   inherit_key_size: AES
 """
 
 
-def test_file_scope_inference_gives_single_key_size(tmp_path):
+def test_python_flow_through_a_returned_call_and_keyword_argument(tmp_path):
+    findings = scan(
+        tmp_path,
+        "python",
+        PY_FLOW,
+        """
+        KEY_LEN = 32
+
+        def generate_key():
+            return os.urandom(KEY_LEN)
+
+        def encrypt(key, data):
+            return AESGCM(key).encrypt(data)
+
+        if __name__ == "__main__":
+            k = generate_key()
+            encrypt(data=b"x", key=k)
+        """,
+    )
+    found = sink(findings)
+    assert (found.key_size, found.extra["key_size_source"], found.extra["resolved_from_line"]) == (
+        256,
+        "flow",
+        2,
+    )
+
+
+JAVA_FLOW = """
+- id: JAVA_KEYGEN_INIT
+  language: java
+  pattern: '\\.init\\(\\s*(?:(?P<key_size>\\d+)|(?P<key_size_ref>[A-Za-z_]\\w*))'
+  raw_name: AES-KEY
+  kind_hint: key
+  usage: encryption
+  provides_key_size: AES
+  emit: false
+- id: JAVA_CIPHER
+  language: java
+  pattern: 'Cipher\\.getInstance\\(\\s*"(?P<t>[^"]+)"'
+  raw_name: '{t}'
+  kind_hint: algorithm
+  usage: encryption
+  key_arg_pattern: 'cipher\\.init\\([^,]+,\\s*(?P<key_arg>\\w+)'
+  inherit_key_size: AES
+"""
+
+
+def test_java_flow_uses_the_key_argument_found_after_the_match(tmp_path):
+    findings = scan(
+        tmp_path,
+        "java",
+        JAVA_FLOW,
+        """
+        class S {
+            static final int KEY_BITS = 256;
+            static SecretKey generateKey() throws Exception {
+                KeyGenerator generator = KeyGenerator.getInstance("AES");
+                generator.init(KEY_BITS);
+                return generator.generateKey();
+            }
+            static byte[] encrypt(SecretKey key, byte[] data) throws Exception {
+                Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+                cipher.init(Cipher.ENCRYPT_MODE, key);
+                return cipher.doFinal(data);
+            }
+            public static void main(String[] a) throws Exception {
+                SecretKey key = generateKey();
+                encrypt(key, null);
+            }
+        }
+        """,
+    )
+    found = sink(findings)
+    assert (found.raw_name, found.key_size, found.extra["key_size_source"]) == (
+        "AES/GCM/NoPadding",
+        256,
+        "flow",
+    )
+
+
+GO_MODES = """
+- id: GO_AES
+  language: go
+  pattern: 'aes\\.NewCipher\\('
+  raw_name: AES
+  kind_hint: algorithm
+  usage: encryption
+  mode_cases:
+    - mode: GCM
+      requires: ['cipher\\.NewGCM\\(']
+    - mode: ECB
+      mode_source: block_loop
+      requires: ['for\\b[^\\n]*\\{[^}]*block\\.Encrypt\\(']
+      forbids: ['NewCBC', 'NewCTR', 'NewCFB', 'NewOFB', '\\^', 'XORBytes']
+"""
+
+
+@pytest.mark.parametrize(
+    "body, mode, source",
+    [
+        ("block, _ := aes.NewCipher(k)\n    gcm, _ := cipher.NewGCM(block)", "GCM", None),
+        (
+            "block, _ := aes.NewCipher(k)\n    for i := 0; i < n; i += 16 {\n"
+            "        block.Encrypt(d[i:], s[i:])\n    }",
+            "ECB",
+            "block_loop",
+        ),
+        (
+            "block, _ := aes.NewCipher(k)\n    for i := 0; i < n; i += 16 {\n"
+            "        block.Encrypt(d[i:], s[i:])\n        d[i] ^= prev[i]\n    }",
+            None,
+            None,
+        ),
+        (
+            "block, _ := aes.NewCipher(k)\n    mode := cipher.NewCBCEncrypter(block, iv)\n"
+            "    for i := 0; i < n; i++ {\n        block.Encrypt(d, s)\n    }",
+            None,
+            None,
+        ),
+        ("block, _ := aes.NewCipher(k)", None, None),
+    ],
+)
+def test_mode_needs_affirmative_evidence_in_the_enclosing_function(tmp_path, body, mode, source):
+    findings = scan(tmp_path, "go", GO_MODES, f"func f() {{\n    {body}\n}}\n")
+    found = sink(findings)
+    assert found.mode == mode
+    assert found.extra.get("mode_source") == source
+    if mode:
+        assert found.confidence == 0.8
+
+
+def test_mode_cases_do_not_read_other_functions(tmp_path):
     findings = scan(
         tmp_path,
         "go",
-        GO_KEY_SOURCE_AND_SINK,
-        """
-        const keyLen = 32
-
-        func gen() []byte { return make([]byte, keyLen) }
-        func enc(key []byte) { block, _ := aes.NewCipher(key) }
-        """,
+        GO_MODES,
+        "func a() {\n    aes.NewCipher(k)\n}\nfunc b() {\n    cipher.NewGCM(x)\n}\n",
     )
-    assert [(f.raw_name, f.location.line, f.key_size) for f in findings] == [("AES", 5, 256)]
-    assert findings[0].extra["key_size_source"] == "file_scope"
-    assert findings[0].confidence == 0.8
+    assert sink(findings).mode is None
 
 
-def test_file_scope_inference_is_ambiguous_with_two_sizes(tmp_path):
+HYGIENE_RULE = """
+- id: PY_KEY_LITERAL
+  language: python
+  pattern: '^(?P<name>[A-Z_]+KEY)\\s*=\\s*b"[^"]*"'
+  raw_name: hard-coded symmetric key
+  kind_hint: key
+  usage: encryption
+  redact: true
+  extra:
+    hygiene_only: true
+    hygiene_flags: [hardcoded_key]
+"""
+
+
+def test_static_extra_and_snippet_redaction(tmp_path):
+    findings = scan(tmp_path, "python", HYGIENE_RULE, 'EXPORT_KEY = b"0123456789ABCDEF"\n')
+    found = sink(findings)
+    assert found.extra["hygiene_only"] is True
+    assert found.extra["hygiene_flags"] == ["hardcoded_key"]
+    assert found.location.snippet == "EXPORT_KEY = <redacted>"
+    assert "0123456789ABCDEF" not in found.model_dump_json()
+
+
+@pytest.mark.parametrize(
+    "key", ["rule", "key_size_source", "unresolved", "resolved_from_line", "mode_source"]
+)
+def test_rule_extra_cannot_override_engine_keys(tmp_path, key):
+    body = (
+        "- {id: A, language: python, pattern: x, raw_name: X, kind_hint: algorithm, "
+        f"usage: hash, extra: {{{key}: 1}}}}"
+    )
+    with pytest.raises(ValueError, match="extra"):
+        rules_for(tmp_path, "python", body)
+
+
+def test_resolved_from_line_for_constant_and_parameter_default(tmp_path):
     findings = scan(
         tmp_path,
-        "go",
-        GO_KEY_SOURCE_AND_SINK,
+        "python",
+        PY_RSA,
         """
-        const keyLen = 32
-        const exportKeyLen = 16
+        BITS = 2048
 
-        func a() []byte { return make([]byte, keyLen) }
-        func b() []byte { return make([]byte, exportKeyLen) }
-        func enc(key []byte) { block, _ := aes.NewCipher(key) }
+        def make(size=BITS):
+            return rsa.generate_private_key(public_exponent=65537, key_size=BITS)
         """,
     )
-    assert len(findings) == 1
-    assert findings[0].key_size is None
-    assert findings[0].extra["key_size_source"] == "ambiguous"
-    assert findings[0].confidence == 0.5
-
-
-def test_file_scope_inference_unresolved_without_sources(tmp_path):
-    findings = scan(tmp_path, "go", GO_KEY_SOURCE_AND_SINK, "func enc(key []byte) { aes.NewCipher(key) }\n")
-    assert findings[0].key_size is None
-    assert findings[0].extra["key_size_source"] == "unresolved"
-    assert findings[0].confidence == 0.5
+    assert (sink(findings).key_size, findings[0].extra["resolved_from_line"]) == (2048, 2)
 
 
 JAVA_KPG = """

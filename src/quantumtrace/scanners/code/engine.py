@@ -10,21 +10,34 @@ Rule fields (YAML list of mappings):
   curve, mode, padding, library                              templates, "{group}" substitution
   refine: {from: <group>, pattern: <regex>}                  split a resolved group into more groups
   lookahead_pattern, lookahead_lines                         fallback key size search after the match
-  provides_key_size: <family>                                record this rule's key size for the file
-  inherit_key_size: <family>                                 take the file's single key size for <family>
+  provides_key_size: <family>                                key size source: a sized generation site
+  inherit_key_size: <family>                                 key size sink: size only through a flow link
+  key_arg_pattern, key_arg_lines                             where to find the sink's key (group key_arg)
+  mode_cases: [{mode, mode_source, requires, forbids}]       first case whose regexes hold in the enclosing
+                                                             function sets mode and extra["mode_source"]
+  extra: {key: json value}                                   static extra (hygiene_only, hand_rolled, ...)
+  redact: true                                               replace string literals in the snippet
   emit: false                                                record only, produce no finding
 
 Pattern groups: a group named X holds a literal; a group named X_ref holds an identifier that is
 resolved through file-scope constants and Python parameter defaults. key_size and key_size_ref are
-the size groups.
+the size groups. A group named key_arg holds the identifier of the key a sink consumes.
+
+Key size flow (inherit_key_size): a sink takes a size only when its key argument traces, inside the
+file, to a source of the same family: the sized generation is in a function that returns it (the
+producer), the producer's result is bound to a variable once, and that variable reaches the sink
+directly or as an argument of the function that contains the sink. Reassigned or conflicting bindings,
+imported keys and unused allocations never link: the size stays None with key_size_source
+"unresolved" (or "ambiguous" for conflicting sizes). A linked size has key_size_source "flow".
 """
 
 from __future__ import annotations
 
 import ast
+import json
 import re
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -43,15 +56,48 @@ UNRESOLVED_CONFIDENCE_CAP = 0.5
 ALIAS_DEPTH = 5
 
 _RULE_KEYS = {
-    "id", "language", "pattern", "raw_name", "kind_hint", "usage", "confidence",
-    "key_size", "key_size_unit", "key_size_from_length", "curve", "mode", "padding", "library",
-    "refine", "lookahead_pattern", "lookahead_lines", "provides_key_size", "inherit_key_size", "emit",
+    "id",
+    "language",
+    "pattern",
+    "raw_name",
+    "kind_hint",
+    "usage",
+    "confidence",
+    "key_size",
+    "key_size_unit",
+    "key_size_from_length",
+    "curve",
+    "mode",
+    "padding",
+    "library",
+    "refine",
+    "lookahead_pattern",
+    "lookahead_lines",
+    "provides_key_size",
+    "inherit_key_size",
+    "emit",
+    "key_arg_pattern",
+    "key_arg_lines",
+    "mode_cases",
+    "extra",
+    "redact",
 }
+_CASE_KEYS = {"mode", "mode_source", "requires", "forbids"}
+_RESERVED_EXTRA = {"rule", "key_size_source", "unresolved", "resolved_from_line", "mode_source"}
+FLOW_DEPTH = 3
 
 Value = int | str | bytes
 
 
 # ---------------------------------------------------------------- rules
+
+
+@dataclass(frozen=True)
+class ModeCase:
+    mode: str
+    mode_source: str | None
+    requires: tuple[re.Pattern[str], ...]
+    forbids: tuple[re.Pattern[str], ...]
 
 
 @dataclass(frozen=True)
@@ -76,6 +122,11 @@ class Rule:
     provides_key_size: str | None = None
     inherit_key_size: str | None = None
     emit: bool = True
+    key_arg_pattern: re.Pattern[str] | None = None
+    key_arg_lines: int = 5
+    mode_cases: tuple[ModeCase, ...] = ()
+    extra: dict[str, Any] = field(default_factory=dict)
+    redact: bool = False
 
     @property
     def expects_key_size(self) -> bool:
@@ -120,6 +171,27 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         spec = raw["refine"]
         refine = (spec["from"], _compile(spec["pattern"], where))
     look = raw.get("lookahead_pattern")
+    key_arg = raw.get("key_arg_pattern")
+    extra = raw.get("extra") or {}
+    if not isinstance(extra, dict) or set(extra) & _RESERVED_EXTRA:
+        raise ValueError(f"{where}: extra must be a mapping without {sorted(_RESERVED_EXTRA)}")
+    try:
+        json.dumps(extra)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{where}: extra must be JSON compatible: {exc}") from exc
+    cases = []
+    for case in raw.get("mode_cases") or []:
+        bad = set(case) - _CASE_KEYS
+        if bad or "mode" not in case:
+            raise ValueError(f"{where}: mode_cases need 'mode' and only {sorted(_CASE_KEYS)}")
+        cases.append(
+            ModeCase(
+                mode=str(case["mode"]),
+                mode_source=case.get("mode_source"),
+                requires=tuple(_compile(r, where) for r in case.get("requires") or []),
+                forbids=tuple(_compile(r, where) for r in case.get("forbids") or []),
+            )
+        )
     return Rule(
         id=str(raw["id"]),
         language=raw["language"],
@@ -141,6 +213,11 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         provides_key_size=raw.get("provides_key_size"),
         inherit_key_size=raw.get("inherit_key_size"),
         emit=bool(emit),
+        key_arg_pattern=_compile(key_arg, where) if key_arg else None,
+        key_arg_lines=int(raw.get("key_arg_lines", 5)),
+        mode_cases=tuple(cases),
+        extra=dict(extra),
+        redact=bool(raw.get("redact", False)),
     )
 
 
@@ -267,13 +344,11 @@ _PY_ASSIGN = re.compile(r"^(?P<name>[A-Za-z_]\w*)\s*(?::\s*[^=]+?)?\s*=(?!=)\s*(
 _JAVA_FINAL = re.compile(
     r"\b(?:static\s+final|final\s+static)\b[^=;()]*?\b(?P<name>[A-Za-z_]\w*)\s*=\s*(?P<val>[^;]+);"
 )
-_GO_DECL = re.compile(
-    r"^\s*(?:const|var)\s+(?P<name>[A-Za-z_]\w*)(?:\s+[\w.\[\]*]+)?\s*=\s*(?P<val>.+?)\s*$"
-)
+_GO_DECL = re.compile(r"^\s*(?:const|var)\s+(?P<name>[A-Za-z_]\w*)(?:\s+[\w.\[\]*]+)?\s*=\s*(?P<val>.+?)\s*$")
 _GO_BLOCK_START = re.compile(r"^\s*(?:const|var)\s*\(\s*$")
 _GO_BLOCK_END = re.compile(r"^\s*\)\s*$")
 _GO_ENTRY = re.compile(r"^\s*(?P<name>[A-Za-z_]\w*)(?:\s+[\w.\[\]*]+)?\s*=\s*(?P<val>.+?)\s*$")
-_PY_DEF = re.compile(r"^(?P<indent>[ \t]*)(?:async\s+)?def\s+\w+\s*\(", re.MULTILINE)
+_PY_DEF = re.compile(r"^(?P<indent>[ \t]*)(?:async\s+)?def\s+(?P<name>\w+)\s*\(", re.MULTILINE)
 
 
 def _parse_int(token: str) -> int:
@@ -326,8 +401,18 @@ def _split_top_level(text: str) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
-def _python_scopes(masked: str) -> list[tuple[int, int, dict[str, _Entry]]]:
-    """Function extents with their parameter defaults: (first_line, last_line, {param: default})."""
+@dataclass(frozen=True)
+class _PyScope:
+    first: int
+    last: int
+    name: str
+    params: tuple[str, ...]
+    defaults: dict[str, _Entry]
+    default_lines: dict[str, int]
+
+
+def _python_scopes(masked: str) -> list[_PyScope]:
+    """Function extents with their parameters and parameter defaults."""
     lines = masked.split("\n")
     scopes = []
     for m in _PY_DEF.finditer(masked):
@@ -337,11 +422,16 @@ def _python_scopes(masked: str) -> list[tuple[int, int, dict[str, _Entry]]]:
             j += 1
         params_src = masked[m.end() : j - 1]
         defaults: dict[str, _Entry] = {}
+        default_lines: dict[str, int] = {}
+        cursor = 0
         for param in _split_top_level(params_src):
+            at = params_src.find(param, cursor)
+            cursor = at + len(param)
             pm = re.match(r"^\*{0,2}(?P<n>[A-Za-z_]\w*)\s*(?::[^=]+)?(?:=\s*(?P<d>.+))?$", param, re.S)
             if pm:
                 default = pm.group("d")
                 defaults[pm.group("n")] = _parse_value(default, "python") if default else None
+                default_lines[pm.group("n")] = masked.count("\n", 0, m.end() + at) + 1
         first = masked.count("\n", 0, m.start()) + 1
         indent = len(m.group("indent").expandtabs(4))
         last = first
@@ -350,7 +440,8 @@ def _python_scopes(masked: str) -> list[tuple[int, int, dict[str, _Entry]]]:
             if row.strip() and len(row) - len(row.lstrip()) <= indent:
                 break
             last = k + 1
-        scopes.append((first, last, defaults))
+        names = tuple(n for n in defaults if n not in ("self", "cls"))
+        scopes.append(_PyScope(first, last, m.group("name"), names, defaults, default_lines))
     return scopes
 
 
@@ -359,19 +450,22 @@ class Constants:
 
     def __init__(self, masked: str, language: str) -> None:
         self._globals: dict[str, _Entry] = {}
-        self._scopes: list[tuple[int, int, dict[str, _Entry]]] = []
+        self._global_lines: dict[str, int] = {}
+        self._scopes: list[_PyScope] = []
         if language == "python":
-            for row in masked.split("\n"):
+            for number, row in enumerate(masked.split("\n"), 1):
                 m = _PY_ASSIGN.match(row)
                 if m:
                     self._globals[m.group("name")] = _parse_value(m.group("val"), language)
-            self._scopes = sorted(_python_scopes(masked), key=lambda s: s[0], reverse=True)
+                    self._global_lines[m.group("name")] = number
+            self._scopes = sorted(_python_scopes(masked), key=lambda sc: sc.first, reverse=True)
         elif language == "java":
             for m in _JAVA_FINAL.finditer(masked):
                 self._globals[m.group("name")] = _parse_value(m.group("val"), language)
+                self._global_lines[m.group("name")] = masked.count("\n", 0, m.start("val")) + 1
         else:
             in_block = False
-            for row in masked.split("\n"):
+            for number, row in enumerate(masked.split("\n"), 1):
                 if in_block and _GO_BLOCK_END.match(row):
                     in_block = False
                 elif _GO_BLOCK_START.match(row):
@@ -380,25 +474,35 @@ class Constants:
                     m = (_GO_ENTRY if in_block else _GO_DECL).match(row)
                     if m:
                         self._globals[m.group("name")] = _parse_value(m.group("val"), language)
+                        self._global_lines[m.group("name")] = number
 
-    def resolve(self, name: str, line: int) -> tuple[Value, str] | None:
-        """Resolve an identifier used at `line`. Returns (value, source) or None."""
+    def resolve_full(self, name: str, line: int) -> tuple[Value, str, int | None] | None:
+        """Resolve an identifier used at `line`. Returns (value, source, definition line) or None."""
         entry: _Entry = None
         source = "constant"
         found = False
-        for first, last, defaults in self._scopes:
-            if first <= line <= last and name in defaults:
-                entry, source, found = defaults[name], "param_default", True
+        at: int | None = None
+        for scope in self._scopes:
+            if scope.first <= line <= scope.last and name in scope.defaults:
+                entry, source, found = scope.defaults[name], "param_default", True
+                at = scope.default_lines.get(name)
                 break
         if not found:
             entry = self._globals.get(name)
+            at = self._global_lines.get(name)
         for _ in range(ALIAS_DEPTH):
             if not isinstance(entry, _Alias):
                 break
+            at = self._global_lines.get(entry.name)
             entry = self._globals.get(entry.name)
         if isinstance(entry, (int, str, bytes)):
-            return entry, source
+            return entry, source, at
         return None
+
+    def resolve(self, name: str, line: int) -> tuple[Value, str] | None:
+        """Resolve an identifier used at `line`. Returns (value, source) or None."""
+        full = self.resolve_full(name, line)
+        return None if full is None else (full[0], full[1])
 
 
 # ---------------------------------------------------------------- matching
@@ -416,6 +520,9 @@ class _Hit:
     padding: str | None
     confidence: float
     unresolved: list[str]
+    key_arg: str | None = None
+    resolved_from_line: int | None = None
+    mode_source: str | None = None
 
 
 def _literal_length(value: Value) -> int:
@@ -424,24 +531,25 @@ def _literal_length(value: Value) -> int:
 
 def _size_from(
     rule: Rule, groups: dict[str, str | None], consts: Constants, line: int
-) -> tuple[int | None, str | None]:
+) -> tuple[int | None, str | None, int | None]:
+    """Returns (size, source, line of the constant or default the size came from)."""
     if rule.key_size is not None:
-        return rule.key_size, "literal"
+        return rule.key_size, "literal", None
     literal = groups.get("key_size")
     if literal:
-        return _parse_int(literal), "literal"
+        return _parse_int(literal), "literal", None
     ref = groups.get("key_size_ref")
     if not ref:
-        return None, None
-    resolved = consts.resolve(ref, line)
+        return None, None, None
+    resolved = consts.resolve_full(ref, line)
     if resolved is None:
-        return None, None
-    value, source = resolved
+        return None, None, None
+    value, source, at = resolved
     if isinstance(value, int):
-        return (value * 8 if rule.key_size_unit == "bytes" else value), source
+        return (value * 8 if rule.key_size_unit == "bytes" else value), source, at
     if rule.key_size_from_length:
-        return _literal_length(value) * 8, source
-    return None, None
+        return _literal_length(value) * 8, source, at
+    return None, None, None
 
 
 class _Template(dict):
@@ -459,15 +567,22 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
     for m in rule.pattern.finditer(masked):
         line = masked.count("\n", 0, m.start()) + 1
         groups: dict[str, str | None] = dict(m.groupdict())
-        size, size_source = _size_from(rule, groups, consts, line)
+        size, size_source, from_line = _size_from(rule, groups, consts, line)
 
         if size is None and rule.lookahead_pattern is not None:
             window = "\n".join(lines[line - 1 : line + rule.lookahead_lines])
             look = rule.lookahead_pattern.search(window)
             if look:
                 look_line = line + window.count("\n", 0, look.start())
-                size, _ = _size_from(rule, dict(look.groupdict()), consts, look_line)
+                size, _, from_line = _size_from(rule, dict(look.groupdict()), consts, look_line)
                 size_source = "lookahead" if size is not None else None
+
+        key_arg = groups.get("key_arg")
+        if not key_arg and rule.key_arg_pattern is not None:
+            window = "\n".join(lines[line - 1 : line + rule.key_arg_lines])
+            found = rule.key_arg_pattern.search(window)
+            if found:
+                key_arg = found.groupdict().get("key_arg")
 
         values: dict[str, str] = {}
         unresolved: list[str] = []
@@ -478,7 +593,9 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
                 base = name[: -len("_ref")]
                 if groups.get(base):
                     continue
-                resolved = consts.resolve(value, line)
+                resolved = consts.resolve_full(value, line)
+                if resolved is not None and from_line is None:
+                    from_line = resolved[2]
                 if resolved is not None and not isinstance(resolved[0], int):
                     text = resolved[0]
                     values[base] = text.decode("utf-8", "replace") if isinstance(text, bytes) else text
@@ -515,28 +632,275 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
             padding=_render(rule.padding, values),
             confidence=confidence,
             unresolved=unresolved,
+            key_arg=key_arg,
+            resolved_from_line=from_line,
         )
 
 
-def _apply_inheritance(hits: list[_Hit]) -> None:
-    """Fill missing key sizes from the file's key-size sources, per family."""
-    sources: dict[str, set[int]] = {}
-    for hit in hits:
-        family = hit.rule.provides_key_size
-        if family and hit.key_size is not None:
-            sources.setdefault(family, set()).add(hit.key_size)
-    for hit in hits:
-        family = hit.rule.inherit_key_size
-        if not family or hit.key_size is not None:
+# ---------------------------------------------------------------- key flow
+
+
+@dataclass(frozen=True)
+class _Func:
+    name: str
+    first: int
+    last: int
+    params: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _Assign:
+    line: int
+    scope: int | None
+    names: tuple[str, ...]
+    callee: str | None
+
+
+_JAVA_METHOD = re.compile(
+    r"^[ \t]*(?:(?:public|private|protected|static|final|synchronized|abstract|native)[ \t]+)*"
+    r"(?:<[^>\n]+>[ \t]+)?(?P<type>[\w.<>\[\],? \t]+?)[ \t]+(?P<name>[A-Za-z_]\w*)[ \t]*"
+    r"\((?P<params>[^)]*)\)[ \t]*(?:throws[ \t]+[\w.,\t ]+?)?[ \t\n]*\{",
+    re.MULTILINE,
+)
+_GO_FUNC = re.compile(
+    r"^[ \t]*func[ \t]*(?:\([^)]*\)[ \t]*)?(?P<name>[A-Za-z_]\w*)[ \t]*\((?P<params>[^)]*)\)[^{\n]*\{",
+    re.MULTILINE,
+)
+_NOT_METHODS = {"if", "for", "while", "switch", "catch", "return", "new", "else", "synchronized"}
+_ASSIGN = re.compile(r"^\s*(?P<lhs>[^=()]+?)\s*:?=(?!=)\s*(?P<rhs>.*)$")
+_CALLEE = re.compile(r"\s*(?:await\s+)?(?:[A-Za-z_]\w*\s*\.\s*)*(?P<fn>[A-Za-z_]\w*)\s*\(")
+_RETURN = re.compile(r"^\s*return\b(?P<expr>.*)$")
+_RECEIVER = re.compile(r"\b([A-Za-z_]\w*)\s*\.\s*\w+\s*\(")
+_IDENTS = re.compile(r"[A-Za-z_]\w*")
+_BASE_IDENT = re.compile(r"[&*]?\s*(?P<id>[A-Za-z_]\w*)\b(?:[.\[(].*)?", re.S)
+_STRING_LITERAL = re.compile(r"[bBrRuUfF]{0,2}(?:\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'|`[^`]*`)")
+
+
+def _match_close(text: str, i: int, opening: str, closing: str) -> int:
+    """Index of the bracket closing the one at text[i], skipping string literals."""
+    depth, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        if ch in "\"'`":
+            i = _skip_string(text, i + 1, ch)
             continue
-        sizes = sources.get(family, set())
-        if len(sizes) == 1:
-            hit.key_size = next(iter(sizes))
-            hit.key_size_source = "file_scope"
-            hit.confidence = min(hit.confidence, HEURISTIC_CONFIDENCE_CAP)
-        else:
-            hit.key_size_source = "ambiguous" if sizes else "unresolved"
-            hit.confidence = min(hit.confidence, UNRESOLVED_CONFIDENCE_CAP)
+        if ch == opening:
+            depth += 1
+        elif ch == closing:
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    return n - 1
+
+
+def _param_names(params: str, language: str) -> tuple[str, ...]:
+    names = []
+    for seg in _split_top_level(params):
+        idents = _IDENTS.findall(seg.split("=")[0])
+        if not idents:
+            continue
+        names.append(idents[0] if language == "go" else idents[-1])
+    return tuple(names)
+
+
+def _functions(masked: str, language: str) -> list[_Func]:
+    if language == "python":
+        return [_Func(sc.name, sc.first, sc.last, sc.params) for sc in _python_scopes(masked)]
+    pattern = _JAVA_METHOD if language == "java" else _GO_FUNC
+    funcs = []
+    for m in pattern.finditer(masked):
+        if m.group("name") in _NOT_METHODS:
+            continue
+        if language == "java" and re.search(r"\b(?:new|return|else)\b", m.group("type")):
+            continue
+        opening = masked.index("{", m.end("params"))
+        closing = _match_close(masked, opening, "{", "}")
+        funcs.append(
+            _Func(
+                m.group("name"),
+                masked.count("\n", 0, m.start()) + 1,
+                masked.count("\n", 0, closing) + 1,
+                _param_names(m.group("params"), language),
+            )
+        )
+    return funcs
+
+
+def _target_names(lhs: str) -> tuple[str, ...]:
+    names = []
+    for seg in lhs.split(","):
+        tokens = seg.split(":")[0].split()
+        if tokens and re.fullmatch(r"[A-Za-z_]\w*", tokens[-1]) and tokens[-1] != "_":
+            names.append(tokens[-1])
+    return tuple(names)
+
+
+def _call_args(masked: str, open_paren: int) -> list[str]:
+    close = _match_close(masked, open_paren, "(", ")")
+    return _split_top_level(masked[open_paren + 1 : close])
+
+
+class _Flow:
+    """Same-file flow of a sized key from its generation to the key argument of a sink."""
+
+    def __init__(self, masked: str, language: str, hits: list[_Hit], consts: Constants) -> None:
+        self.masked = masked
+        self.consts = consts
+        self.lines = masked.split("\n")
+        self.hits = hits
+        self.funcs = _functions(masked, language)
+        self.declared = {f.first for f in self.funcs}
+        self.by_name: dict[str, list[int]] = {}
+        for index, func in enumerate(self.funcs):
+            self.by_name.setdefault(func.name, []).append(index)
+        self.assigns: list[_Assign] = []
+        for number, row in enumerate(self.lines, 1):
+            m = _ASSIGN.match(row)
+            if not m or m.group("lhs").rstrip().endswith(("<", ">", "!")):
+                continue
+            names = _target_names(m.group("lhs"))
+            if names:
+                callee = _CALLEE.match(m.group("rhs"))
+                self.assigns.append(
+                    _Assign(number, self.scope_of(number), names, callee.group("fn") if callee else None)
+                )
+
+    def scope_of(self, line: int) -> int | None:
+        best = None
+        for index, func in enumerate(self.funcs):
+            if func.first <= line <= func.last and (best is None or func.first > self.funcs[best].first):
+                best = index
+        return best
+
+    def context(self, line: int) -> str:
+        scope = self.scope_of(line)
+        if scope is None:
+            return self.masked
+        func = self.funcs[scope]
+        return "\n".join(self.lines[func.first - 1 : func.last])
+
+    def _bound(self, line: int) -> set[str]:
+        for assign in self.assigns:
+            if assign.line == line:
+                return set(assign.names)
+        return set(_RECEIVER.findall(self.lines[line - 1]))
+
+    def _producer(self, index: int, family: str) -> set[tuple[int, int | None]] | None:
+        func = self.funcs[index]
+        returns = []
+        for number in range(func.first, func.last + 1):
+            m = _RETURN.match(self.lines[number - 1])
+            if m:
+                returns.append((number, set(_IDENTS.findall(m.group("expr")))))
+        found: set[tuple[int, int | None]] = set()
+        for hit in self._sources(family):
+            if self.scope_of(hit.line) != index:
+                continue
+            bound = self._bound(hit.line)
+            if any(number == hit.line or bound & idents for number, idents in returns):
+                found.add((hit.key_size, hit.resolved_from_line))
+        return found or None
+
+    def _sources(self, family: str) -> list[_Hit]:
+        return [h for h in self.hits if h.rule.provides_key_size == family and h.key_size is not None]
+
+    def _call_sites(self, func: _Func, index: int) -> list[tuple[int, list[str]]]:
+        sites = []
+        for m in re.finditer(rf"(?<![\w.]){re.escape(func.name)}\s*\(", self.masked):
+            line = self.masked.count("\n", 0, m.start()) + 1
+            if line in self.declared or self.scope_of(line) == index:
+                continue
+            sites.append((line, _call_args(self.masked, m.end() - 1)))
+        return sites
+
+    def trace(
+        self, name: str, scope: int | None, family: str, depth: int, literal: bool
+    ) -> set[tuple[int, int | None]] | None:
+        """Sizes (with the line they came from) the key `name` carries, or None when no link holds."""
+        if depth > FLOW_DEPTH:
+            return None
+        assigns = [a for a in self.assigns if a.scope == scope and name in a.names]
+        if len(assigns) > 1:
+            return None
+        if len(assigns) == 1:
+            assign = assigns[0]
+            direct = {
+                (h.key_size, h.resolved_from_line) for h in self._sources(family) if h.line == assign.line
+            }
+            if direct:
+                return direct
+            targets = self.by_name.get(assign.callee or "", [])
+            if len(targets) == 1:
+                return self._producer(targets[0], family)
+            return None
+        if scope is None or name not in self.funcs[scope].params:
+            constant = self.consts.resolve_full(name, 0) if literal else None
+            if constant is not None and isinstance(constant[0], (str, bytes)):
+                return {(_literal_length(constant[0]) * 8, constant[2])}
+            return None
+        func = self.funcs[scope]
+        position = func.params.index(name)
+        sites = self._call_sites(func, scope)
+        if not sites:
+            return None
+        found: set[tuple[int, int | None]] = set()
+        for line, args in sites:
+            arg = None
+            for k, raw in enumerate(args):
+                keyword = re.match(r"^([A-Za-z_]\w*)\s*=(?!=)\s*(.+)$", raw, re.S)
+                if keyword and keyword.group(1) == name:
+                    arg = keyword.group(2)
+                    break
+                if not keyword and k == position:
+                    arg = raw
+            base = _BASE_IDENT.fullmatch(arg.strip()) if arg else None
+            if not base:
+                return None
+            traced = self.trace(base.group("id"), self.scope_of(line), family, depth + 1, literal)
+            if traced is None:
+                return None
+            found |= traced
+        return found
+
+    def apply(self) -> None:
+        for hit in self.hits:
+            family = hit.rule.inherit_key_size
+            if not family or hit.key_size is not None:
+                continue
+            traced = None
+            if hit.key_arg:
+                traced = self.trace(
+                    hit.key_arg, self.scope_of(hit.line), family, 0, hit.rule.key_size_from_length
+                )
+            sizes = {size for size, _ in traced} if traced else set()
+            if len(sizes) == 1:
+                hit.key_size = next(iter(sizes))
+                hit.key_size_source = "flow"
+                lines = [at for size, at in traced if at is not None]
+                hit.resolved_from_line = min(lines) if lines else hit.resolved_from_line
+                hit.confidence = min(hit.confidence, HEURISTIC_CONFIDENCE_CAP)
+            else:
+                hit.key_size_source = "ambiguous" if sizes else "unresolved"
+                hit.confidence = min(hit.confidence, UNRESOLVED_CONFIDENCE_CAP)
+
+    def apply_modes(self) -> None:
+        for hit in self.hits:
+            if not hit.rule.mode_cases:
+                continue
+            text = self.context(hit.line)
+            for case in hit.rule.mode_cases:
+                if all(r.search(text) for r in case.requires) and not any(
+                    r.search(text) for r in case.forbids
+                ):
+                    hit.mode = case.mode
+                    hit.mode_source = case.mode_source
+                    hit.confidence = min(hit.confidence, HEURISTIC_CONFIDENCE_CAP)
+                    break
+
+
+def _redact(snippet: str) -> str:
+    return _STRING_LITERAL.sub("<redacted>", snippet)
 
 
 def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | list[Rule]) -> list[Finding]:
@@ -550,7 +914,10 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
     hits: list[_Hit] = []
     for rule in rules:
         hits.extend(_match_hits(rule, masked, lines, consts))
-    _apply_inheritance(hits)
+    if any(h.rule.mode_cases or (h.rule.inherit_key_size and h.key_size is None) for h in hits):
+        flow = _Flow(masked, language, hits, consts)
+        flow.apply()
+        flow.apply_modes()
 
     for hit in hits:
         if hit.rule.expects_key_size and hit.key_size is None and hit.key_size_source is None:
@@ -562,13 +929,22 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
         if not hit.rule.emit or not hit.raw_name:
             continue
         detector = f"code.{language}.regex:{hit.rule.id}"
+        snippet = original[hit.line - 1].strip()
+        if hit.rule.redact:
+            snippet = _redact(snippet)
+        snippet = snippet[:SNIPPET_MAX]
         location = Location(
             source_type=SourceType.CODE,
             file=file,
             line=hit.line,
-            snippet=original[hit.line - 1].strip()[:SNIPPET_MAX],
+            snippet=snippet,
         )
-        extra: dict[str, Any] = {"rule": hit.rule.id}
+        extra: dict[str, Any] = dict(hit.rule.extra)
+        extra["rule"] = hit.rule.id
+        if hit.mode_source:
+            extra["mode_source"] = hit.mode_source
+        if hit.resolved_from_line is not None:
+            extra["resolved_from_line"] = hit.resolved_from_line
         if hit.key_size_source:
             extra["key_size_source"] = hit.key_size_source
         if hit.unresolved:
