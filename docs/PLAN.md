@@ -141,7 +141,7 @@ This document is the **single source of truth** for the team and every coding-ag
 name = "quantumtrace"
 requires-python = ">=3.12"
 dependencies = [
-  "pydantic>=2.7", "typer>=0.12", "rich>=13", "pyyaml>=6",
+  "pydantic>=2.12,<3", "typer>=0.12", "rich>=13", "pyyaml>=6",
   "cryptography>=43",
   "cyclonedx-python-lib>=8", "jsonschema>=4",
   "fastapi>=0.115", "uvicorn[standard]>=0.30", "python-multipart>=0.0.9",
@@ -294,165 +294,262 @@ quantumtrace/
 
 ## 6. Data Contracts (FROZEN after H1)
 
-M1 commits this exact file in the first hour (24h event). Enum additions for the starter kit (SSH, ACM, PLAINTEXT, session transport) are already included below. After the freeze, changes go through a short team agreement and are logged in `docs/DECISIONS.md`. **Adding optional fields is always allowed; renaming/removing is not.**
+Initial contracts are established in task 1.2 (2026-10-10). Import the shared
+models from `quantumtrace.models`; scanner integration lives in
+`quantumtrace.scanners.base`. The model snapshot below includes the approved
+ScanOptions and typed roadmap additions. After this initial freeze, all contract
+changes, including optional additions, require team agreement recorded in
+`docs/DECISIONS.md`; existing fields must not be renamed or removed.
 
 ```python
 # src/quantumtrace/models.py
-from __future__ import annotations
-from enum import Enum
-from typing import Literal, Any
-from pydantic import BaseModel, Field
+"""Frozen shared contracts for QuantumTrace scanner and consumer integration."""
 
-# ---------- enums ----------
+from __future__ import annotations
+
+from enum import Enum
+from typing import Annotated, Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
+
+
 class SourceType(str, Enum):
-    PCAP = "pcap"; LIVE = "live"; CODE = "code"; CONFIG = "config"
-    KMS = "kms"; LOADBALANCER = "loadbalancer"; KEYFILE = "keyfile"; BINARY = "binary"
-    SSH = "ssh"; ACM = "acm"
+    """Evidence source identifiers shared by scanners and reports."""
+
+    PCAP = "pcap"
+    LIVE = "live"
+    CODE = "code"
+    CONFIG = "config"
+    KMS = "kms"
+    LOADBALANCER = "loadbalancer"
+    KEYFILE = "keyfile"
+    BINARY = "binary"
+    SSH = "ssh"
+    ACM = "acm"
+
 
 class KindHint(str, Enum):
-    CIPHER_SUITE = "cipher_suite"      # "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" or "0xC02F"
-    GROUP = "group"                    # TLS named group: "x25519", "0x11EC"
-    SIGNATURE_SCHEME = "signature_scheme"  # TLS sig scheme: "rsa_pss_rsae_sha256", "0x0804"
-    ALGORITHM = "algorithm"            # generic: "RSA", "AES/GCM/NoPadding", "SHA1withRSA"
-    KEY = "key"                        # concrete key material (KMS key, PEM key)
+    """Raw detected object kinds; classification belongs to the engine."""
+
+    CIPHER_SUITE = "cipher_suite"
+    GROUP = "group"
+    SIGNATURE_SCHEME = "signature_scheme"
+    ALGORITHM = "algorithm"
+    KEY = "key"
     CERTIFICATE = "certificate"
-    PROTOCOL_VERSION = "protocol_version"  # "TLS 1.0"
-    POLICY = "policy"                  # "ELBSecurityPolicy-2016-08"
-    LIBRARY = "library"                # "pycryptodome==3.20"
-    PLAINTEXT = "plaintext"            # cleartext service/listener (HTTP:80, un-upgraded STARTTLS)
+    PROTOCOL_VERSION = "protocol_version"
+    POLICY = "policy"
+    LIBRARY = "library"
+    PLAINTEXT = "plaintext"
+
 
 class Usage(str, Enum):
-    KEY_EXCHANGE = "key_exchange"; SIGNATURE = "signature"; ENCRYPTION = "encryption"
-    HASH = "hash"; MAC = "mac"; KDF = "kdf"; RNG = "rng"
-    AUTHENTICATION = "authentication"; UNKNOWN = "unknown"
+    """The cryptographic purpose observed by a scanner."""
+
+    KEY_EXCHANGE = "key_exchange"
+    SIGNATURE = "signature"
+    ENCRYPTION = "encryption"
+    HASH = "hash"
+    MAC = "mac"
+    KDF = "kdf"
+    RNG = "rng"
+    AUTHENTICATION = "authentication"
+    UNKNOWN = "unknown"
+
 
 class Tier(str, Enum):
-    CRITICAL = "CRITICAL"   # Shor-breakable asymmetric
-    MEDIUM = "MEDIUM"       # Grover-weakened symmetric/hash (or small symmetric)
-    SAFE = "SAFE"           # AES-256, SHA-384+, ML-KEM/ML-DSA/SLH-DSA, hybrids
-    UNKNOWN = "UNKNOWN"     # detected but cannot be classified
+    """Quantum risk verdict assigned by the central engine."""
+
+    CRITICAL = "CRITICAL"
+    MEDIUM = "MEDIUM"
+    SAFE = "SAFE"
+    UNKNOWN = "UNKNOWN"
+
 
 class Threat(str, Enum):
-    SHOR = "shor"; GROVER = "grover"; NONE = "none"; UNKNOWN = "unknown"
+    """The quantum attack associated with an engine verdict."""
 
-# ---------- evidence ----------
+    SHOR = "shor"
+    GROVER = "grover"
+    NONE = "none"
+    UNKNOWN = "unknown"
+
+
 class Location(BaseModel):
-    source_type: SourceType
-    file: str | None = None          # path relative to scan root
-    line: int | None = None          # 1-based
-    snippet: str | None = None       # <= 200 chars, single line preferred
-    flow: str | None = None          # "10.0.0.5:51234 -> 203.0.113.7:443"
-    sni: str | None = None
-    frame: int | None = None         # pcap frame number
-    resource_id: str | None = None   # ARN / key id / LB name
-    target: str | None = None        # "host:port" for live probes
+    """File, network, or resource evidence for a detected occurrence."""
 
-# ---------- scanner output ----------
+    source_type: SourceType
+    file: str | None = None
+    line: int | None = None
+    snippet: str | None = None
+    flow: str | None = None
+    sni: str | None = None
+    frame: int | None = None
+    resource_id: str | None = None
+    target: str | None = None
+
+
 class Finding(BaseModel):
-    id: str                          # deterministic: scanners.base.finding_id(...)
-    raw_name: str                    # exactly as seen (or "0x11EC" for numeric codepoints)
+    """Raw scanner evidence, without engine-assigned risk or recommendations."""
+
+    id: str
+    raw_name: str
     kind_hint: KindHint
     usage: Usage = Usage.UNKNOWN
-    key_size: int | None = None      # bits
-    curve: str | None = None         # "secp256r1", "P-256", "x25519"
-    mode: str | None = None          # "GCM", "CBC", "ECB"
+    key_size: int | None = None
+    curve: str | None = None
+    mode: str | None = None
     padding: str | None = None
-    library: str | None = None       # "cryptography", "javax.crypto", "crypto/rsa", "openssl"
-    language: str | None = None      # "python" | "java" | "go" | None
-    protocol: str | None = None      # "TLS 1.2"
-    negotiated: bool | None = None   # True=server selected; False=only offered; None=n/a
-    in_test_code: bool = False       # path contains test/, tests/, example, mock...
-    detector: str                    # "network.tshark", "code.java.regex:JAVA_KPG"
+    library: str | None = None
+    language: str | None = None
+    protocol: str | None = None
+    negotiated: bool | None = None
+    in_test_code: bool = False
+    detector: str
     confidence: float = Field(1.0, ge=0, le=1)
     location: Location
-    session_id: str | None = None    # groups findings of one TLS session
-    extra: dict[str, Any] = {}
+    session_id: str | None = None
+    extra: dict[str, Any] = Field(default_factory=dict)
+
 
 class ScanError(BaseModel):
+    """A recoverable scanner failure retained alongside usable evidence."""
+
     detector: str
     path: str | None = None
     message: str
 
-# ---------- engine output ----------
+
 class Recommendation(BaseModel):
-    action: str                      # "Replace ECDHE key exchange with hybrid X25519MLKEM768"
-    target_algorithm: str | None     # "ML-KEM-768"
-    standard: str | None             # "NIST FIPS 203"
-    priority: int                    # 1 (now) .. 3 (later)
+    """A migration action assigned by the engine."""
+
+    action: str
+    target_algorithm: str | None
+    standard: str | None
+    priority: int
+
 
 class CryptoAsset(BaseModel):
-    asset_id: str                    # stable bom-ref, e.g. "crypto/algorithm/ecdh-p256@a1b2c3"
-    canonical_name: str              # "ECDH-P256", "RSA-2048", "AES-128-GCM", "X25519MLKEM768"
-    family: str                      # "ECDH", "RSA", "AES", "ML-KEM", "SHA-1", ...
+    """A classified asset with traceable evidence and component relationships."""
+
+    asset_id: str
+    canonical_name: str
+    family: str
     asset_type: Literal["algorithm", "certificate", "protocol", "related-crypto-material"]
-    primitive: str                   # CycloneDX primitive enum (section 7.6)
+    primitive: str
     usage: Usage
     key_size: int | None = None
     curve: str | None = None
     mode: str | None = None
-    parameter_set: str | None = None # "768", "65", "128s"
+    parameter_set: str | None = None
     oid: str | None = None
     tier: Tier
     threat: Threat
-    classically_broken: bool = False # MD5, SHA-1 sigs, RC4, DES, RSA<2048, TLS<=1.1...
-    hndl_exposed: bool = False       # in-transit key exchange recorded today, decryptable later
+    classically_broken: bool = False
+    hndl_exposed: bool = False
     forward_secrecy: bool | None = None
-    deprecated_pqc_draft: bool = False  # Kyber draft codepoints etc.
+    deprecated_pqc_draft: bool = False
     classical_security_bits: int | None = None
-    nist_quantum_level: int | None = None  # 0..5
-    pqc_standard: str | None = None  # for SAFE PQC assets: "NIST FIPS 203"
-    rationale: str                   # one sentence, human readable
-    recommendations: list[Recommendation] = []
-    occurrences: list[Location] = []
-    finding_ids: list[str] = []
-    component_of: list[str] = []     # asset_ids of protocol/cipher-suite assets using this
-    components: list[str] = []       # for protocol assets: asset_ids of their parts
+    nist_quantum_level: int | None = None
+    pqc_standard: str | None = None
+    rationale: str
+    recommendations: list[Recommendation] = Field(default_factory=list)
+    occurrences: list[Location] = Field(default_factory=list)
+    finding_ids: list[str] = Field(default_factory=list)
+    component_of: list[str] = Field(default_factory=list)
+    components: list[str] = Field(default_factory=list)
     negotiated: bool | None = None
     in_test_code_only: bool = False
-    risk_points: float = 0.0         # filled by score.py
+    risk_points: float = 0.0
     max_points: float = 0.0
 
-class TLSSession(BaseModel):         # convenience view for the Network page
+
+class TLSSession(BaseModel):
+    """TLS or SSH session view, including unobservable authentication."""
+
     session_id: str
     flow: str
     sni: str | None
     version: str | None
-    offered_groups: list[str] = []
+    offered_groups: list[str] = Field(default_factory=list)
     negotiated_group: str | None = None
-    offered_cipher_suites: list[str] = []
+    offered_cipher_suites: list[str] = Field(default_factory=list)
     negotiated_cipher_suite: str | None = None
-    offered_sig_schemes: list[str] = []
-    cert_key: str | None = None      # "RSA-2048", "ECDSA-P256", None if TLS1.3 (encrypted)
+    offered_sig_schemes: list[str] = Field(default_factory=list)
+    cert_key: str | None = None
     cert_sig_alg: str | None = None
     pq_status: Literal["pq_hybrid", "pq_pure", "classical", "unknown"]
-    verdict_tier: Tier               # CRITICAL > MEDIUM > UNKNOWN > SAFE; unknown auth prevents SAFE
-    source: str                      # pcap file or live target
-    transport: Literal["tls", "ssh"] = "tls"   # SSH sessions reuse offered_groups=kex list, negotiated_group=kex
-    service: str | None = None       # "https", "ldaps", "imaps", "smtp-starttls", "postgres", "ssh"
-    peer_banners: list[str] = []     # SSH banners / server software, evidence only
+    verdict_tier: Tier
+    source: str
+    transport: Literal["tls", "ssh"] = "tls"
+    service: str | None = None
+    peer_banners: list[str] = Field(default_factory=list)
+
 
 class RiskSummary(BaseModel):
-    score: int                       # 0 (no quantum risk) .. 100 (maximum risk)
+    """Enterprise and per-source risk computed by the scoring engine."""
+
+    score: int
     grade: Literal["A", "B", "C", "D", "E", "F"]
-    readiness_pct: float             # % of assets SAFE
+    readiness_pct: float
     counts_by_tier: dict[str, int]
-    counts_by_source: dict[str, dict[str, int]]   # source_type -> tier -> count
+    counts_by_source: dict[str, dict[str, int]]
     score_by_source: dict[str, int]
     hndl_exposed_count: int
-    top_risks: list[str]             # asset_ids, sorted by risk_points desc
+    top_risks: list[str]
+
+
+class RoadmapItem(BaseModel):
+    """A phased migration action linking affected assets and evidence counts."""
+
+    phase: Literal[0, 1, 2, 3]
+    action: str
+    asset_ids: list[str] = Field(default_factory=list)
+    occurrence_count: int = Field(ge=0)
+
+
+class ScanOptions(BaseModel):
+    """Directory exclusions and optional scanner selection for a scan."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    exclude_dirs: list[Annotated[str, StringConstraints(min_length=1)]] = Field(
+        default_factory=lambda: [".git", "node_modules", "venv", ".venv", "vendor", "out", "agents"]
+    )
+    scanner_names: list[Annotated[str, StringConstraints(min_length=1)]] | None = None
+
+    @field_validator("exclude_dirs")
+    @classmethod
+    def validate_directory_names(cls, names: list[str]) -> list[str]:
+        """Require individual directory names instead of ambiguous path patterns."""
+        if any(name in {".", ".."} or not name.strip() or "/" in name or "\\" in name for name in names):
+            raise ValueError("exclude_dirs must contain nonempty directory names, not paths")
+        return names
+
+    @field_validator("scanner_names")
+    @classmethod
+    def validate_scanner_names(cls, names: list[str] | None) -> list[str] | None:
+        """Validate names structurally; registry selection validates availability."""
+        if names is not None and any(not name.strip() for name in names):
+            raise ValueError("scanner_names must contain nonempty names")
+        return names
+
 
 class ScanResult(BaseModel):
+    """Versioned serialized integration boundary for reports, API, and UI."""
+
     schema_version: str = "1.0"
     tool_version: str
     scan_id: str
-    started_at: str                  # ISO 8601
+    started_at: str
     finished_at: str
     inputs: list[str]
     findings: list[Finding]
     assets: list[CryptoAsset]
-    sessions: list[TLSSession] = []
+    sessions: list[TLSSession] = Field(default_factory=list)
     summary: RiskSummary
-    errors: list[ScanError] = []
+    errors: list[ScanError] = Field(default_factory=list)
+    roadmap: list[RoadmapItem] | None = Field(default=None, exclude_if=lambda value: value is None)
 ```
 
 **Scanner protocol** (`scanners/base.py`, M1):
@@ -482,7 +579,62 @@ def analyze(findings: list[Finding]) -> tuple[list[CryptoAsset], RiskSummary]
 def run(inputs: list[str | Path], probes: list[str] | None = None, options: ScanOptions | None = None) -> ScanResult
 ```
 
-`ScanOptions` is established by M1 in initial task 1.2: default excluded directories (`.git`, `node_modules`, `venv`, `.venv`, `vendor`, `out`, `agents`) and optional scanner-name selection. Requested unknown scanner names and unavailable probe adapters produce explicit errors. Optional typed `ScanResult.roadmap` and `RoadmapItem` (phase 0–3, action, asset IDs, occurrence count) are also established in 1.2; absent roadmap is omitted from JSON. Document `Finding.extra` conventions for exposure/state, hygiene, source timestamps, and session observability before the initial contract freeze. Further contract changes require team agreement.
+`ScanOptions.exclude_dirs` defaults to `.git`, `node_modules`, `venv`, `.venv`,
+`vendor`, `out`, and `agents`; entries are directory names, not path patterns.
+`scanner_names=None` selects all registered adapters, while `[]` selects none.
+Unknown option fields and empty names are rejected. After loading owner adapters,
+the pipeline uses `select_scanners(options.scanner_names)`; requested unknown names
+raise an explicit `ValueError`. Selection deduplicates names and returns adapters
+sorted by name. Unavailable requested probes must also produce explicit errors
+when the pipeline is implemented in task 1.9; probes default to `None`.
+
+`RoadmapItem` has `phase` (0–3), `action`, `asset_ids` (default empty list), and
+nonnegative `occurrence_count`. `ScanResult.roadmap=None` is omitted from both
+`model_dump()` and `model_dump_json()`; an explicit empty list remains `[]`.
+Existing nullable evidence such as unobservable certificate keys remains `null`.
+This uses Pydantic's `Field(exclude_if=...)`, requiring Pydantic >=2.12,<3
+([release documentation](https://pydantic.dev/articles/pydantic-v2-12-release#exclude_if-field-option)).
+The lock already resolves Pydantic 2.14.0. Validation and serialization JSON schemas
+retain typed roadmap fields, so M4 can generate API types from the shared model.
+
+`@register` decorates a no-argument scanner class, registers one instance, and
+returns the original class. Duplicate and empty names raise `ValueError` without
+changing the registry. `REGISTRY` and selections are sorted by scanner name.
+`finding_id` hashes the UTF-8 string
+`detector|raw_name|file|line|flow|frame|resource_id` using SHA1 for identity only,
+with missing values rendered as empty strings and the first 12 lowercase hex
+characters retained. Timestamp metadata never participates. `is_test_path` matches
+singular/plural test, example, and mock path segments (including `_`/`-` suffixes),
+plus `test_*.py`/`*_test.py` conventions; unrelated substrings such as `contest` and
+`mockery` do not match. Windows separators are supported.
+
+**Finding.extra evidence conventions (initial freeze):** this dictionary remains
+an extensible, JSON-compatible evidence payload. Keys below are optional; omit
+unobserved values or represent them as `None`, and do not infer observations from
+algorithm names. Scanners supply facts only; the engine owns their interpretation.
+
+| Key | Evidence value and meaning |
+|---|---|
+| `origin` | String copied from observed key/certificate origin or type; do not invent a provider mapping. |
+| `state` | String copied from observed resource state/status, e.g. the dump's key state. |
+| `public_exposure` | Boolean observed from listener/load-balancer scheme or equivalent evidence. |
+| `source_timestamp` | ISO 8601 timestamp with timezone from the source dump; engine expiry uses this, otherwise the supplied scan start time. |
+| `hygiene_only` | Boolean marking a separate hygiene-only warning, rather than a cryptographic primitive. |
+| `hygiene_flags` | List of observed hygiene facts as strings; crypto findings can retain flags without becoming hygiene-only. |
+| `authentication_observable` | Boolean recording whether session authentication was actually observed; absence/None means unobserved or unknown, never an assumed key. |
+| `session` | Dictionary of raw session observations matching TLSSession evidence names: version, offered/negotiated groups and cipher suites, offered signature schemes, certificate key/signature, transport, service, and peer banners. No engine verdict or pq_status supplied by scanners. |
+
+The engine must retain each original Finding (including arbitrary owner extension
+keys) through decomposition and aggregation. Per-finding confidence, source,
+offered/negotiated status, and metadata remain available for scoring; Location
+alone is insufficient. Missing authentication keeps an otherwise SAFE hybrid
+session UNKNOWN unless an observed component is CRITICAL or MEDIUM.
+
+M2–M4 integration: import these models and helpers, emit Finding or ScanError,
+use `finding_id` for identity and `@register` for no-argument adapters. M4's sample
+payload and generated UI types must validate against ScanResult; use the JSON schema
+or API OpenAPI rather than redefining types. Engine/pipeline/output functions above
+are contracts for later tasks, not callable implementations in task 1.2.
 
 **Output public API** (native JSON: M1; CBOM: M4; Markdown: M3):
 
