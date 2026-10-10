@@ -113,6 +113,7 @@ class Flow:
     server_hello: TlsHello | None = None
     server_certificate_msg: bytes | None = None  # raw Certificate handshake body (TLS <= 1.2)
     server_key_exchange_group: int | None = None  # ECDHE named curve (TLS <= 1.2)
+    server_key_exchange_frame: int | None = None  # packet where the ServerKeyExchange message ends
     ssh_client: SshSide | None = None
     ssh_server: SshSide | None = None
     http: HttpInfo | None = None
@@ -404,6 +405,7 @@ class _TlsSide:
     certificate: bytes | None = None
     certificate_frame: int | None = None
     ske_group: int | None = None
+    ske_frame: int | None = None
 
 
 def _parse_tls_side(buf: bytes, want: int, marks: list[tuple[int, int]], skip_ccs: bool = False) -> _TlsSide:
@@ -421,6 +423,7 @@ def _parse_tls_side(buf: bytes, want: int, marks: list[tuple[int, int]], skip_cc
             side.certificate, side.certificate_frame = body, _frame_at(marks, last)
         elif mtype == 12 and side.ske_group is None and len(body) >= 3 and body[0] == 3:
             side.ske_group = struct.unpack_from(">H", body, 1)[0]  # ECDHE named_curve
+            side.ske_frame = _frame_at(marks, last)
     return side
 
 
@@ -532,6 +535,7 @@ def _classify(c: _Conn) -> Flow:
     flow.server_certificate_msg = sside.certificate
     flow.certificate_frame = sside.certificate_frame
     flow.server_key_exchange_group = sside.ske_group
+    flow.server_key_exchange_frame = sside.ske_frame
     return flow
 
 

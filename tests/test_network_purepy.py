@@ -478,3 +478,28 @@ def test_gap_in_stream_is_a_warning(tmp_path):
     p.write_bytes(_pcap(frames))
     f = purepy.read_flows(p).flows[0]
     assert any("client-to-server" in w for w in f.warnings)
+
+
+def _handshake_record(msg_type, body):
+    hs = bytes([msg_type]) + len(body).to_bytes(3, "big") + body
+    return b"\x16\x03\x03" + struct.pack(">H", len(hs)) + hs
+
+
+def test_server_key_exchange_group_and_frame(tmp_path):
+    ch = _client_hello([0xC02F], [0x0017], [0x0303])
+    sh = _handshake_record(2, b"\x03\x03" + bytes(32) + b"\x00" + struct.pack(">H", 0xC02F) + b"\x00")
+    cert = _handshake_record(11, b"\x00\x00\x00")
+    ske = _handshake_record(12, b"\x03" + struct.pack(">H", 0x0017) + b"\x01\x04")
+    frames = [_frame(ch, 1)]
+    seq = 1
+    for payload in (sh, cert, ske):  # one TCP segment (frame) per server handshake message
+        frames.append(_frame(payload, seq, rev=True))
+        seq += len(payload)
+    p = tmp_path / "ske.pcap"
+    p.write_bytes(_pcap(frames))
+    flow = purepy.read_flows(p).flows[0]
+    assert flow.server_hello.frame == 2
+    assert flow.certificate_frame == 3
+    assert flow.server_key_exchange_group == 0x0017
+    assert flow.server_key_exchange_frame == 4
+    assert flow.certificate_state == "observed"
