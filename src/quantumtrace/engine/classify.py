@@ -268,6 +268,11 @@ def _hygiene(node: EvidenceNode, scan_started_at: datetime | None) -> tuple[list
                 priority=2,
             )
         )
+    if "tls_verify_disabled" in observed_flags:
+        warn(
+            "Observed TLS certificate verification is disabled (hygiene); quantum tier unchanged.",
+            "Enable TLS certificate and hostname verification.",
+        )
     if "hardcoded_key" in observed_flags:
         warn("Observed hard-coded key material (hygiene).", "Remove and rotate hard-coded key material.")
     iterations = extra.get("iterations")
@@ -276,7 +281,7 @@ def _hygiene(node: EvidenceNode, scan_started_at: datetime | None) -> tuple[list
             "Observed PBKDF2 iterations are below the repository hygiene threshold; quantum tier unchanged.",
             "Review PBKDF2 work factor for the deployment.",
         )
-    for flag in sorted(observed_flags - {"rotation_disabled", "multi_region_key"}):
+    for flag in sorted(observed_flags - {"rotation_disabled", "multi_region_key", "tls_verify_disabled"}):
         notes.append(f"Observed hygiene context: {flag}.")
     return notes, advice
 

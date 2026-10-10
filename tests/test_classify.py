@@ -620,3 +620,22 @@ def test_tls13_suites_take_component_tier_and_leave_authentication_to_sessions(s
     row = result(kb, suite, kind_hint=KindHint.CIPHER_SUITE, usage=Usage.UNKNOWN)
     assert row.tier == tier and not row.scoreable
     assert ("Authentication is UNKNOWN" in row.rationale) is (tier == Tier.CRITICAL)
+
+
+def test_disabled_tls_verification_gets_tailored_hygiene_warning(kb):
+    row = result(
+        kb,
+        "InsecureSkipVerify",
+        extra={"hygiene_only": True, "hygiene_flags": ["tls_verify_disabled"]},
+    )
+    assert "certificate verification is disabled" in row.rationale
+    assert "Observed hygiene context: tls_verify_disabled" not in row.rationale
+    assert [a.action for a in row.recommendations] == ["Enable TLS certificate and hostname verification."]
+    assert row.tier == Tier.UNKNOWN and not row.scoreable
+
+
+@pytest.mark.parametrize("name", ["TLS 1.0", "TLSv1", "TLS 1.1", "SSLv3"])
+def test_obsolete_protocol_versions_from_code_are_broken_hygiene(name, kb):
+    row = result(kb, name, kind_hint=KindHint.PROTOCOL_VERSION, usage=Usage.UNKNOWN)
+    assert row.classically_broken and not row.scoreable
+    assert any("Migrate obsolete transport" in a.action for a in row.recommendations)
