@@ -23,13 +23,37 @@ Complete scans exit 0. Partial scans retain usable reports, display coverage err
 and exit 2. Invalid arguments, unavailable requested writers and output failures
 also exit 2. The starter directory command above reports three unsupported README
 files and exits 2; the capture itself produces 97 TLS and 24 SSH sessions plus
-14 plaintext flows. TLS certificate extraction is still an M2 follow-up, so
+14 plaintext flows. The starter capture contains no TLS Certificate messages, so
 unobservable authentication is retained rather than guessed.
 
 Repeat `--probe host:port` to request explicit probes; bracket IPv6 addresses,
 for example `--probe '[::1]:443'`. The optional M2 probe adapter is not delivered:
 requests appear as coverage errors and exit 2. Ordinary scans initiate no probes.
-SARIF, JSON stdout and score threshold exits are not part of this CLI milestone.
+SARIF output is not provided by this CLI.
+
+## CI use
+
+`--out -` writes exactly one native JSON document (the `report.json` content) to
+stdout; the summary tables, threshold messages and errors go to stderr. It accepts
+only `--format json`; requesting `cbom` or `md` with `--out -` exits 2 before scanning.
+
+`--fail-on critical` exits 1 when any classified, scored asset is CRITICAL;
+`--fail-on medium` also counts MEDIUM. Containers, hygiene-only warnings and raw
+unclassified names are never counted. UNKNOWN assets are reported separately on
+stderr and do not trigger the threshold. Reports are written before the exit code
+is decided.
+
+Exit precedence: 2 for invalid arguments, unavailable writers, scan or output
+failures and partial coverage (scan errors); otherwise 1 when the threshold is
+reached; otherwise 0. A partial scan therefore exits 2 even if the threshold is
+also reached, and still emits its JSON report.
+
+```sh
+# Gate a pipeline on quantum-vulnerable cryptography and keep the report.
+qtrace scan src/ config/ --out - --fail-on critical > quantumtrace.json
+# Directory reports plus a stricter gate.
+qtrace scan src/ --out out/ --format json,cbom --fail-on medium
+```
 
 `ui` launches M4's `api.main:app` through Uvicorn, defaulting to `127.0.0.1:8000`.
 Run it from the repository root; `--host` and `--port` override the bind address.
