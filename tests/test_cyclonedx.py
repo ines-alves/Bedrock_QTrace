@@ -222,25 +222,56 @@ def test_library_component_has_purl_and_evidence() -> None:
 
 
 @pytest.mark.parametrize(
-    ("raw_name", "language", "snippet", "version", "purl"),
+    ("raw_name", "language", "snippet", "group", "name", "version", "purl"),
     [
-        ("PyJWT==2.8.0", "python", "PyJWT==2.8.0", "2.8.0", "pkg:pypi/PyJWT@2.8.0"),
-        ("PyJWT", "python", "PyJWT", None, "pkg:pypi/PyJWT"),
-        ("PyJWT", "python", "PyJWT>=2.8", None, "pkg:pypi/PyJWT"),
-        ("org.bouncycastle:bcprov-jdk18on", "java", "<version>[1.70,)</version>", None, None),
-        ("golang.org/x/crypto", "go", "golang.org/x/crypto v0.31.0", None, "pkg:golang/golang.org/x/crypto"),
+        ("PyJWT==2.8.0", "python", "PyJWT==2.8.0", None, "PyJWT", "2.8.0", "pkg:pypi/PyJWT@2.8.0"),
+        ("PyJWT", "python", "PyJWT", None, "PyJWT", None, "pkg:pypi/PyJWT"),
+        ("PyJWT", "python", "PyJWT>=2.8", None, "PyJWT", None, "pkg:pypi/PyJWT"),
+        (
+            "org.bouncycastle:bcprov-jdk18on==1.78",
+            "java",
+            "org.bouncycastle:bcprov-jdk18on:1.78",
+            "org.bouncycastle",
+            "bcprov-jdk18on",
+            "1.78",
+            "pkg:maven/org.bouncycastle/bcprov-jdk18on@1.78",
+        ),
+        (
+            "org.bouncycastle:bcprov-jdk18on",
+            "java",
+            "<version>[1.70,)</version>",
+            "org.bouncycastle",
+            "bcprov-jdk18on",
+            None,
+            "pkg:maven/org.bouncycastle/bcprov-jdk18on",
+        ),
+        (
+            "golang.org/x/crypto",
+            "go",
+            "golang.org/x/crypto v0.31.0",
+            None,
+            "golang.org/x/crypto",
+            None,
+            "pkg:golang/golang.org/x/crypto",
+        ),
     ],
-    ids=["pinned", "unpinned", "range", "maven-range", "go-unversioned"],
+    ids=["pinned", "unpinned", "range", "maven-pinned", "maven-range", "go-unversioned"],
 )
 def test_library_component_for_pinned_unpinned_and_range_declarations(
-    raw_name: str, language: str, snippet: str, version: str | None, purl: str | None
+    raw_name: str,
+    language: str,
+    snippet: str,
+    group: str | None,
+    name: str,
+    version: str | None,
+    purl: str | None,
 ) -> None:
     result = _sample()
     finding = next(f for f in result.findings if f.kind_hint == KindHint.LIBRARY)
     finding.raw_name, finding.language, finding.location.snippet = raw_name, language, snippet
     cbom = build_cbom(result)
     library = next(c for c in cbom["components"] if c["type"] == "library")
-    assert library["name"] == raw_name.partition("==")[0]
+    assert (library.get("group"), library["name"]) == (group, name)
     assert library.get("version") == version and library.get("purl") == purl
     assert library["evidence"]["occurrences"][0]["additionalContext"] == snippet
     assert validate_cbom(cbom) == []
