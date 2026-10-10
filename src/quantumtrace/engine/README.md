@@ -346,3 +346,7 @@ Primary adapter references checked 2026-10-10: the
 [AWS KMS key spec reference](https://docs.aws.amazon.com/kms/latest/developerguide/symm-asymm-choose-key-spec.html)
 and [AWS ALB policy table](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/describe-ssl-policies.html).
 These references establish names/mappings; the repository KB assigns all tiers.
+
+Task 1.9 adds [pipeline and session contracts](PIPELINE.md), including routing,
+partial-scan errors, observed session metadata, negotiation/authentication rules,
+and the distinction between published parser consumption and registered H6 coverage.

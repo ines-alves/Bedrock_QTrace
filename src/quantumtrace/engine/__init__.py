@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from quantumtrace.engine.aggregate import aggregate
-from quantumtrace.engine.classify import classify
+from quantumtrace.engine.classify import ClassifiedNode, classify
 from quantumtrace.engine.decompose import decompose
 from quantumtrace.engine.registries import CloudRegistry, TLSRegistry
 from quantumtrace.engine.score import score
@@ -23,6 +23,13 @@ def analyze(
     explicit timestamp is used only for deterministic cloud hygiene classification.
     """
     knowledge = kb if kb is not None else load_kb()
+    return score(aggregate(classify_findings(findings, knowledge, scan_started_at)), knowledge.scoring)
+
+
+def classify_findings(
+    findings: list[Finding], knowledge: KnowledgeBase, scan_started_at: datetime | None = None
+) -> list[ClassifiedNode]:
+    """Internal composition shared by analysis and session-aware orchestration."""
     tls = TLSRegistry()
     cloud = CloudRegistry(tls)
     roots = []
@@ -30,7 +37,7 @@ def analyze(
         result = decompose(finding, knowledge, registry=tls, named_registry=tls, cloud_registry=cloud)
         if result.root is not None:
             roots.append(classify(result.root, knowledge, scan_started_at=scan_started_at))
-    return score(aggregate(roots), knowledge.scoring)
+    return roots
 
 
 __all__ = ["analyze"]
