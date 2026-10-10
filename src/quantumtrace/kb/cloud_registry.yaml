@@ -1,0 +1,1021 @@
+# ELB security-policy table, hand-built from AWS primary documentation (M4, task 4.4).
+# Sources, fetched 2026-10-10:
+#   ALB: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/describe-ssl-policies.html
+#   NLB: https://docs.aws.amazon.com/elasticloadbalancing/latest/network/describe-ssl-policies.html
+# Rows come from the "Protocols by policy" and "Ciphers by policy" tables. On every policy that both pages
+# list, protocols and ciphers are identical. ELBSecurityPolicy-2015-05 exists on the NLB page only.
+#
+# Field meaning:
+#   protocols     TLS versions the policy accepts (AWS "Protocols by policy").
+#   cipher_suites suites the policy accepts, exactly as AWS publishes them (OpenSSL names for TLS 1.2,
+#                 IANA names for TLS 1.3). Configured, not negotiated.
+#   groups        Key-exchange groups AWS documents for the policy. Empty for every classical policy: AWS does
+#                 not publish groups for them. Never fill this from memory. PQ policies list only the three
+#                 hybrid groups AWS names in the policy considerations on both pages.
+#   groups_verified true when groups come from the AWS pages (PQ rows), false when AWS publishes none.
+#   groups_complete false everywhere: AWS says PQ policies also support classical groups, which it does not
+#                 name, so the list never proves the absence of a group.
+#   pq_hybrid     true when the policy name contains PQ.
+#   verified      true when protocols and cipher_suites were read from the AWS tables above.
+#
+# `source` on a row is the key into meta.sources (alb, nlb, or alb+nlb when both pages list it).
+# A policy name that is not in this table is UNKNOWN: the finding keeps the name and gets no suites.
+meta:
+  schema: 1
+  fetched: '2026-10-10'
+  sources:
+    alb: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/describe-ssl-policies.html
+    nlb: https://docs.aws.amazon.com/elasticloadbalancing/latest/network/describe-ssl-policies.html
+    kms_key_spec: https://docs.aws.amazon.com/kms/latest/developerguide/symm-asymm-choose-key-spec.html
+    arn_partitions: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html
+elb_policies:
+  ELBSecurityPolicy-2015-05:
+    source: nlb
+    verified: true
+    protocols: [TLSv1.2, TLSv1.1, TLSv1.0]
+    cipher_suites:
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-ECDSA-AES256-SHA
+      - ECDHE-RSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-2016-08:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.2, TLSv1.1, TLSv1.0]
+    cipher_suites:
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-ECDSA-AES256-SHA
+      - ECDHE-RSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-FS-1-1-2019-08:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.2, TLSv1.1]
+    cipher_suites:
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA
+      - ECDHE-ECDSA-AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-FS-1-2-2019-08:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.2]
+    cipher_suites:
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA
+      - ECDHE-ECDSA-AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-FS-1-2-Res-2019-08:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.2]
+    cipher_suites:
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-FS-1-2-Res-2020-10:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.2]
+    cipher_suites:
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-FS-2018-06:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.2, TLSv1.1, TLSv1.0]
+    cipher_suites:
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA
+      - ECDHE-ECDSA-AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS-1-1-2017-01:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.2, TLSv1.1]
+    cipher_suites:
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-ECDSA-AES256-SHA
+      - ECDHE-RSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS-1-2-2017-01:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.2]
+    cipher_suites:
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS-1-2-Ext-2018-06:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.2]
+    cipher_suites:
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-ECDSA-AES256-SHA
+      - ECDHE-RSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-0-2021-06:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2, TLSv1.1, TLSv1.0]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-ECDSA-AES256-SHA
+      - ECDHE-RSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-0-FIPS-2023-04:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2, TLSv1.1, TLSv1.0]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA
+      - ECDHE-ECDSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-0-FIPS-PQ-2025-09:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2, TLSv1.1, TLSv1.0]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA
+      - ECDHE-ECDSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: [SecP256r1MLKEM768, SecP384r1MLKEM1024, X25519MLKEM768]
+    groups_verified: true
+    groups_complete: false
+    pq_hybrid: true
+  ELBSecurityPolicy-TLS13-1-0-PQ-2025-09:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2, TLSv1.1, TLSv1.0]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-ECDSA-AES256-SHA
+      - ECDHE-RSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: [SecP256r1MLKEM768, SecP384r1MLKEM1024, X25519MLKEM768]
+    groups_verified: true
+    groups_complete: false
+    pq_hybrid: true
+  ELBSecurityPolicy-TLS13-1-1-2021-06:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2, TLSv1.1]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-ECDSA-AES256-SHA
+      - ECDHE-RSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-1-FIPS-2023-04:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2, TLSv1.1]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA
+      - ECDHE-ECDSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-2021-06:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-Ext0-FIPS-2023-04:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA
+      - ECDHE-ECDSA-AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-Ext0-FIPS-PQ-2025-09:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA
+      - ECDHE-ECDSA-AES256-SHA
+    groups: [SecP256r1MLKEM768, SecP384r1MLKEM1024, X25519MLKEM768]
+    groups_verified: true
+    groups_complete: false
+    pq_hybrid: true
+  ELBSecurityPolicy-TLS13-1-2-Ext0-RFC9151-FIPS-2023-07:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - AES256-GCM-SHA384
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-Ext1-2021-06:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-Ext1-FIPS-2023-04:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-Ext1-FIPS-PQ-2025-09:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+    groups: [SecP256r1MLKEM768, SecP384r1MLKEM1024, X25519MLKEM768]
+    groups_verified: true
+    groups_complete: false
+    pq_hybrid: true
+  ELBSecurityPolicy-TLS13-1-2-Ext1-PQ-2025-09:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+    groups: [SecP256r1MLKEM768, SecP384r1MLKEM1024, X25519MLKEM768]
+    groups_verified: true
+    groups_complete: false
+    pq_hybrid: true
+  ELBSecurityPolicy-TLS13-1-2-Ext2-2021-06:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-ECDSA-AES256-SHA
+      - ECDHE-RSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-Ext2-FIPS-2023-04:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA
+      - ECDHE-ECDSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-Ext2-FIPS-PQ-2025-09:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA
+      - ECDHE-ECDSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: [SecP256r1MLKEM768, SecP384r1MLKEM1024, X25519MLKEM768]
+    groups_verified: true
+    groups_complete: false
+    pq_hybrid: true
+  ELBSecurityPolicy-TLS13-1-2-Ext2-PQ-2025-09:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-ECDSA-AES256-SHA
+      - ECDHE-RSA-AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+    groups: [SecP256r1MLKEM768, SecP384r1MLKEM1024, X25519MLKEM768]
+    groups_verified: true
+    groups_complete: false
+    pq_hybrid: true
+  ELBSecurityPolicy-TLS13-1-2-FIPS-2023-04:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-FIPS-PQ-2025-09:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+    groups: [SecP256r1MLKEM768, SecP384r1MLKEM1024, X25519MLKEM768]
+    groups_verified: true
+    groups_complete: false
+    pq_hybrid: true
+  ELBSecurityPolicy-TLS13-1-2-PQ-2025-09:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+    groups: [SecP256r1MLKEM768, SecP384r1MLKEM1024, X25519MLKEM768]
+    groups_verified: true
+    groups_complete: false
+    pq_hybrid: true
+  ELBSecurityPolicy-TLS13-1-2-RFC9151-FIPS-2023-07:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-RFC9151-INTEROP1-FIPS-2023-07:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_AES_128_GCM_SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-RFC9151-INTEROP2-FIPS-2023-07:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_AES_128_GCM_SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-RFC9151-INTEROP3-FIPS-2023-07:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_AES_128_GCM_SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-ECDSA-AES256-SHA
+      - ECDHE-RSA-AES256-SHA
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-RFC9151-INTEROP4-FIPS-2023-07:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_AES_128_GCM_SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES256-SHA384
+      - ECDHE-RSA-AES256-SHA384
+      - ECDHE-ECDSA-AES256-SHA
+      - ECDHE-RSA-AES256-SHA
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES128-SHA256
+      - ECDHE-RSA-AES128-SHA256
+      - ECDHE-ECDSA-AES128-SHA
+      - ECDHE-RSA-AES128-SHA
+      - AES256-GCM-SHA384
+      - AES256-SHA256
+      - AES256-SHA
+      - AES128-GCM-SHA256
+      - AES128-SHA256
+      - AES128-SHA
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-Res-2021-06:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-Res-FIPS-2023-04:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-2-Res-FIPS-PQ-2025-09:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+    groups: [SecP256r1MLKEM768, SecP384r1MLKEM1024, X25519MLKEM768]
+    groups_verified: true
+    groups_complete: false
+    pq_hybrid: true
+  ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3, TLSv1.2]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+    groups: [SecP256r1MLKEM768, SecP384r1MLKEM1024, X25519MLKEM768]
+    groups_verified: true
+    groups_complete: false
+    pq_hybrid: true
+  ELBSecurityPolicy-TLS13-1-3-2021-06:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-3-FIPS-2023-04:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+  ELBSecurityPolicy-TLS13-1-3-FIPS-PQ-2025-09:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+    groups: [SecP256r1MLKEM768, SecP384r1MLKEM1024, X25519MLKEM768]
+    groups_verified: true
+    groups_complete: false
+    pq_hybrid: true
+  ELBSecurityPolicy-TLS13-1-3-PQ-2025-09:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3]
+    cipher_suites:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+    groups: [SecP256r1MLKEM768, SecP384r1MLKEM1024, X25519MLKEM768]
+    groups_verified: true
+    groups_complete: false
+    pq_hybrid: true
+  ELBSecurityPolicy-TLS13-1-3-RFC9151-FIPS-2023-07:
+    source: alb+nlb
+    verified: true
+    protocols: [TLSv1.3]
+    cipher_suites:
+      - TLS_AES_256_GCM_SHA384
+    groups: []
+    groups_verified: false
+    groups_complete: false
+    pq_hybrid: false
+
+# KMS key specs whose meaning depends on the provider partition. Only specs whose algorithm AWS does not fix
+# by name appear here. RSA_*, ECC_NIST_P*, EC_prime256v1 and the other spellings are aliases in
+# kb/algorithms.yaml (M1, M1M4-20).
+# Sources, fetched 2026-10-10:
+#   https://docs.aws.amazon.com/kms/latest/developerguide/symm-asymm-choose-key-spec.html
+#     "SYMMETRIC_DEFAULT represents AES-256-GCM ... with 256-bit keys." and "The only exception in China
+#     Regions, where SYMMETRIC_DEFAULT represents a 128-bit symmetric key that uses SM4 encryption."
+#   https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html
+#     partitions: "aws - AWS Regions", "aws-cn - China Regions", "aws-us-gov - AWS GovCloud (US) Regions".
+# The partition is the second field of the KeyArn (arn:<partition>:kms:<region>:<account>:key/<id>).
+# A partition without a row is UNKNOWN: use `default` only for the partitions listed under `default_partitions`.
+# mode is lowercase like the schema mode of kb/algorithms.yaml. mode is null for SM4 because the AWS page states no mode.
+kms_key_specs:
+  SYMMETRIC_DEFAULT:
+    verified: true
+    default_partitions: [aws, aws-us-gov]
+    default:
+      algorithm: AES
+      key_size: 256
+      mode: gcm
+    partitions:
+      aws-cn:
+        algorithm: SM4
+        key_size: 128
+        mode: null

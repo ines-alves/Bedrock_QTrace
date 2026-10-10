@@ -1,0 +1,411 @@
+# Go rules for the code scanner. Field reference: the module docstring of engine.py.
+#
+# raw_name is the token as it appears in the code (M1M3-03): the package name for hashes (md5, sha1,
+# sha256), crypto.<NAME> constants as seen (SHA1), joined composites (HMAC-sha256) and the algorithm
+# name for module based APIs (RSA, Ed25519, AES). sha512.Sum384 and sha512.New384 are reported as
+# sha384. The hand-rolled PBKDF2 name is fixed by M1M3-05. Nothing here assigns a tier.
+#
+# Call detection works on the qualifier as written (aes.NewCipher). An aliased import is not tracked
+# for calls; it is reported by the import-only rules at confidence 0.6.
+#
+# Import-only findings (PLAN 3.6): the import line is reported only when the file never calls what
+# the call rules of that package detect. The `forbids` of each import rule lists those calls, so a
+# call finding always wins and crypto/sha256 imported only for HMAC or PBKDF2 stays silent.
+#
+# Scope today: the starter-kit scenarios and their SAFE decoys. Wider library coverage comes later.
+
+# ---- hashes -------------------------------------------------------------------------------------
+
+- id: GO_MD5
+  language: go
+  pattern: '\bmd5\.(?:Sum|New)\('
+  raw_name: md5
+  kind_hint: algorithm
+  usage: hash
+  library: crypto/md5
+
+- id: GO_SHA1
+  language: go
+  pattern: '\bsha1\.(?:Sum|New)\('
+  raw_name: sha1
+  kind_hint: algorithm
+  usage: hash
+  library: crypto/sha1
+
+- id: GO_SHA224
+  language: go
+  pattern: '\bsha256\.(?:Sum224|New224)\('
+  raw_name: sha224
+  kind_hint: algorithm
+  usage: hash
+  library: crypto/sha256
+
+# sha256.New passed to hmac.New or pbkdf2.Key has no parentheses and belongs to those composites.
+- id: GO_SHA256
+  language: go
+  pattern: '\bsha256\.(?:Sum256|New)\('
+  raw_name: sha256
+  kind_hint: algorithm
+  usage: hash
+  library: crypto/sha256
+
+- id: GO_SHA384
+  language: go
+  pattern: '\bsha512\.(?:Sum384|New384)\('
+  raw_name: sha384
+  kind_hint: algorithm
+  usage: hash
+  library: crypto/sha512
+
+- id: GO_SHA512
+  language: go
+  pattern: '\bsha512\.(?:Sum512|New)\('
+  raw_name: sha512
+  kind_hint: algorithm
+  usage: hash
+  library: crypto/sha512
+
+# A crypto.Hash constant naming the digest of a signature call (rsa.SignPKCS1v15(..., crypto.SHA1, ...)).
+- id: GO_CRYPTO_HASH_CONST
+  language: go
+  pattern: '\bcrypto\.(?P<name>MD5|SHA1|SHA224|SHA256|SHA384|SHA512)\b'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: hash
+  library: crypto
+
+# ---- HMAC and PBKDF2 ----------------------------------------------------------------------------
+
+# A hash constructor handed to hmac.New is part of that composite and is not reported separately.
+# A function that loops and XORs derived blocks is a hand-rolled PBKDF2 and is reported below, not here.
+- id: GO_HMAC
+  language: go
+  pattern: '\bhmac\.New\(\s*(?P<name>md5|sha1|sha256|sha512)\.New\s*,'
+  raw_name: 'HMAC-{name}'
+  kind_hint: algorithm
+  usage: mac
+  library: crypto/hmac
+  scope: function
+  forbids: ['(?s)\bfor\b.*\^']
+
+- id: GO_HMAC_SHA224
+  language: go
+  pattern: '\bhmac\.New\(\s*sha256\.New224\s*,'
+  raw_name: HMAC-sha224
+  kind_hint: algorithm
+  usage: mac
+  library: crypto/hmac
+  scope: function
+  forbids: ['(?s)\bfor\b.*\^']
+
+- id: GO_HMAC_SHA384
+  language: go
+  pattern: '\bhmac\.New\(\s*sha512\.New384\s*,'
+  raw_name: HMAC-sha384
+  kind_hint: algorithm
+  usage: mac
+  library: crypto/hmac
+  scope: function
+  forbids: ['(?s)\bfor\b.*\^']
+
+# Hand-rolled PBKDF2 (M1M3-05, M1M3-08): HMAC in an iteration loop whose output blocks are XORed,
+# with no pbkdf2 call. Every hmac.New of the function is evidence of the same asset; the first is the
+# anchor. The conjunction of a loop and an XOR in the same function is what separates it from a
+# plain HMAC (config-sync).
+- id: GO_PBKDF2_HAND_ROLLED_SHA256
+  language: go
+  pattern: '\bhmac\.New\(\s*sha256\.New\s*,'
+  raw_name: PBKDF2-HMAC-SHA256
+  kind_hint: algorithm
+  usage: kdf
+  library: crypto/hmac
+  scope: function
+  requires: ['(?s)\bfor\b.*\^']
+  forbids: ['\bpbkdf2\.Key\(']
+  extra:
+    hand_rolled: true
+
+- id: GO_PBKDF2_HAND_ROLLED_SHA1
+  language: go
+  pattern: '\bhmac\.New\(\s*sha1\.New\s*,'
+  raw_name: PBKDF2-HMAC-SHA1
+  kind_hint: algorithm
+  usage: kdf
+  library: crypto/hmac
+  scope: function
+  requires: ['(?s)\bfor\b.*\^']
+  forbids: ['\bpbkdf2\.Key\(']
+  extra:
+    hand_rolled: true
+
+- id: GO_PBKDF2_HAND_ROLLED_SHA512
+  language: go
+  pattern: '\bhmac\.New\(\s*sha512\.New\s*,'
+  raw_name: PBKDF2-HMAC-SHA512
+  kind_hint: algorithm
+  usage: kdf
+  library: crypto/hmac
+  scope: function
+  requires: ['(?s)\bfor\b.*\^']
+  forbids: ['\bpbkdf2\.Key\(']
+  extra:
+    hand_rolled: true
+
+# The library call: golang.org/x/crypto/pbkdf2 (or crypto/pbkdf2). The hash is the fifth argument.
+- id: GO_PBKDF2_LIBRARY
+  language: go
+  pattern: '\bpbkdf2\.Key\((?:[^(),]|\([^()]*\))+,(?:[^(),]|\([^()]*\))+,[^,]+,[^,]+,\s*(?P<name>md5|sha1|sha256|sha512)\.New\b'
+  raw_name: 'PBKDF2-HMAC-{name}'
+  kind_hint: algorithm
+  usage: kdf
+  library: pbkdf2
+
+# crypto/pbkdf2 (Go 1.24) takes the hash first: pbkdf2.Key(sha256.New, password, salt, iter, keyLen).
+- id: GO_PBKDF2_STDLIB
+  language: go
+  pattern: '\bpbkdf2\.Key\(\s*(?P<name>md5|sha1|sha256|sha512)\.New\b'
+  raw_name: 'PBKDF2-HMAC-{name}'
+  kind_hint: algorithm
+  usage: kdf
+  library: crypto/pbkdf2
+
+# ---- RSA ----------------------------------------------------------------------------------------
+
+# Key generation carries the size. The usage is not known from a generation call.
+- id: GO_RSA_GENERATE
+  language: go
+  pattern: '\brsa\.GenerateKey\(\s*[^,()]+,\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*\)'
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: unknown
+  library: crypto/rsa
+  provides_key_size: RSA
+
+# Sign sites take the private key as second argument. The size comes only through a flow link.
+- id: GO_RSA_SIGN
+  language: go
+  pattern: '\brsa\.Sign(?P<pad>PKCS1v15|PSS)\(\s*[^,()]+,\s*(?P<key_arg>[A-Za-z_]\w*)\s*,'
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: signature
+  padding: '{pad}'
+  library: crypto/rsa
+  inherit_key_size: RSA
+
+# Verify sites take the public key as first argument.
+- id: GO_RSA_VERIFY
+  language: go
+  pattern: '\brsa\.Verify(?P<pad>PKCS1v15|PSS)\(\s*[&*]?\s*(?P<key_arg>[A-Za-z_]\w*)\b'
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: signature
+  padding: '{pad}'
+  library: crypto/rsa
+  inherit_key_size: RSA
+
+# Encrypt and decrypt sinks exist so that a generated key used for encryption is never reported as a
+# signing key. OAEP takes the key as third argument, PKCS1v15 (and DecryptPKCS1v15SessionKey) as second.
+# The first OAEP argument is usually a call (sha256.New()).
+- id: GO_RSA_OAEP
+  language: go
+  pattern: >-
+    \brsa\.(?:Encrypt|Decrypt)OAEP\(\s*(?:[^,()]|\([^()]*\))+,\s*(?:[^,()]|\([^()]*\))+,\s*[&*]?\s*(?P<key_arg>[A-Za-z_]\w*)\b
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: encryption
+  padding: OAEP
+  library: crypto/rsa
+  inherit_key_size: RSA
+
+- id: GO_RSA_PKCS1V15_CRYPT
+  language: go
+  pattern: >-
+    \brsa\.(?:Encrypt|Decrypt)PKCS1v15(?:SessionKey)?\(\s*(?:[^,()]|\([^()]*\))+,\s*[&*]?\s*(?P<key_arg>[A-Za-z_]\w*)\b
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: encryption
+  padding: PKCS1v15
+  library: crypto/rsa
+  inherit_key_size: RSA
+
+# ---- Ed25519 ------------------------------------------------------------------------------------
+
+- id: GO_ED25519
+  language: go
+  pattern: '\bed25519\.(?:GenerateKey|NewKeyFromSeed|Sign|Verify)\('
+  raw_name: Ed25519
+  kind_hint: algorithm
+  usage: signature
+  library: crypto/ed25519
+
+# ---- AES ----------------------------------------------------------------------------------------
+
+# Key source: make([]byte, N) of a named or literal length. Never reported on its own. It only gives
+# a size when its result is returned by a function, bound once and passed to the sink (flow link).
+- id: GO_MAKE_KEY
+  language: go
+  pattern: '\bmake\(\s*\[\]byte\s*,\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*\)'
+  raw_name: AES-KEY
+  kind_hint: key
+  usage: encryption
+  key_size_unit: bytes
+  provides_key_size: AES
+  emit: false
+
+# aes.NewCipher(key). The mode comes from what the enclosing function does with the block, the key
+# size from a constant directly, otherwise through a flow link.
+#
+# ECB needs affirmative evidence (M1M3-06): the function encrypts a block inside a loop and shows no
+# chaining state (no XOR, IV, previous block or cipher.New* mode wrapper). A regex cannot prove that
+# every block is independent, so the case is a heuristic and is capped at confidence 0.8. Anything
+# else leaves mode None.
+- id: GO_AES_NEWCIPHER
+  language: go
+  pattern: '\baes\.NewCipher\(\s*(?P<key_arg>(?P<key_size_ref>[A-Za-z_]\w*))\s*\)'
+  raw_name: AES
+  kind_hint: algorithm
+  usage: encryption
+  library: crypto/aes
+  key_size_from_length: true
+  inherit_key_size: AES
+  mode_cases:
+    - mode: GCM
+      requires: ['\bcipher\.NewGCM(?:WithNonceSize|WithTagSize|WithRandomNonce)?\(']
+    - mode: CBC
+      requires: ['\bcipher\.NewCBC(?:Encrypter|Decrypter)\(']
+    - mode: CTR
+      requires: ['\bcipher\.NewCTR\(']
+    - mode: CFB
+      requires: ['\bcipher\.NewCFB(?:Encrypter|Decrypter)\(']
+    - mode: OFB
+      requires: ['\bcipher\.NewOFB\(']
+    - mode: ECB
+      mode_source: block_loop
+      requires: ['(?s)\bfor\b[^{\n]*\{[^{}]*\.Encrypt\(']
+      forbids:
+        - '\^'
+        - '\bcipher\.New[A-Z]'
+        - '(?i)\b(?:iv|nonce|prev\w*|xor\w*|chain\w*)\b'
+
+# Hard-coded key (M1M3-02, M1M3-04): fires only when a literal reaches aes.NewCipher, inline, through a
+# package-level constant or variable, or call-site arguments. The finding is at the literal's line.
+# HMAC keys are outside the rule because hmac.New is not an AES sink.
+- id: GO_HARDCODED_AES_KEY
+  language: go
+  pattern: >-
+    \baes\.NewCipher\(\s*(?:(?P<literal>\[\]byte\(\s*(?:"(?:[^"\\]|\\.)*"|`[^`]*`)\s*\))|(?P<key_arg>[A-Za-z_]\w*))\s*\)
+  raw_name: hard-coded symmetric key
+  kind_hint: key
+  usage: encryption
+  library: crypto/aes
+  literal_key: AES
+  redact: true
+  extra:
+    hygiene_only: true
+    hygiene_flags: [hardcoded_key]
+
+# ---- insecure RNG -------------------------------------------------------------------------------
+
+# Hygiene warning, not a primitive (M1M3-04). rand.Read means crypto/rand or math/rand depending on
+# the import, so the call counts only when math/rand is imported (with or without the rand name) and
+# crypto/rand is not. crypto/rand is a decoy and has no rule.
+- id: GO_MATH_RAND
+  language: go
+  pattern: '\brand\.(?:[A-Z]\w*)\('
+  raw_name: math/rand
+  kind_hint: algorithm
+  usage: rng
+  library: math/rand
+  requires: ['^[ \t]*(?:import[ \t]+)?(?:rand[ \t]+)?"math/rand(?:/v2)?"']
+  forbids: ['"crypto/rand"']
+  extra:
+    hygiene_only: true
+    hygiene_flags: [insecure_rng]
+
+# ---- import-only findings (confidence 0.6) ------------------------------------------------------
+
+- id: GO_IMPORT_MD5
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/md5"'
+  raw_name: md5
+  kind_hint: algorithm
+  usage: hash
+  library: crypto/md5
+  confidence: 0.6
+  forbids: ['\bmd5\.(?:Sum|New)\b']
+
+- id: GO_IMPORT_SHA1
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/sha1"'
+  raw_name: sha1
+  kind_hint: algorithm
+  usage: hash
+  library: crypto/sha1
+  confidence: 0.6
+  forbids: ['\bsha1\.(?:Sum|New)\b']
+
+# crypto/sha256 is imported by files that only use it for HMAC or PBKDF2 (sha256.New as an argument).
+# That use is a call that wins.
+- id: GO_IMPORT_SHA256
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/sha256"'
+  raw_name: sha256
+  kind_hint: algorithm
+  usage: hash
+  library: crypto/sha256
+  confidence: 0.6
+  forbids: ['\bsha256\.(?:Sum256|Sum224|New224|New)\b']
+
+- id: GO_IMPORT_SHA512
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/sha512"'
+  raw_name: sha512
+  kind_hint: algorithm
+  usage: hash
+  library: crypto/sha512
+  confidence: 0.6
+  forbids: ['\bsha512\.(?:Sum384|New384|Sum512|New)\b']
+
+- id: GO_IMPORT_RSA
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/rsa"'
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: unknown
+  library: crypto/rsa
+  confidence: 0.6
+  forbids: ['\brsa\.(?:GenerateKey|Sign|Verify|Encrypt|Decrypt)(?:PKCS1v15|PSS|OAEP)\b']
+
+- id: GO_IMPORT_ED25519
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/ed25519"'
+  raw_name: Ed25519
+  kind_hint: algorithm
+  usage: signature
+  library: crypto/ed25519
+  confidence: 0.6
+  forbids: ['\bed25519\.(?:GenerateKey|NewKeyFromSeed|Sign|Verify)\b']
+
+- id: GO_IMPORT_AES
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"crypto/aes"'
+  raw_name: AES
+  kind_hint: algorithm
+  usage: encryption
+  library: crypto/aes
+  confidence: 0.6
+  forbids: ['\baes\.NewCipher\b']
+
+# An aliased math/rand import (mrand) is the usual survivor: its calls carry the alias.
+- id: GO_IMPORT_MATH_RAND
+  language: go
+  pattern: '^[ \t]*(?:import[ \t]+)?(?:[A-Za-z_.]\w*[ \t]+)?"math/rand(?:/v2)?"'
+  raw_name: math/rand
+  kind_hint: algorithm
+  usage: rng
+  library: math/rand
+  confidence: 0.6
+  forbids: ['"crypto/rand"', '\brand\.[A-Z]\w*\(']
+  extra:
+    hygiene_only: true
+    hygiene_flags: [insecure_rng]

@@ -1,0 +1,2073 @@
+meta:
+  schema: 1
+  generator: quantumtrace.scanners.network.gen_registry
+  note: Names and PQC facts only; no tier. Entries with `verify` are not confirmed.
+  iana_sources:
+  - namespace: cipher_suites
+    file: tls-cipher-suites.csv
+    url: https://www.iana.org/assignments/tls-parameters/tls-parameters-4.csv
+    sha256: 4fe36f25017ed2882bf1c4a24493af83ed98526c0869881934cb968803489ed3
+  - namespace: groups
+    file: tls-supported-groups.csv
+    url: https://www.iana.org/assignments/tls-parameters/tls-parameters-8.csv
+    sha256: c3c17bf37ec9f4d9a6a1716cf1eecfed2ac19366a9075f52d4767c367497eff3
+  - namespace: signature_schemes
+    file: tls-signature-schemes.csv
+    url: https://www.iana.org/assignments/tls-parameters/tls-signaturescheme.csv
+    sha256: 5f0879934b045d666feeabd658117914ac259faeb8c6602b1c8f0451ffa3714b
+  openssl_version: 'OpenSSL 3.6.4 25 Aug 2026 (Library: OpenSSL 3.6.4 25 Aug 2026)'
+  unresolved_openssl_groups: []
+  counts:
+    cipher_suites: 356
+    groups: 59
+    signature_schemes: 49
+cipher_suites:
+  '0x0000':
+    iana: TLS_NULL_WITH_NULL_NULL
+    ref: '[RFC5246]'
+    openssl: []
+  '0x0001':
+    iana: TLS_RSA_WITH_NULL_MD5
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - NULL-MD5
+  '0x0002':
+    iana: TLS_RSA_WITH_NULL_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - NULL-SHA
+  '0x0003':
+    iana: TLS_RSA_EXPORT_WITH_RC4_40_MD5
+    ref: '[RFC4346], [RFC6347], [RFC10015]'
+    openssl: []
+  '0x0004':
+    iana: TLS_RSA_WITH_RC4_128_MD5
+    ref: '[RFC5246], [RFC6347], [RFC10015]'
+    openssl: []
+  '0x0005':
+    iana: TLS_RSA_WITH_RC4_128_SHA
+    ref: '[RFC5246], [RFC6347], [RFC10015]'
+    openssl: []
+  '0x0006':
+    iana: TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5
+    ref: '[RFC4346], [RFC10015]'
+    openssl: []
+  '0x0007':
+    iana: TLS_RSA_WITH_IDEA_CBC_SHA
+    ref: '[RFC8996], [RFC10015]'
+    openssl: []
+  '0x0008':
+    iana: TLS_RSA_EXPORT_WITH_DES40_CBC_SHA
+    ref: '[RFC4346], [RFC10015]'
+    openssl: []
+  '0x0009':
+    iana: TLS_RSA_WITH_DES_CBC_SHA
+    ref: '[RFC8996], [RFC10015]'
+    openssl: []
+  '0x000A':
+    iana: TLS_RSA_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x000B':
+    iana: TLS_DH_DSS_EXPORT_WITH_DES40_CBC_SHA
+    ref: '[RFC4346], [RFC10015]'
+    openssl: []
+  '0x000C':
+    iana: TLS_DH_DSS_WITH_DES_CBC_SHA
+    ref: '[RFC8996], [RFC10015]'
+    openssl: []
+  '0x000D':
+    iana: TLS_DH_DSS_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x000E':
+    iana: TLS_DH_RSA_EXPORT_WITH_DES40_CBC_SHA
+    ref: '[RFC4346], [RFC10015]'
+    openssl: []
+  '0x000F':
+    iana: TLS_DH_RSA_WITH_DES_CBC_SHA
+    ref: '[RFC8996], [RFC10015]'
+    openssl: []
+  '0x0010':
+    iana: TLS_DH_RSA_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x0011':
+    iana: TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA
+    ref: '[RFC4346], [RFC10015]'
+    openssl: []
+  '0x0012':
+    iana: TLS_DHE_DSS_WITH_DES_CBC_SHA
+    ref: '[RFC8996], [RFC10015]'
+    openssl: []
+  '0x0013':
+    iana: TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x0014':
+    iana: TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA
+    ref: '[RFC4346], [RFC10015]'
+    openssl: []
+  '0x0015':
+    iana: TLS_DHE_RSA_WITH_DES_CBC_SHA
+    ref: '[RFC8996], [RFC10015]'
+    openssl: []
+  '0x0016':
+    iana: TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x0017':
+    iana: TLS_DH_anon_EXPORT_WITH_RC4_40_MD5
+    ref: '[RFC4346], [RFC6347], [RFC10015]'
+    openssl: []
+  '0x0018':
+    iana: TLS_DH_anon_WITH_RC4_128_MD5
+    ref: '[RFC5246], [RFC6347], [RFC10015]'
+    openssl: []
+  '0x0019':
+    iana: TLS_DH_anon_EXPORT_WITH_DES40_CBC_SHA
+    ref: '[RFC4346], [RFC10015]'
+    openssl: []
+  '0x001A':
+    iana: TLS_DH_anon_WITH_DES_CBC_SHA
+    ref: '[RFC8996], [RFC10015]'
+    openssl: []
+  '0x001B':
+    iana: TLS_DH_anon_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x001E':
+    iana: TLS_KRB5_WITH_DES_CBC_SHA
+    ref: '[RFC2712], [RFC9847]'
+    openssl: []
+  '0x001F':
+    iana: TLS_KRB5_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC2712]'
+    openssl: []
+  '0x0020':
+    iana: TLS_KRB5_WITH_RC4_128_SHA
+    ref: '[RFC2712], [RFC6347], [RFC9847]'
+    openssl: []
+  '0x0021':
+    iana: TLS_KRB5_WITH_IDEA_CBC_SHA
+    ref: '[RFC2712], [RFC9847]'
+    openssl: []
+  '0x0022':
+    iana: TLS_KRB5_WITH_DES_CBC_MD5
+    ref: '[RFC2712], [RFC9847]'
+    openssl: []
+  '0x0023':
+    iana: TLS_KRB5_WITH_3DES_EDE_CBC_MD5
+    ref: '[RFC2712]'
+    openssl: []
+  '0x0024':
+    iana: TLS_KRB5_WITH_RC4_128_MD5
+    ref: '[RFC2712], [RFC6347], [RFC9847]'
+    openssl: []
+  '0x0025':
+    iana: TLS_KRB5_WITH_IDEA_CBC_MD5
+    ref: '[RFC2712], [RFC9847]'
+    openssl: []
+  '0x0026':
+    iana: TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA
+    ref: '[RFC2712], [RFC9847]'
+    openssl: []
+  '0x0027':
+    iana: TLS_KRB5_EXPORT_WITH_RC2_CBC_40_SHA
+    ref: '[RFC2712], [RFC9847]'
+    openssl: []
+  '0x0028':
+    iana: TLS_KRB5_EXPORT_WITH_RC4_40_SHA
+    ref: '[RFC2712], [RFC6347], [RFC9847]'
+    openssl: []
+  '0x0029':
+    iana: TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5
+    ref: '[RFC2712], [RFC9847]'
+    openssl: []
+  '0x002A':
+    iana: TLS_KRB5_EXPORT_WITH_RC2_CBC_40_MD5
+    ref: '[RFC2712], [RFC9847]'
+    openssl: []
+  '0x002B':
+    iana: TLS_KRB5_EXPORT_WITH_RC4_40_MD5
+    ref: '[RFC2712], [RFC6347], [RFC9847]'
+    openssl: []
+  '0x002C':
+    iana: TLS_PSK_WITH_NULL_SHA
+    ref: '[RFC4785], [RFC9847]'
+    openssl:
+    - PSK-NULL-SHA
+  '0x002D':
+    iana: TLS_DHE_PSK_WITH_NULL_SHA
+    ref: '[RFC4785], [RFC10015]'
+    openssl:
+    - DHE-PSK-NULL-SHA
+  '0x002E':
+    iana: TLS_RSA_PSK_WITH_NULL_SHA
+    ref: '[RFC4785], [RFC10015]'
+    openssl:
+    - RSA-PSK-NULL-SHA
+  '0x002F':
+    iana: TLS_RSA_WITH_AES_128_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - AES128-SHA
+  '0x0030':
+    iana: TLS_DH_DSS_WITH_AES_128_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x0031':
+    iana: TLS_DH_RSA_WITH_AES_128_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x0032':
+    iana: TLS_DHE_DSS_WITH_AES_128_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - DHE-DSS-AES128-SHA
+  '0x0033':
+    iana: TLS_DHE_RSA_WITH_AES_128_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - DHE-RSA-AES128-SHA
+  '0x0034':
+    iana: TLS_DH_anon_WITH_AES_128_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - ADH-AES128-SHA
+  '0x0035':
+    iana: TLS_RSA_WITH_AES_256_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - AES256-SHA
+  '0x0036':
+    iana: TLS_DH_DSS_WITH_AES_256_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x0037':
+    iana: TLS_DH_RSA_WITH_AES_256_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x0038':
+    iana: TLS_DHE_DSS_WITH_AES_256_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - DHE-DSS-AES256-SHA
+  '0x0039':
+    iana: TLS_DHE_RSA_WITH_AES_256_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - DHE-RSA-AES256-SHA
+  '0x003A':
+    iana: TLS_DH_anon_WITH_AES_256_CBC_SHA
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - ADH-AES256-SHA
+  '0x003B':
+    iana: TLS_RSA_WITH_NULL_SHA256
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - NULL-SHA256
+  '0x003C':
+    iana: TLS_RSA_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - AES128-SHA256
+  '0x003D':
+    iana: TLS_RSA_WITH_AES_256_CBC_SHA256
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - AES256-SHA256
+  '0x003E':
+    iana: TLS_DH_DSS_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x003F':
+    iana: TLS_DH_RSA_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x0040':
+    iana: TLS_DHE_DSS_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - DHE-DSS-AES128-SHA256
+  '0x0041':
+    iana: TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - CAMELLIA128-SHA
+  '0x0042':
+    iana: TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA
+    ref: '[RFC5932], [RFC10015]'
+    openssl: []
+  '0x0043':
+    iana: TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA
+    ref: '[RFC5932], [RFC10015]'
+    openssl: []
+  '0x0044':
+    iana: TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - DHE-DSS-CAMELLIA128-SHA
+  '0x0045':
+    iana: TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - DHE-RSA-CAMELLIA128-SHA
+  '0x0046':
+    iana: TLS_DH_anon_WITH_CAMELLIA_128_CBC_SHA
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - ADH-CAMELLIA128-SHA
+  '0x0067':
+    iana: TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - DHE-RSA-AES128-SHA256
+  '0x0068':
+    iana: TLS_DH_DSS_WITH_AES_256_CBC_SHA256
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x0069':
+    iana: TLS_DH_RSA_WITH_AES_256_CBC_SHA256
+    ref: '[RFC5246], [RFC10015]'
+    openssl: []
+  '0x006A':
+    iana: TLS_DHE_DSS_WITH_AES_256_CBC_SHA256
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - DHE-DSS-AES256-SHA256
+  '0x006B':
+    iana: TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - DHE-RSA-AES256-SHA256
+  '0x006C':
+    iana: TLS_DH_anon_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - ADH-AES128-SHA256
+  '0x006D':
+    iana: TLS_DH_anon_WITH_AES_256_CBC_SHA256
+    ref: '[RFC5246], [RFC10015]'
+    openssl:
+    - ADH-AES256-SHA256
+  '0x006E':
+    iana: TLS_ASCONAEAD128_ASCONHASH256
+    ref: '[https://doi.org/10.6028/NIST.SP.800-232]'
+    openssl: []
+  '0x006F':
+    iana: TLS_ASCONAEAD128_SHA256
+    ref: '[https://doi.org/10.6028/NIST.SP.800-232], [RFC9846]'
+    openssl: []
+  '0x0070':
+    iana: TLS_AES_128_GCM_ASCONHASH256
+    ref: '[https://doi.org/10.6028/NIST.SP.800-232], [RFC9846]'
+    openssl: []
+  '0x0071':
+    iana: TLS_AES_128_CCM_ASCONHASH256
+    ref: '[https://doi.org/10.6028/NIST.SP.800-232], [RFC9846]'
+    openssl: []
+  '0x0084':
+    iana: TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - CAMELLIA256-SHA
+  '0x0085':
+    iana: TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA
+    ref: '[RFC5932], [RFC10015]'
+    openssl: []
+  '0x0086':
+    iana: TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA
+    ref: '[RFC5932], [RFC10015]'
+    openssl: []
+  '0x0087':
+    iana: TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - DHE-DSS-CAMELLIA256-SHA
+  '0x0088':
+    iana: TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - DHE-RSA-CAMELLIA256-SHA
+  '0x0089':
+    iana: TLS_DH_anon_WITH_CAMELLIA_256_CBC_SHA
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - ADH-CAMELLIA256-SHA
+  '0x008A':
+    iana: TLS_PSK_WITH_RC4_128_SHA
+    ref: '[RFC4279], [RFC6347], [RFC9847]'
+    openssl: []
+  '0x008B':
+    iana: TLS_PSK_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC4279]'
+    openssl: []
+  '0x008C':
+    iana: TLS_PSK_WITH_AES_128_CBC_SHA
+    ref: '[RFC4279]'
+    openssl:
+    - PSK-AES128-CBC-SHA
+  '0x008D':
+    iana: TLS_PSK_WITH_AES_256_CBC_SHA
+    ref: '[RFC4279]'
+    openssl:
+    - PSK-AES256-CBC-SHA
+  '0x008E':
+    iana: TLS_DHE_PSK_WITH_RC4_128_SHA
+    ref: '[RFC4279], [RFC6347], [RFC10015]'
+    openssl: []
+  '0x008F':
+    iana: TLS_DHE_PSK_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC4279], [RFC10015]'
+    openssl: []
+  '0x0090':
+    iana: TLS_DHE_PSK_WITH_AES_128_CBC_SHA
+    ref: '[RFC4279], [RFC10015]'
+    openssl:
+    - DHE-PSK-AES128-CBC-SHA
+  '0x0091':
+    iana: TLS_DHE_PSK_WITH_AES_256_CBC_SHA
+    ref: '[RFC4279], [RFC10015]'
+    openssl:
+    - DHE-PSK-AES256-CBC-SHA
+  '0x0092':
+    iana: TLS_RSA_PSK_WITH_RC4_128_SHA
+    ref: '[RFC4279], [RFC6347], [RFC10015]'
+    openssl: []
+  '0x0093':
+    iana: TLS_RSA_PSK_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC4279], [RFC10015]'
+    openssl: []
+  '0x0094':
+    iana: TLS_RSA_PSK_WITH_AES_128_CBC_SHA
+    ref: '[RFC4279], [RFC10015]'
+    openssl:
+    - RSA-PSK-AES128-CBC-SHA
+  '0x0095':
+    iana: TLS_RSA_PSK_WITH_AES_256_CBC_SHA
+    ref: '[RFC4279], [RFC10015]'
+    openssl:
+    - RSA-PSK-AES256-CBC-SHA
+  '0x0096':
+    iana: TLS_RSA_WITH_SEED_CBC_SHA
+    ref: '[RFC4162], [RFC10015]'
+    openssl: []
+  '0x0097':
+    iana: TLS_DH_DSS_WITH_SEED_CBC_SHA
+    ref: '[RFC4162], [RFC10015]'
+    openssl: []
+  '0x0098':
+    iana: TLS_DH_RSA_WITH_SEED_CBC_SHA
+    ref: '[RFC4162], [RFC10015]'
+    openssl: []
+  '0x0099':
+    iana: TLS_DHE_DSS_WITH_SEED_CBC_SHA
+    ref: '[RFC4162], [RFC10015]'
+    openssl: []
+  '0x009A':
+    iana: TLS_DHE_RSA_WITH_SEED_CBC_SHA
+    ref: '[RFC4162], [RFC10015]'
+    openssl: []
+  '0x009B':
+    iana: TLS_DH_anon_WITH_SEED_CBC_SHA
+    ref: '[RFC4162], [RFC10015]'
+    openssl: []
+  '0x009C':
+    iana: TLS_RSA_WITH_AES_128_GCM_SHA256
+    ref: '[RFC5288], [RFC10015]'
+    openssl:
+    - AES128-GCM-SHA256
+  '0x009D':
+    iana: TLS_RSA_WITH_AES_256_GCM_SHA384
+    ref: '[RFC5288], [RFC10015]'
+    openssl:
+    - AES256-GCM-SHA384
+  '0x009E':
+    iana: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+    ref: '[RFC5288], [RFC10015]'
+    openssl:
+    - DHE-RSA-AES128-GCM-SHA256
+  '0x009F':
+    iana: TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+    ref: '[RFC5288], [RFC10015]'
+    openssl:
+    - DHE-RSA-AES256-GCM-SHA384
+  '0x00A0':
+    iana: TLS_DH_RSA_WITH_AES_128_GCM_SHA256
+    ref: '[RFC5288], [RFC10015]'
+    openssl: []
+  '0x00A1':
+    iana: TLS_DH_RSA_WITH_AES_256_GCM_SHA384
+    ref: '[RFC5288], [RFC10015]'
+    openssl: []
+  '0x00A2':
+    iana: TLS_DHE_DSS_WITH_AES_128_GCM_SHA256
+    ref: '[RFC5288], [RFC10015]'
+    openssl:
+    - DHE-DSS-AES128-GCM-SHA256
+  '0x00A3':
+    iana: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384
+    ref: '[RFC5288], [RFC10015]'
+    openssl:
+    - DHE-DSS-AES256-GCM-SHA384
+  '0x00A4':
+    iana: TLS_DH_DSS_WITH_AES_128_GCM_SHA256
+    ref: '[RFC5288], [RFC10015]'
+    openssl: []
+  '0x00A5':
+    iana: TLS_DH_DSS_WITH_AES_256_GCM_SHA384
+    ref: '[RFC5288], [RFC10015]'
+    openssl: []
+  '0x00A6':
+    iana: TLS_DH_anon_WITH_AES_128_GCM_SHA256
+    ref: '[RFC5288], [RFC10015]'
+    openssl:
+    - ADH-AES128-GCM-SHA256
+  '0x00A7':
+    iana: TLS_DH_anon_WITH_AES_256_GCM_SHA384
+    ref: '[RFC5288], [RFC10015]'
+    openssl:
+    - ADH-AES256-GCM-SHA384
+  '0x00A8':
+    iana: TLS_PSK_WITH_AES_128_GCM_SHA256
+    ref: '[RFC5487]'
+    openssl:
+    - PSK-AES128-GCM-SHA256
+  '0x00A9':
+    iana: TLS_PSK_WITH_AES_256_GCM_SHA384
+    ref: '[RFC5487]'
+    openssl:
+    - PSK-AES256-GCM-SHA384
+  '0x00AA':
+    iana: TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
+    ref: '[RFC5487], [RFC10015]'
+    openssl:
+    - DHE-PSK-AES128-GCM-SHA256
+  '0x00AB':
+    iana: TLS_DHE_PSK_WITH_AES_256_GCM_SHA384
+    ref: '[RFC5487], [RFC10015]'
+    openssl:
+    - DHE-PSK-AES256-GCM-SHA384
+  '0x00AC':
+    iana: TLS_RSA_PSK_WITH_AES_128_GCM_SHA256
+    ref: '[RFC5487], [RFC10015]'
+    openssl:
+    - RSA-PSK-AES128-GCM-SHA256
+  '0x00AD':
+    iana: TLS_RSA_PSK_WITH_AES_256_GCM_SHA384
+    ref: '[RFC5487], [RFC10015]'
+    openssl:
+    - RSA-PSK-AES256-GCM-SHA384
+  '0x00AE':
+    iana: TLS_PSK_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5487]'
+    openssl:
+    - PSK-AES128-CBC-SHA256
+  '0x00AF':
+    iana: TLS_PSK_WITH_AES_256_CBC_SHA384
+    ref: '[RFC5487]'
+    openssl:
+    - PSK-AES256-CBC-SHA384
+  '0x00B0':
+    iana: TLS_PSK_WITH_NULL_SHA256
+    ref: '[RFC5487], [RFC9847]'
+    openssl:
+    - PSK-NULL-SHA256
+  '0x00B1':
+    iana: TLS_PSK_WITH_NULL_SHA384
+    ref: '[RFC5487], [RFC9847]'
+    openssl:
+    - PSK-NULL-SHA384
+  '0x00B2':
+    iana: TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5487], [RFC10015]'
+    openssl:
+    - DHE-PSK-AES128-CBC-SHA256
+  '0x00B3':
+    iana: TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
+    ref: '[RFC5487], [RFC10015]'
+    openssl:
+    - DHE-PSK-AES256-CBC-SHA384
+  '0x00B4':
+    iana: TLS_DHE_PSK_WITH_NULL_SHA256
+    ref: '[RFC5487], [RFC10015]'
+    openssl:
+    - DHE-PSK-NULL-SHA256
+  '0x00B5':
+    iana: TLS_DHE_PSK_WITH_NULL_SHA384
+    ref: '[RFC5487], [RFC10015]'
+    openssl:
+    - DHE-PSK-NULL-SHA384
+  '0x00B6':
+    iana: TLS_RSA_PSK_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5487], [RFC10015]'
+    openssl:
+    - RSA-PSK-AES128-CBC-SHA256
+  '0x00B7':
+    iana: TLS_RSA_PSK_WITH_AES_256_CBC_SHA384
+    ref: '[RFC5487], [RFC10015]'
+    openssl:
+    - RSA-PSK-AES256-CBC-SHA384
+  '0x00B8':
+    iana: TLS_RSA_PSK_WITH_NULL_SHA256
+    ref: '[RFC5487], [RFC10015]'
+    openssl:
+    - RSA-PSK-NULL-SHA256
+  '0x00B9':
+    iana: TLS_RSA_PSK_WITH_NULL_SHA384
+    ref: '[RFC5487], [RFC10015]'
+    openssl:
+    - RSA-PSK-NULL-SHA384
+  '0x00BA':
+    iana: TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - CAMELLIA128-SHA256
+  '0x00BB':
+    iana: TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC5932], [RFC10015]'
+    openssl: []
+  '0x00BC':
+    iana: TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC5932], [RFC10015]'
+    openssl: []
+  '0x00BD':
+    iana: TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - DHE-DSS-CAMELLIA128-SHA256
+  '0x00BE':
+    iana: TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - DHE-RSA-CAMELLIA128-SHA256
+  '0x00BF':
+    iana: TLS_DH_anon_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - ADH-CAMELLIA128-SHA256
+  '0x00C0':
+    iana: TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - CAMELLIA256-SHA256
+  '0x00C1':
+    iana: TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA256
+    ref: '[RFC5932], [RFC10015]'
+    openssl: []
+  '0x00C2':
+    iana: TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA256
+    ref: '[RFC5932], [RFC10015]'
+    openssl: []
+  '0x00C3':
+    iana: TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA256
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - DHE-DSS-CAMELLIA256-SHA256
+  '0x00C4':
+    iana: TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - DHE-RSA-CAMELLIA256-SHA256
+  '0x00C5':
+    iana: TLS_DH_anon_WITH_CAMELLIA_256_CBC_SHA256
+    ref: '[RFC5932], [RFC10015]'
+    openssl:
+    - ADH-CAMELLIA256-SHA256
+  '0x00C6':
+    iana: TLS_SM4_GCM_SM3
+    ref: '[RFC8998]'
+    openssl: []
+  '0x00C7':
+    iana: TLS_SM4_CCM_SM3
+    ref: '[RFC8998]'
+    openssl: []
+  '0x00FF':
+    iana: TLS_EMPTY_RENEGOTIATION_INFO_SCSV
+    ref: '[RFC5746]'
+    openssl: []
+    signalling: true
+  '0x1301':
+    iana: TLS_AES_128_GCM_SHA256
+    ref: '[RFC9846]'
+    openssl:
+    - TLS_AES_128_GCM_SHA256
+  '0x1302':
+    iana: TLS_AES_256_GCM_SHA384
+    ref: '[RFC9846]'
+    openssl:
+    - TLS_AES_256_GCM_SHA384
+  '0x1303':
+    iana: TLS_CHACHA20_POLY1305_SHA256
+    ref: '[RFC9846]'
+    openssl:
+    - TLS_CHACHA20_POLY1305_SHA256
+  '0x1304':
+    iana: TLS_AES_128_CCM_SHA256
+    ref: '[RFC9846]'
+    openssl: []
+  '0x1305':
+    iana: TLS_AES_128_CCM_8_SHA256
+    ref: '[RFC9846], [IESG Action 2018-08-16]'
+    openssl: []
+  '0x1306':
+    iana: TLS_AEGIS_256_SHA512
+    ref: '[draft-irtf-cfrg-aegis-aead-08]'
+    openssl: []
+  '0x1307':
+    iana: TLS_AEGIS_128L_SHA256
+    ref: '[draft-irtf-cfrg-aegis-aead-08]'
+    openssl: []
+  '0x5600':
+    iana: TLS_FALLBACK_SCSV
+    ref: '[RFC7507]'
+    openssl: []
+    signalling: true
+  '0xC001':
+    iana: TLS_ECDH_ECDSA_WITH_NULL_SHA
+    ref: '[RFC8422], [RFC10015]'
+    openssl: []
+  '0xC002':
+    iana: TLS_ECDH_ECDSA_WITH_RC4_128_SHA
+    ref: '[RFC8422], [RFC6347], [RFC10015]'
+    openssl: []
+  '0xC003':
+    iana: TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC8422], [RFC10015]'
+    openssl: []
+  '0xC004':
+    iana: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
+    ref: '[RFC8422], [RFC10015]'
+    openssl: []
+  '0xC005':
+    iana: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
+    ref: '[RFC8422], [RFC10015]'
+    openssl: []
+  '0xC006':
+    iana: TLS_ECDHE_ECDSA_WITH_NULL_SHA
+    ref: '[RFC8422], [RFC9847]'
+    openssl:
+    - ECDHE-ECDSA-NULL-SHA
+  '0xC007':
+    iana: TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
+    ref: '[RFC8422], [RFC6347], [RFC9847]'
+    openssl: []
+  '0xC008':
+    iana: TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC8422]'
+    openssl: []
+  '0xC009':
+    iana: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
+    ref: '[RFC8422]'
+    openssl:
+    - ECDHE-ECDSA-AES128-SHA
+  '0xC00A':
+    iana: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+    ref: '[RFC8422]'
+    openssl:
+    - ECDHE-ECDSA-AES256-SHA
+  '0xC00B':
+    iana: TLS_ECDH_RSA_WITH_NULL_SHA
+    ref: '[RFC8422], [RFC10015]'
+    openssl: []
+  '0xC00C':
+    iana: TLS_ECDH_RSA_WITH_RC4_128_SHA
+    ref: '[RFC8422], [RFC6347], [RFC10015]'
+    openssl: []
+  '0xC00D':
+    iana: TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC8422], [RFC10015]'
+    openssl: []
+  '0xC00E':
+    iana: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
+    ref: '[RFC8422], [RFC10015]'
+    openssl: []
+  '0xC00F':
+    iana: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
+    ref: '[RFC8422], [RFC10015]'
+    openssl: []
+  '0xC010':
+    iana: TLS_ECDHE_RSA_WITH_NULL_SHA
+    ref: '[RFC8422], [RFC9847]'
+    openssl:
+    - ECDHE-RSA-NULL-SHA
+  '0xC011':
+    iana: TLS_ECDHE_RSA_WITH_RC4_128_SHA
+    ref: '[RFC8422], [RFC6347], [RFC9847]'
+    openssl: []
+  '0xC012':
+    iana: TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC8422]'
+    openssl: []
+  '0xC013':
+    iana: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+    ref: '[RFC8422]'
+    openssl:
+    - ECDHE-RSA-AES128-SHA
+  '0xC014':
+    iana: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+    ref: '[RFC8422]'
+    openssl:
+    - ECDHE-RSA-AES256-SHA
+  '0xC015':
+    iana: TLS_ECDH_anon_WITH_NULL_SHA
+    ref: '[RFC8422], [RFC10015]'
+    openssl:
+    - AECDH-NULL-SHA
+  '0xC016':
+    iana: TLS_ECDH_anon_WITH_RC4_128_SHA
+    ref: '[RFC8422], [RFC6347], [RFC10015]'
+    openssl: []
+  '0xC017':
+    iana: TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC8422], [RFC10015]'
+    openssl: []
+  '0xC018':
+    iana: TLS_ECDH_anon_WITH_AES_128_CBC_SHA
+    ref: '[RFC8422], [RFC10015]'
+    openssl:
+    - AECDH-AES128-SHA
+  '0xC019':
+    iana: TLS_ECDH_anon_WITH_AES_256_CBC_SHA
+    ref: '[RFC8422], [RFC10015]'
+    openssl:
+    - AECDH-AES256-SHA
+  '0xC01A':
+    iana: TLS_SRP_SHA_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC5054]'
+    openssl: []
+  '0xC01B':
+    iana: TLS_SRP_SHA_RSA_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC5054]'
+    openssl: []
+  '0xC01C':
+    iana: TLS_SRP_SHA_DSS_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC5054]'
+    openssl: []
+  '0xC01D':
+    iana: TLS_SRP_SHA_WITH_AES_128_CBC_SHA
+    ref: '[RFC5054]'
+    openssl:
+    - SRP-AES-128-CBC-SHA
+  '0xC01E':
+    iana: TLS_SRP_SHA_RSA_WITH_AES_128_CBC_SHA
+    ref: '[RFC5054]'
+    openssl:
+    - SRP-RSA-AES-128-CBC-SHA
+  '0xC01F':
+    iana: TLS_SRP_SHA_DSS_WITH_AES_128_CBC_SHA
+    ref: '[RFC5054]'
+    openssl:
+    - SRP-DSS-AES-128-CBC-SHA
+  '0xC020':
+    iana: TLS_SRP_SHA_WITH_AES_256_CBC_SHA
+    ref: '[RFC5054]'
+    openssl:
+    - SRP-AES-256-CBC-SHA
+  '0xC021':
+    iana: TLS_SRP_SHA_RSA_WITH_AES_256_CBC_SHA
+    ref: '[RFC5054]'
+    openssl:
+    - SRP-RSA-AES-256-CBC-SHA
+  '0xC022':
+    iana: TLS_SRP_SHA_DSS_WITH_AES_256_CBC_SHA
+    ref: '[RFC5054]'
+    openssl:
+    - SRP-DSS-AES-256-CBC-SHA
+  '0xC023':
+    iana: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5289]'
+    openssl:
+    - ECDHE-ECDSA-AES128-SHA256
+  '0xC024':
+    iana: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
+    ref: '[RFC5289]'
+    openssl:
+    - ECDHE-ECDSA-AES256-SHA384
+  '0xC025':
+    iana: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5289], [RFC10015]'
+    openssl: []
+  '0xC026':
+    iana: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
+    ref: '[RFC5289], [RFC10015]'
+    openssl: []
+  '0xC027':
+    iana: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5289]'
+    openssl:
+    - ECDHE-RSA-AES128-SHA256
+  '0xC028':
+    iana: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+    ref: '[RFC5289]'
+    openssl:
+    - ECDHE-RSA-AES256-SHA384
+  '0xC029':
+    iana: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5289], [RFC10015]'
+    openssl: []
+  '0xC02A':
+    iana: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
+    ref: '[RFC5289], [RFC10015]'
+    openssl: []
+  '0xC02B':
+    iana: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+    ref: '[RFC5289]'
+    openssl:
+    - ECDHE-ECDSA-AES128-GCM-SHA256
+  '0xC02C':
+    iana: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    ref: '[RFC5289]'
+    openssl:
+    - ECDHE-ECDSA-AES256-GCM-SHA384
+  '0xC02D':
+    iana: TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
+    ref: '[RFC5289], [RFC10015]'
+    openssl: []
+  '0xC02E':
+    iana: TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+    ref: '[RFC5289], [RFC10015]'
+    openssl: []
+  '0xC02F':
+    iana: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    ref: '[RFC5289]'
+    openssl:
+    - ECDHE-RSA-AES128-GCM-SHA256
+  '0xC030':
+    iana: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    ref: '[RFC5289]'
+    openssl:
+    - ECDHE-RSA-AES256-GCM-SHA384
+  '0xC031':
+    iana: TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
+    ref: '[RFC5289], [RFC10015]'
+    openssl: []
+  '0xC032':
+    iana: TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+    ref: '[RFC5289], [RFC10015]'
+    openssl: []
+  '0xC033':
+    iana: TLS_ECDHE_PSK_WITH_RC4_128_SHA
+    ref: '[RFC5489], [RFC6347], [RFC9847]'
+    openssl: []
+  '0xC034':
+    iana: TLS_ECDHE_PSK_WITH_3DES_EDE_CBC_SHA
+    ref: '[RFC5489]'
+    openssl: []
+  '0xC035':
+    iana: TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA
+    ref: '[RFC5489]'
+    openssl:
+    - ECDHE-PSK-AES128-CBC-SHA
+  '0xC036':
+    iana: TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA
+    ref: '[RFC5489]'
+    openssl:
+    - ECDHE-PSK-AES256-CBC-SHA
+  '0xC037':
+    iana: TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
+    ref: '[RFC5489]'
+    openssl:
+    - ECDHE-PSK-AES128-CBC-SHA256
+  '0xC038':
+    iana: TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA384
+    ref: '[RFC5489]'
+    openssl:
+    - ECDHE-PSK-AES256-CBC-SHA384
+  '0xC039':
+    iana: TLS_ECDHE_PSK_WITH_NULL_SHA
+    ref: '[RFC5489], [RFC9847]'
+    openssl:
+    - ECDHE-PSK-NULL-SHA
+  '0xC03A':
+    iana: TLS_ECDHE_PSK_WITH_NULL_SHA256
+    ref: '[RFC5489], [RFC9847]'
+    openssl:
+    - ECDHE-PSK-NULL-SHA256
+  '0xC03B':
+    iana: TLS_ECDHE_PSK_WITH_NULL_SHA384
+    ref: '[RFC5489], [RFC9847]'
+    openssl:
+    - ECDHE-PSK-NULL-SHA384
+  '0xC03C':
+    iana: TLS_RSA_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC03D':
+    iana: TLS_RSA_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC03E':
+    iana: TLS_DH_DSS_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC03F':
+    iana: TLS_DH_DSS_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC040':
+    iana: TLS_DH_RSA_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC041':
+    iana: TLS_DH_RSA_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC042':
+    iana: TLS_DHE_DSS_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC043':
+    iana: TLS_DHE_DSS_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC044':
+    iana: TLS_DHE_RSA_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC045':
+    iana: TLS_DHE_RSA_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC046':
+    iana: TLS_DH_anon_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC047':
+    iana: TLS_DH_anon_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC048':
+    iana: TLS_ECDHE_ECDSA_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209]'
+    openssl: []
+  '0xC049':
+    iana: TLS_ECDHE_ECDSA_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209]'
+    openssl: []
+  '0xC04A':
+    iana: TLS_ECDH_ECDSA_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC04B':
+    iana: TLS_ECDH_ECDSA_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC04C':
+    iana: TLS_ECDHE_RSA_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209]'
+    openssl: []
+  '0xC04D':
+    iana: TLS_ECDHE_RSA_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209]'
+    openssl: []
+  '0xC04E':
+    iana: TLS_ECDH_RSA_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC04F':
+    iana: TLS_ECDH_RSA_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC050':
+    iana: TLS_RSA_WITH_ARIA_128_GCM_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl:
+    - ARIA128-GCM-SHA256
+  '0xC051':
+    iana: TLS_RSA_WITH_ARIA_256_GCM_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl:
+    - ARIA256-GCM-SHA384
+  '0xC052':
+    iana: TLS_DHE_RSA_WITH_ARIA_128_GCM_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl:
+    - DHE-RSA-ARIA128-GCM-SHA256
+  '0xC053':
+    iana: TLS_DHE_RSA_WITH_ARIA_256_GCM_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl:
+    - DHE-RSA-ARIA256-GCM-SHA384
+  '0xC054':
+    iana: TLS_DH_RSA_WITH_ARIA_128_GCM_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC055':
+    iana: TLS_DH_RSA_WITH_ARIA_256_GCM_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC056':
+    iana: TLS_DHE_DSS_WITH_ARIA_128_GCM_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl:
+    - DHE-DSS-ARIA128-GCM-SHA256
+  '0xC057':
+    iana: TLS_DHE_DSS_WITH_ARIA_256_GCM_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl:
+    - DHE-DSS-ARIA256-GCM-SHA384
+  '0xC058':
+    iana: TLS_DH_DSS_WITH_ARIA_128_GCM_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC059':
+    iana: TLS_DH_DSS_WITH_ARIA_256_GCM_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC05A':
+    iana: TLS_DH_anon_WITH_ARIA_128_GCM_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC05B':
+    iana: TLS_DH_anon_WITH_ARIA_256_GCM_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC05C':
+    iana: TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256
+    ref: '[RFC6209]'
+    openssl:
+    - ECDHE-ECDSA-ARIA128-GCM-SHA256
+  '0xC05D':
+    iana: TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384
+    ref: '[RFC6209]'
+    openssl:
+    - ECDHE-ECDSA-ARIA256-GCM-SHA384
+  '0xC05E':
+    iana: TLS_ECDH_ECDSA_WITH_ARIA_128_GCM_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC05F':
+    iana: TLS_ECDH_ECDSA_WITH_ARIA_256_GCM_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC060':
+    iana: TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256
+    ref: '[RFC6209]'
+    openssl:
+    - ECDHE-ARIA128-GCM-SHA256
+  '0xC061':
+    iana: TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384
+    ref: '[RFC6209]'
+    openssl:
+    - ECDHE-ARIA256-GCM-SHA384
+  '0xC062':
+    iana: TLS_ECDH_RSA_WITH_ARIA_128_GCM_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC063':
+    iana: TLS_ECDH_RSA_WITH_ARIA_256_GCM_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC064':
+    iana: TLS_PSK_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209]'
+    openssl: []
+  '0xC065':
+    iana: TLS_PSK_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209]'
+    openssl: []
+  '0xC066':
+    iana: TLS_DHE_PSK_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC067':
+    iana: TLS_DHE_PSK_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC068':
+    iana: TLS_RSA_PSK_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC069':
+    iana: TLS_RSA_PSK_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl: []
+  '0xC06A':
+    iana: TLS_PSK_WITH_ARIA_128_GCM_SHA256
+    ref: '[RFC6209]'
+    openssl:
+    - PSK-ARIA128-GCM-SHA256
+  '0xC06B':
+    iana: TLS_PSK_WITH_ARIA_256_GCM_SHA384
+    ref: '[RFC6209]'
+    openssl:
+    - PSK-ARIA256-GCM-SHA384
+  '0xC06C':
+    iana: TLS_DHE_PSK_WITH_ARIA_128_GCM_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl:
+    - DHE-PSK-ARIA128-GCM-SHA256
+  '0xC06D':
+    iana: TLS_DHE_PSK_WITH_ARIA_256_GCM_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl:
+    - DHE-PSK-ARIA256-GCM-SHA384
+  '0xC06E':
+    iana: TLS_RSA_PSK_WITH_ARIA_128_GCM_SHA256
+    ref: '[RFC6209], [RFC10015]'
+    openssl:
+    - RSA-PSK-ARIA128-GCM-SHA256
+  '0xC06F':
+    iana: TLS_RSA_PSK_WITH_ARIA_256_GCM_SHA384
+    ref: '[RFC6209], [RFC10015]'
+    openssl:
+    - RSA-PSK-ARIA256-GCM-SHA384
+  '0xC070':
+    iana: TLS_ECDHE_PSK_WITH_ARIA_128_CBC_SHA256
+    ref: '[RFC6209]'
+    openssl: []
+  '0xC071':
+    iana: TLS_ECDHE_PSK_WITH_ARIA_256_CBC_SHA384
+    ref: '[RFC6209]'
+    openssl: []
+  '0xC072':
+    iana: TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC6367]'
+    openssl:
+    - ECDHE-ECDSA-CAMELLIA128-SHA256
+  '0xC073':
+    iana: TLS_ECDHE_ECDSA_WITH_CAMELLIA_256_CBC_SHA384
+    ref: '[RFC6367]'
+    openssl:
+    - ECDHE-ECDSA-CAMELLIA256-SHA384
+  '0xC074':
+    iana: TLS_ECDH_ECDSA_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC075':
+    iana: TLS_ECDH_ECDSA_WITH_CAMELLIA_256_CBC_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC076':
+    iana: TLS_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC6367]'
+    openssl:
+    - ECDHE-RSA-CAMELLIA128-SHA256
+  '0xC077':
+    iana: TLS_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384
+    ref: '[RFC6367]'
+    openssl:
+    - ECDHE-RSA-CAMELLIA256-SHA384
+  '0xC078':
+    iana: TLS_ECDH_RSA_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC079':
+    iana: TLS_ECDH_RSA_WITH_CAMELLIA_256_CBC_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC07A':
+    iana: TLS_RSA_WITH_CAMELLIA_128_GCM_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC07B':
+    iana: TLS_RSA_WITH_CAMELLIA_256_GCM_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC07C':
+    iana: TLS_DHE_RSA_WITH_CAMELLIA_128_GCM_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC07D':
+    iana: TLS_DHE_RSA_WITH_CAMELLIA_256_GCM_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC07E':
+    iana: TLS_DH_RSA_WITH_CAMELLIA_128_GCM_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC07F':
+    iana: TLS_DH_RSA_WITH_CAMELLIA_256_GCM_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC080':
+    iana: TLS_DHE_DSS_WITH_CAMELLIA_128_GCM_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC081':
+    iana: TLS_DHE_DSS_WITH_CAMELLIA_256_GCM_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC082':
+    iana: TLS_DH_DSS_WITH_CAMELLIA_128_GCM_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC083':
+    iana: TLS_DH_DSS_WITH_CAMELLIA_256_GCM_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC084':
+    iana: TLS_DH_anon_WITH_CAMELLIA_128_GCM_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC085':
+    iana: TLS_DH_anon_WITH_CAMELLIA_256_GCM_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC086':
+    iana: TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256
+    ref: '[RFC6367]'
+    openssl: []
+  '0xC087':
+    iana: TLS_ECDHE_ECDSA_WITH_CAMELLIA_256_GCM_SHA384
+    ref: '[RFC6367]'
+    openssl: []
+  '0xC088':
+    iana: TLS_ECDH_ECDSA_WITH_CAMELLIA_128_GCM_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC089':
+    iana: TLS_ECDH_ECDSA_WITH_CAMELLIA_256_GCM_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC08A':
+    iana: TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256
+    ref: '[RFC6367]'
+    openssl: []
+  '0xC08B':
+    iana: TLS_ECDHE_RSA_WITH_CAMELLIA_256_GCM_SHA384
+    ref: '[RFC6367]'
+    openssl: []
+  '0xC08C':
+    iana: TLS_ECDH_RSA_WITH_CAMELLIA_128_GCM_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC08D':
+    iana: TLS_ECDH_RSA_WITH_CAMELLIA_256_GCM_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC08E':
+    iana: TLS_PSK_WITH_CAMELLIA_128_GCM_SHA256
+    ref: '[RFC6367]'
+    openssl: []
+  '0xC08F':
+    iana: TLS_PSK_WITH_CAMELLIA_256_GCM_SHA384
+    ref: '[RFC6367]'
+    openssl: []
+  '0xC090':
+    iana: TLS_DHE_PSK_WITH_CAMELLIA_128_GCM_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC091':
+    iana: TLS_DHE_PSK_WITH_CAMELLIA_256_GCM_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC092':
+    iana: TLS_RSA_PSK_WITH_CAMELLIA_128_GCM_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC093':
+    iana: TLS_RSA_PSK_WITH_CAMELLIA_256_GCM_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl: []
+  '0xC094':
+    iana: TLS_PSK_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC6367]'
+    openssl:
+    - PSK-CAMELLIA128-SHA256
+  '0xC095':
+    iana: TLS_PSK_WITH_CAMELLIA_256_CBC_SHA384
+    ref: '[RFC6367]'
+    openssl:
+    - PSK-CAMELLIA256-SHA384
+  '0xC096':
+    iana: TLS_DHE_PSK_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl:
+    - DHE-PSK-CAMELLIA128-SHA256
+  '0xC097':
+    iana: TLS_DHE_PSK_WITH_CAMELLIA_256_CBC_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl:
+    - DHE-PSK-CAMELLIA256-SHA384
+  '0xC098':
+    iana: TLS_RSA_PSK_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC6367], [RFC10015]'
+    openssl:
+    - RSA-PSK-CAMELLIA128-SHA256
+  '0xC099':
+    iana: TLS_RSA_PSK_WITH_CAMELLIA_256_CBC_SHA384
+    ref: '[RFC6367], [RFC10015]'
+    openssl:
+    - RSA-PSK-CAMELLIA256-SHA384
+  '0xC09A':
+    iana: TLS_ECDHE_PSK_WITH_CAMELLIA_128_CBC_SHA256
+    ref: '[RFC6367]'
+    openssl:
+    - ECDHE-PSK-CAMELLIA128-SHA256
+  '0xC09B':
+    iana: TLS_ECDHE_PSK_WITH_CAMELLIA_256_CBC_SHA384
+    ref: '[RFC6367]'
+    openssl:
+    - ECDHE-PSK-CAMELLIA256-SHA384
+  '0xC09C':
+    iana: TLS_RSA_WITH_AES_128_CCM
+    ref: '[RFC6655], [RFC10015]'
+    openssl:
+    - AES128-CCM
+  '0xC09D':
+    iana: TLS_RSA_WITH_AES_256_CCM
+    ref: '[RFC6655], [RFC10015]'
+    openssl:
+    - AES256-CCM
+  '0xC09E':
+    iana: TLS_DHE_RSA_WITH_AES_128_CCM
+    ref: '[RFC6655], [RFC10015]'
+    openssl:
+    - DHE-RSA-AES128-CCM
+  '0xC09F':
+    iana: TLS_DHE_RSA_WITH_AES_256_CCM
+    ref: '[RFC6655], [RFC10015]'
+    openssl:
+    - DHE-RSA-AES256-CCM
+  '0xC0A0':
+    iana: TLS_RSA_WITH_AES_128_CCM_8
+    ref: '[RFC6655], [RFC10015]'
+    openssl:
+    - AES128-CCM8
+  '0xC0A1':
+    iana: TLS_RSA_WITH_AES_256_CCM_8
+    ref: '[RFC6655], [RFC10015]'
+    openssl:
+    - AES256-CCM8
+  '0xC0A2':
+    iana: TLS_DHE_RSA_WITH_AES_128_CCM_8
+    ref: '[RFC6655], [RFC10015]'
+    openssl:
+    - DHE-RSA-AES128-CCM8
+  '0xC0A3':
+    iana: TLS_DHE_RSA_WITH_AES_256_CCM_8
+    ref: '[RFC6655], [RFC10015]'
+    openssl:
+    - DHE-RSA-AES256-CCM8
+  '0xC0A4':
+    iana: TLS_PSK_WITH_AES_128_CCM
+    ref: '[RFC6655]'
+    openssl:
+    - PSK-AES128-CCM
+  '0xC0A5':
+    iana: TLS_PSK_WITH_AES_256_CCM
+    ref: '[RFC6655]'
+    openssl:
+    - PSK-AES256-CCM
+  '0xC0A6':
+    iana: TLS_DHE_PSK_WITH_AES_128_CCM
+    ref: '[RFC6655], [RFC10015]'
+    openssl:
+    - DHE-PSK-AES128-CCM
+  '0xC0A7':
+    iana: TLS_DHE_PSK_WITH_AES_256_CCM
+    ref: '[RFC6655], [RFC10015]'
+    openssl:
+    - DHE-PSK-AES256-CCM
+  '0xC0A8':
+    iana: TLS_PSK_WITH_AES_128_CCM_8
+    ref: '[RFC6655]'
+    openssl:
+    - PSK-AES128-CCM8
+  '0xC0A9':
+    iana: TLS_PSK_WITH_AES_256_CCM_8
+    ref: '[RFC6655]'
+    openssl:
+    - PSK-AES256-CCM8
+  '0xC0AA':
+    iana: TLS_PSK_DHE_WITH_AES_128_CCM_8
+    ref: '[RFC6655], [RFC10015]'
+    openssl:
+    - DHE-PSK-AES128-CCM8
+  '0xC0AB':
+    iana: TLS_PSK_DHE_WITH_AES_256_CCM_8
+    ref: '[RFC6655], [RFC10015]'
+    openssl:
+    - DHE-PSK-AES256-CCM8
+  '0xC0AC':
+    iana: TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+    ref: '[RFC7251]'
+    openssl:
+    - ECDHE-ECDSA-AES128-CCM
+  '0xC0AD':
+    iana: TLS_ECDHE_ECDSA_WITH_AES_256_CCM
+    ref: '[RFC7251]'
+    openssl:
+    - ECDHE-ECDSA-AES256-CCM
+  '0xC0AE':
+    iana: TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
+    ref: '[RFC7251]'
+    openssl:
+    - ECDHE-ECDSA-AES128-CCM8
+  '0xC0AF':
+    iana: TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
+    ref: '[RFC7251]'
+    openssl:
+    - ECDHE-ECDSA-AES256-CCM8
+  '0xC0B0':
+    iana: TLS_ECCPWD_WITH_AES_128_GCM_SHA256
+    ref: '[RFC8492]'
+    openssl: []
+  '0xC0B1':
+    iana: TLS_ECCPWD_WITH_AES_256_GCM_SHA384
+    ref: '[RFC8492]'
+    openssl: []
+  '0xC0B2':
+    iana: TLS_ECCPWD_WITH_AES_128_CCM_SHA256
+    ref: '[RFC8492]'
+    openssl: []
+  '0xC0B3':
+    iana: TLS_ECCPWD_WITH_AES_256_CCM_SHA384
+    ref: '[RFC8492]'
+    openssl: []
+  '0xC0B4':
+    iana: TLS_SHA256_SHA256
+    ref: '[RFC9150], [RFC9847]'
+    openssl: []
+  '0xC0B5':
+    iana: TLS_SHA384_SHA384
+    ref: '[RFC9150], [RFC9847]'
+    openssl: []
+  '0xC100':
+    iana: TLS_GOSTR341112_256_WITH_KUZNYECHIK_CTR_OMAC
+    ref: '[RFC9189]'
+    openssl: []
+  '0xC101':
+    iana: TLS_GOSTR341112_256_WITH_MAGMA_CTR_OMAC
+    ref: '[RFC9189]'
+    openssl: []
+  '0xC102':
+    iana: TLS_GOSTR341112_256_WITH_28147_CNT_IMIT
+    ref: '[RFC9189]'
+    openssl: []
+  '0xC103':
+    iana: TLS_GOSTR341112_256_WITH_KUZNYECHIK_MGM_L
+    ref: '[RFC9367]'
+    openssl: []
+  '0xC104':
+    iana: TLS_GOSTR341112_256_WITH_MAGMA_MGM_L
+    ref: '[RFC9367]'
+    openssl: []
+  '0xC105':
+    iana: TLS_GOSTR341112_256_WITH_KUZNYECHIK_MGM_S
+    ref: '[RFC9367]'
+    openssl: []
+  '0xC106':
+    iana: TLS_GOSTR341112_256_WITH_MAGMA_MGM_S
+    ref: '[RFC9367]'
+    openssl: []
+  '0xCCA8':
+    iana: TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    ref: '[RFC7905]'
+    openssl:
+    - ECDHE-RSA-CHACHA20-POLY1305
+  '0xCCA9':
+    iana: TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+    ref: '[RFC7905]'
+    openssl:
+    - ECDHE-ECDSA-CHACHA20-POLY1305
+  '0xCCAA':
+    iana: TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    ref: '[RFC7905], [RFC10015]'
+    openssl:
+    - DHE-RSA-CHACHA20-POLY1305
+  '0xCCAB':
+    iana: TLS_PSK_WITH_CHACHA20_POLY1305_SHA256
+    ref: '[RFC7905]'
+    openssl:
+    - PSK-CHACHA20-POLY1305
+  '0xCCAC':
+    iana: TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256
+    ref: '[RFC7905]'
+    openssl:
+    - ECDHE-PSK-CHACHA20-POLY1305
+  '0xCCAD':
+    iana: TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256
+    ref: '[RFC7905], [RFC10015]'
+    openssl:
+    - DHE-PSK-CHACHA20-POLY1305
+  '0xCCAE':
+    iana: TLS_RSA_PSK_WITH_CHACHA20_POLY1305_SHA256
+    ref: '[RFC7905], [RFC10015]'
+    openssl:
+    - RSA-PSK-CHACHA20-POLY1305
+  '0xD001':
+    iana: TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256
+    ref: '[RFC8442]'
+    openssl: []
+  '0xD002':
+    iana: TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384
+    ref: '[RFC8442]'
+    openssl: []
+  '0xD003':
+    iana: TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256
+    ref: '[RFC8442]'
+    openssl: []
+  '0xD005':
+    iana: TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256
+    ref: '[RFC8442]'
+    openssl: []
+groups:
+  '0x0001':
+    iana: sect163k1
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0002':
+    iana: sect163r1
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0003':
+    iana: sect163r2
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0004':
+    iana: sect193r1
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0005':
+    iana: sect193r2
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0006':
+    iana: sect233k1
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0007':
+    iana: sect233r1
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0008':
+    iana: sect239k1
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0009':
+    iana: sect283k1
+    ref: '[RFC8422]'
+    openssl: []
+  '0x000A':
+    iana: sect283r1
+    ref: '[RFC8422]'
+    openssl: []
+  '0x000B':
+    iana: sect409k1
+    ref: '[RFC8422]'
+    openssl: []
+  '0x000C':
+    iana: sect409r1
+    ref: '[RFC8422]'
+    openssl: []
+  '0x000D':
+    iana: sect571k1
+    ref: '[RFC8422]'
+    openssl: []
+  '0x000E':
+    iana: sect571r1
+    ref: '[RFC8422]'
+    openssl: []
+  '0x000F':
+    iana: secp160k1
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0010':
+    iana: secp160r1
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0011':
+    iana: secp160r2
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0012':
+    iana: secp192k1
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0013':
+    iana: secp192r1
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0014':
+    iana: secp224k1
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0015':
+    iana: secp224r1
+    ref: '[RFC8422], [RFC9847]'
+    openssl: []
+  '0x0016':
+    iana: secp256k1
+    ref: '[RFC8422]'
+    openssl: []
+  '0x0017':
+    iana: secp256r1
+    ref: '[RFC8422]'
+    openssl:
+    - secp256r1
+    - P-256
+    - prime256v1
+    verify:
+    - openssl alias prime256v1 paired via openssl ecparam
+  '0x0018':
+    iana: secp384r1
+    ref: '[RFC8422]'
+    openssl:
+    - secp384r1
+    - P-384
+  '0x0019':
+    iana: secp521r1
+    ref: '[RFC8422]'
+    openssl:
+    - secp521r1
+    - P-521
+  '0x001A':
+    iana: brainpoolP256r1
+    ref: '[RFC7027]'
+    openssl: []
+  '0x001B':
+    iana: brainpoolP384r1
+    ref: '[RFC7027]'
+    openssl: []
+  '0x001C':
+    iana: brainpoolP512r1
+    ref: '[RFC7027]'
+    openssl: []
+  '0x001D':
+    iana: x25519
+    ref: '[RFC9846], [RFC8422]'
+    openssl:
+    - x25519
+  '0x001E':
+    iana: x448
+    ref: '[RFC9846], [RFC8422]'
+    openssl:
+    - x448
+  '0x001F':
+    iana: brainpoolP256r1tls13
+    ref: '[RFC8734]'
+    openssl:
+    - brainpoolP256r1tls13
+  '0x0020':
+    iana: brainpoolP384r1tls13
+    ref: '[RFC8734]'
+    openssl:
+    - brainpoolP384r1tls13
+  '0x0021':
+    iana: brainpoolP512r1tls13
+    ref: '[RFC8734]'
+    openssl:
+    - brainpoolP512r1tls13
+  '0x0022':
+    iana: GC256A
+    ref: '[RFC9189]'
+    openssl: []
+  '0x0023':
+    iana: GC256B
+    ref: '[RFC9189]'
+    openssl: []
+  '0x0024':
+    iana: GC256C
+    ref: '[RFC9189]'
+    openssl: []
+  '0x0025':
+    iana: GC256D
+    ref: '[RFC9189]'
+    openssl: []
+  '0x0026':
+    iana: GC512A
+    ref: '[RFC9189]'
+    openssl: []
+  '0x0027':
+    iana: GC512B
+    ref: '[RFC9189]'
+    openssl: []
+  '0x0028':
+    iana: GC512C
+    ref: '[RFC9189]'
+    openssl: []
+  '0x0029':
+    iana: curveSM2
+    ref: '[RFC8998]'
+    openssl: []
+  '0x0100':
+    iana: ffdhe2048
+    ref: '[RFC7919]'
+    openssl:
+    - ffdhe2048
+  '0x0101':
+    iana: ffdhe3072
+    ref: '[RFC7919]'
+    openssl:
+    - ffdhe3072
+  '0x0102':
+    iana: ffdhe4096
+    ref: '[RFC7919]'
+    openssl:
+    - ffdhe4096
+  '0x0103':
+    iana: ffdhe6144
+    ref: '[RFC7919]'
+    openssl:
+    - ffdhe6144
+  '0x0104':
+    iana: ffdhe8192
+    ref: '[RFC7919]'
+    openssl:
+    - ffdhe8192
+  '0x0200':
+    iana: MLKEM512
+    ref: '[RFC-ietf-tls-mlkem-10]'
+    openssl:
+    - MLKEM512
+    pqc: true
+    hybrid: false
+    draft: true
+  '0x0201':
+    iana: MLKEM768
+    ref: '[RFC-ietf-tls-mlkem-10]'
+    openssl:
+    - MLKEM768
+    pqc: true
+    hybrid: false
+    draft: true
+  '0x0202':
+    iana: MLKEM1024
+    ref: '[RFC-ietf-tls-mlkem-10]'
+    openssl:
+    - MLKEM1024
+    pqc: true
+    hybrid: false
+    draft: true
+  '0x11E9':
+    iana: SecP256r1MLKEM512
+    ref: '[draft-rosomakho-tls-ecdhe-mlkem512-00]'
+    openssl: []
+  '0x11EA':
+    iana: MLKEM512X25519
+    ref: '[draft-rosomakho-tls-ecdhe-mlkem512-00]'
+    openssl: []
+  '0x11EB':
+    iana: SecP256r1MLKEM768
+    ref: '[RFC10024]'
+    openssl:
+    - SecP256r1MLKEM768
+    pqc: true
+    hybrid: true
+    components:
+    - secp256r1
+    - MLKEM768
+  '0x11EC':
+    iana: X25519MLKEM768
+    ref: '[RFC10024]'
+    openssl:
+    - X25519MLKEM768
+    pqc: true
+    hybrid: true
+    components:
+    - x25519
+    - MLKEM768
+  '0x11ED':
+    iana: SecP384r1MLKEM1024
+    ref: '[RFC10024]'
+    openssl:
+    - SecP384r1MLKEM1024
+    pqc: true
+    hybrid: true
+    components:
+    - secp384r1
+    - MLKEM1024
+  '0x11EE':
+    iana: curveSM2MLKEM768
+    ref: '[draft-yang-tls-hybrid-sm2-mlkem-03]'
+    openssl: []
+  '0x6399':
+    iana: X25519Kyber768Draft00
+    obsolete: true
+    ref: '[draft-tls-westerbaan-xyber768d00-02], [RFC10024]'
+    openssl: []
+    pqc: true
+    hybrid: true
+    deprecated_draft: true
+  '0x639A':
+    iana: SecP256r1Kyber768Draft00
+    obsolete: true
+    ref: '[draft-kwiatkowski-tls-ecdhe-kyber-01], [RFC10024]'
+    openssl: []
+    pqc: true
+    hybrid: true
+    deprecated_draft: true
+  '0xFF01':
+    iana: arbitrary_explicit_prime_curves
+    ref: '[RFC8422]'
+    openssl: []
+  '0xFF02':
+    iana: arbitrary_explicit_char2_curves
+    ref: '[RFC8422]'
+    openssl: []
+signature_schemes:
+  '0x0201':
+    iana: rsa_pkcs1_sha1
+    ref: '[RFC9846], [RFC9155]'
+  '0x0203':
+    iana: ecdsa_sha1
+    ref: '[RFC9846], [RFC9155]'
+  '0x0401':
+    iana: rsa_pkcs1_sha256
+    ref: '[RFC9846]'
+  '0x0403':
+    iana: ecdsa_secp256r1_sha256
+    ref: '[RFC9846]'
+  '0x0420':
+    iana: rsa_pkcs1_sha256_legacy
+    ref: '[RFC9963]'
+  '0x0501':
+    iana: rsa_pkcs1_sha384
+    ref: '[RFC9846]'
+  '0x0503':
+    iana: ecdsa_secp384r1_sha384
+    ref: '[RFC9846]'
+  '0x0520':
+    iana: rsa_pkcs1_sha384_legacy
+    ref: '[RFC9963]'
+  '0x0601':
+    iana: rsa_pkcs1_sha512
+    ref: '[RFC9846]'
+  '0x0603':
+    iana: ecdsa_secp521r1_sha512
+    ref: '[RFC9846]'
+  '0x0620':
+    iana: rsa_pkcs1_sha512_legacy
+    ref: '[RFC9963]'
+  '0x0704':
+    iana: eccsi_sha256
+    ref: '[draft-wang-tls-raw-public-key-with-ibc-02]'
+  '0x0705':
+    iana: iso_ibs1
+    ref: '[draft-wang-tls-raw-public-key-with-ibc-02]'
+  '0x0706':
+    iana: iso_ibs2
+    ref: '[draft-wang-tls-raw-public-key-with-ibc-02]'
+  '0x0707':
+    iana: iso_chinese_ibs
+    ref: '[draft-wang-tls-raw-public-key-with-ibc-02]'
+  '0x0708':
+    iana: sm2sig_sm3
+    ref: '[RFC8998]'
+  '0x0709':
+    iana: gostr34102012_256a
+    ref: '[RFC9367]'
+  '0x070A':
+    iana: gostr34102012_256b
+    ref: '[RFC9367]'
+  '0x070B':
+    iana: gostr34102012_256c
+    ref: '[RFC9367]'
+  '0x070C':
+    iana: gostr34102012_256d
+    ref: '[RFC9367]'
+  '0x070D':
+    iana: gostr34102012_512a
+    ref: '[RFC9367]'
+  '0x070E':
+    iana: gostr34102012_512b
+    ref: '[RFC9367]'
+  '0x070F':
+    iana: gostr34102012_512c
+    ref: '[RFC9367]'
+  '0x0804':
+    iana: rsa_pss_rsae_sha256
+    ref: '[RFC9846]'
+  '0x0805':
+    iana: rsa_pss_rsae_sha384
+    ref: '[RFC9846]'
+  '0x0806':
+    iana: rsa_pss_rsae_sha512
+    ref: '[RFC9846]'
+  '0x0807':
+    iana: ed25519
+    ref: '[RFC9846]'
+  '0x0808':
+    iana: ed448
+    ref: '[RFC9846]'
+  '0x0809':
+    iana: rsa_pss_pss_sha256
+    ref: '[RFC9846]'
+  '0x080A':
+    iana: rsa_pss_pss_sha384
+    ref: '[RFC9846]'
+  '0x080B':
+    iana: rsa_pss_pss_sha512
+    ref: '[RFC9846]'
+  '0x081A':
+    iana: ecdsa_brainpoolP256r1tls13_sha256
+    ref: '[RFC8734]'
+  '0x081B':
+    iana: ecdsa_brainpoolP384r1tls13_sha384
+    ref: '[RFC8734]'
+  '0x081C':
+    iana: ecdsa_brainpoolP512r1tls13_sha512
+    ref: '[RFC8734]'
+  '0x0904':
+    iana: mldsa44
+    ref: '[RFC-ietf-tls-mldsa-06]'
+    pqc: true
+    verify:
+    - 'PLAN 7.4 verify: IANA reference is an IETF draft; codepoint not confirmed final'
+    draft: true
+  '0x0905':
+    iana: mldsa65
+    ref: '[RFC-ietf-tls-mldsa-06]'
+    pqc: true
+    verify:
+    - 'PLAN 7.4 verify: IANA reference is an IETF draft; codepoint not confirmed final'
+    draft: true
+  '0x0906':
+    iana: mldsa87
+    ref: '[RFC-ietf-tls-mldsa-06]'
+    pqc: true
+    verify:
+    - 'PLAN 7.4 verify: IANA reference is an IETF draft; codepoint not confirmed final'
+    draft: true
+  '0x0911':
+    iana: slhdsa_sha2_128s
+    ref: '[draft-reddy-tls-slhdsa-01]'
+  '0x0912':
+    iana: slhdsa_sha2_128f
+    ref: '[draft-reddy-tls-slhdsa-01]'
+  '0x0913':
+    iana: slhdsa_sha2_192s
+    ref: '[draft-reddy-tls-slhdsa-01]'
+  '0x0914':
+    iana: slhdsa_sha2_192f
+    ref: '[draft-reddy-tls-slhdsa-01]'
+  '0x0915':
+    iana: slhdsa_sha2_256s
+    ref: '[draft-reddy-tls-slhdsa-01]'
+  '0x0916':
+    iana: slhdsa_sha2_256f
+    ref: '[draft-reddy-tls-slhdsa-01]'
+  '0x0917':
+    iana: slhdsa_shake_128s
+    ref: '[draft-reddy-tls-slhdsa-01]'
+  '0x0918':
+    iana: slhdsa_shake_128f
+    ref: '[draft-reddy-tls-slhdsa-01]'
+  '0x0919':
+    iana: slhdsa_shake_192s
+    ref: '[draft-reddy-tls-slhdsa-01]'
+  '0x091A':
+    iana: slhdsa_shake_192f
+    ref: '[draft-reddy-tls-slhdsa-01]'
+  '0x091B':
+    iana: slhdsa_shake_256s
+    ref: '[draft-reddy-tls-slhdsa-01]'
+  '0x091C':
+    iana: slhdsa_shake_256f
+    ref: '[draft-reddy-tls-slhdsa-01]'
+versions:
+  '0x0300':
+    label: SSL 3.0
+  '0x0301':
+    label: TLS 1.0
+  '0x0302':
+    label: TLS 1.1
+  '0x0303':
+    label: TLS 1.2
+  '0x0304':
+    label: TLS 1.3
