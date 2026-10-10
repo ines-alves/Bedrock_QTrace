@@ -193,7 +193,8 @@ def test_published_adapters_and_incomplete_starter_coverage():
     assert any(raw.location.source_type == SourceType.LOADBALANCER for raw in result.findings)
     assert not result.sessions  # M2 has not yet supplied a registered capture adapter.
     assert any(error.path.endswith(".pcap") for error in result.errors)
-    assert any("acm" in (error.path or "") for error in result.errors)
+    assert sum(raw.location.source_type == SourceType.ACM for raw in result.findings) == 5
+    assert not any("acm" in (error.path or "") for error in result.errors)
     assert result.summary.counts_by_source["kms"]["CRITICAL"] > 0
 
 
@@ -223,7 +224,7 @@ def test_adapter_import_failure_is_visible(monkeypatch):
 
     monkeypatch.setattr(pipeline.importlib, "import_module", fail)
     errors = pipeline._load_adapters()
-    assert len(errors) == 3
+    assert len(errors) == len(pipeline._ADAPTER_MODULES)
     assert all("ImportError: adapter dependency absent" in error.message for error in errors)
 
 
@@ -248,3 +249,42 @@ def test_pipeline_consumes_session_findings_and_partial_errors(fake, monkeypatch
     assert result.findings == sorted(
         raws, key=lambda raw: (raw.id, pipeline._dump(raw.model_dump(mode="json")))
     )
+
+
+def test_acm_routing_certificate_joins_and_source_timestamp_hygiene():
+    from datetime import UTC, datetime
+
+    from quantumtrace.engine import classify_findings
+    from quantumtrace.kb.loader import load_kb
+    from quantumtrace.models import Tier
+
+    root = Path(__file__).resolve().parents[1]
+    result = pipeline.run([root / "cloud-posture"])
+    certs = [raw for raw in result.findings if raw.location.source_type == SourceType.ACM]
+    assert len(certs) == 5 and len({raw.location.resource_id for raw in certs}) == 5
+    assert all(raw.kind_hint == KindHint.CERTIFICATE and raw.usage == Usage.AUTHENTICATION for raw in certs)
+    assert not any("acm_certificates.json" in (error.path or "") for error in result.errors)
+    spellings = {raw.raw_name for raw in certs} | {raw.extra["signature_algorithm"] for raw in certs}
+    assert len(spellings) == 7
+    classified = classify_findings(certs, load_kb(), datetime(2030, 1, 1, tzinfo=UTC))
+    assert all(not row.node.normalized.unknown_reasons for tree in classified for row in tree.children)
+    certificates = [
+        asset
+        for asset in result.assets
+        if asset.components and any(site.source_type == SourceType.ACM for site in asset.occurrences)
+    ]
+    assert len(certificates) == 5
+    assert all(asset.max_points == 0 and asset.tier == Tier.CRITICAL for asset in certificates)
+    by_id = {asset.asset_id: asset for asset in result.assets}
+    for cert in certificates:
+        assert len(cert.component_of) == 1
+        listener = by_id[cert.component_of[0]]
+        assert listener.tier == Tier.CRITICAL and cert.asset_id in listener.components
+        assert cert.max_points == listener.max_points == 0
+    actions = {advice.action for tree in classified for advice in tree.recommendations}
+    assert "Review imported certificate renewal ownership." in actions
+    assert "Renew the expired in-use certificate." in actions
+    # Even the 2030 scan fallback uses the actual 2026 dump date when supplied.
+    assert "Plan certificate renewal within 90 days." in actions
+    assert all(raw.extra["source_timestamp"] == "2026-09-14T09:38:19Z" for raw in certs)
+    assert ScanResult.model_validate_json(result.model_dump_json()) == result

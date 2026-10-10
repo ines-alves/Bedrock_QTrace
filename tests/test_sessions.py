@@ -135,7 +135,7 @@ def test_raw_ordered_offers_override_sorted_display_evidence(kb):
     raws = [raw, finding("0x0017", negotiated=False), finding("0x001D", negotiated=False), finding()]
     expected, errors = views(kb, raws)
     assert not errors
-    assert expected[0].offered_groups == ["x25519", "X25519MLKEM768", "0x0017"]
+    assert expected[0].offered_groups == ["x25519", "X25519MLKEM768", "secp256r1"]
     for order in permutations(raws):
         assert views(kb, list(order)) == (expected, errors)
 
@@ -224,6 +224,9 @@ def test_published_network_samples(kb):
         data = json.loads(path.read_text())
         raws = [Finding.model_validate(item) for item in data]
         sessions, errors = views(kb, raws)
+        if path.name == "plaintext_http.json":
+            assert sessions == [] and errors == []
+            continue
         assert len(sessions) == 1, path.name
         assert not errors, (path.name, errors)
         assert sessions[0].source

@@ -20,6 +20,7 @@ from quantumtrace.scanners.base import Scanner, select_scanners
 
 # Owner detection modules self-register; absent deliveries are not replaced by M1 scanners.
 _ADAPTER_MODULES = (
+    "quantumtrace.scanners.cloud.acm",
     "quantumtrace.scanners.cloud.kms",
     "quantumtrace.scanners.cloud.loadbalancer",
     "quantumtrace.scanners.code.engine",

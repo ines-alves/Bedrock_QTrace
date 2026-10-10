@@ -2,7 +2,7 @@
 
 `quantumtrace.pipeline.run(inputs, probes=None, options=None) -> ScanResult` uses
 the frozen ScanOptions/ScanResult contracts. It imports the currently published
-self-registering owner adapters: `cloud.kms`, `cloud.loadbalancer`, `code.regex`.
+self-registering owner adapters: `cloud.acm`, `cloud.kms`, `cloud.loadbalancer`, `code.regex`.
 Scanners match content/extensions through their own can_handle, in scanner-name
 order; names containing `generic_json` are tried last. The first accepting handler
 runs once. Explicit scanner selection restricts handlers; unavailable selections
@@ -30,12 +30,13 @@ Scores/session IDs do not depend on wall-clock time; expiry advice can legitimat
 change when the explicit reference changes. Findings containing a source timestamp
 keep it in the serialized ScanResult. Native JSON round-trips through ScanResult.
 
-Currently no registered PCAP adapter, ACM adapter, config/manifest/keyfile/binary
+Currently no registered PCAP adapter or config/manifest/keyfile/binary
 scanner or optional probe adapter is published on main. Their files are reported
 as unsupported by run; requested probes return explicit unavailable-adapter errors
 and never trigger implicit network traffic. M2 owns the registered capture/probe
-adapter and M4 owns ACM. Published raw parser helpers work and are exercised in
-session tests, but they do not satisfy the end-to-end registered-scanner H6 gate.
+adapter. M4 ACM is now wired into the loader and verified with its five resources.
+Published raw parser helpers work and are exercised in session tests, but they do
+not satisfy the end-to-end registered-scanner H6 gate.
 Later owner modules must be included in the loader when integrated; this list
 never guesses or substitutes a detection implementation owned by another member.
 
@@ -50,8 +51,10 @@ arbitrary owner extras remain in original Findings. Frozen TLSSession has no
 certificate_state field, so consumers use retained raw findings for that detail.
 
 Names resolve in the field's TLS namespace through verified rows; unknown or
-verify-only codepoints keep canonical hex. Observed textual versions and metadata
-labels are retained; numeric version rows without sourced references remain hex.
+unverified codepoints keep canonical hex. Alias-only uncertainty does not block
+a confirmed numeric row, while the marked alias remains unresolved. Observed textual
+versions and metadata labels are retained; numeric version rows cite their supplied
+RFC sources; rows without a source still remain hex.
 Null/absent fields do not compete with actual observed values. Raw client order is
 retained for metadata offer lists, and null lists become [] only in typed views.
 Without metadata, individual offered rows reconstruct a deterministic list ordered
