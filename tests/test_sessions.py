@@ -8,8 +8,10 @@ import pytest
 
 from quantumtrace.engine import classify_findings
 from quantumtrace.engine.sessions import build_sessions
+from quantumtrace.evaluation import observations
 from quantumtrace.kb.loader import load_kb
 from quantumtrace.models import Finding, KindHint, Location, SourceType, Tier, Usage
+from quantumtrace.pipeline import run
 
 
 @pytest.fixture(scope="module")
@@ -341,3 +343,25 @@ def test_decoded_certificate_with_false_authentication_still_conflicts(kb):
     cert = finding("RSA", kind_hint=KindHint.CERTIFICATE, usage=Usage.AUTHENTICATION, key_size=2048)
     sessions, errors = views(kb, [cert, finding(), safe_cipher(), protocol(certificate_state="observed")])
     assert errors and sessions[0].verdict_tier == Tier.CRITICAL
+
+
+def test_starter_session_fields_split_kex_and_authentication():
+    """Frozen session fields carry the KEX/authentication split that displays derive (M2/M4)."""
+    result = run([Path(__file__).resolve().parents[1] / "network-capture"])
+    rows = observations(result)["session"]
+    assert len(rows) == len(result.sessions)
+    kex_tier = {"pq_hybrid": "SAFE", "pq_pure": "SAFE", "classical": "CRITICAL"}
+    for row in rows:
+        if row["pq_status"] in kex_tier:
+            assert row["tier_kex"] == kex_tier[row["pq_status"]], row["session_id"]
+        # A null certificate key means authentication was not observed: never a SAFE verdict.
+        if row["cert_key"] is None:
+            assert row["verdict_tier"] != Tier.SAFE.value, row["session_id"]
+    hybrid = [s for s in result.sessions if s.pq_status == "pq_hybrid"]
+    assert len(hybrid) == 7
+    assert {(s.version, s.negotiated_group, s.cert_key, s.verdict_tier) for s in hybrid} == {
+        ("TLS 1.3", "X25519MLKEM768", None, Tier.UNKNOWN)
+    }
+    # The UNKNOWN concerns authentication only: the hybrid KEX asset is SAFE and not HNDL-exposed.
+    (kex,) = [a for a in result.assets if a.canonical_name == "X25519MLKEM768"]
+    assert kex.tier == Tier.SAFE and not kex.hndl_exposed
