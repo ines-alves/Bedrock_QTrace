@@ -81,7 +81,9 @@ def test_certificates_and_listeners_are_consistent() -> None:
 def test_matches_sample_fixture_acm_findings() -> None:
     sample = ScanResult.model_validate_json(SAMPLE.read_text())
     expected = {f.id: f for f in sample.findings if f.detector == "cloud.acm"}
-    assert {f.id: f for f in _certs()} == expected
+    # The pipeline scans each input directory as the scan root, so Location.file is relative to cloud-posture/.
+    scanned = _scan(ACM, ACM.parent)
+    assert {f.id: f for f in scanned if isinstance(f, Finding)} == expected
 
 
 def test_malformed_certificates_are_scan_errors(tmp_path: Path) -> None:

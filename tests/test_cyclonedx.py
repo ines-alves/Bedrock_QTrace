@@ -124,6 +124,7 @@ def test_key_material_without_classified_algorithm_has_no_reference() -> None:
 
 def test_tier_and_test_code_only_are_properties() -> None:
     result = _sample()
+    result.assets[0].in_test_code_only = True  # the kit has no test-path code, so mark one asset
     refs = _by_ref(build_cbom(result))
     assert {_prop(refs[a.asset_id], "tier") for a in result.assets} <= {
         "CRITICAL",
@@ -132,7 +133,7 @@ def test_tier_and_test_code_only_are_properties() -> None:
         "UNKNOWN",
     }
     test_only = {a.asset_id for a in result.assets if a.in_test_code_only}
-    assert test_only
+    assert test_only == {result.assets[0].asset_id}
     for asset in result.assets:
         expected = "true" if asset.asset_id in test_only else None
         assert _prop(refs[asset.asset_id], "testCodeOnly") == expected
@@ -151,22 +152,34 @@ def test_unknown_tier_never_becomes_quantum_level_zero() -> None:
 
 
 def test_session_protocol_asset_carries_version_and_byte_split_suite_identifiers() -> None:
-    cbom = build_cbom(_sample())
-    proto = _by_ref(cbom)["tls13-hybrid-session"]["cryptoProperties"]["protocolProperties"]
+    result = _sample()
+    refs = _by_ref(build_cbom(result))
+    suites = [
+        (refs[a.asset_id]["cryptoProperties"]["protocolProperties"], suite)
+        for a in result.assets
+        if a.asset_type == "protocol"
+        for suite in refs[a.asset_id]["cryptoProperties"]["protocolProperties"].get("cipherSuites", [])
+    ]
+    proto, suite = next((p, s) for p, s in suites if s["name"] == "TLS_AES_256_GCM_SHA384")
     assert proto["type"] == "tls" and proto["version"] == "TLS 1.3"
-    suite = proto["cipherSuites"][0]
-    assert suite["name"] == "TLS_AES_256_GCM_SHA384" and suite["identifiers"] == ["0x13", "0x02"]
-    assert suite["algorithms"] == ["x25519mlkem768", "aes-256-gcm", "sha-384"]
-    policy = _by_ref(cbom)["policy-elbsecuritypolicy-2016-08"]["cryptoProperties"]["protocolProperties"]
-    assert "cipherSuites" not in policy
+    assert suite["identifiers"] == ["0x13", "0x02"] and set(suite["algorithms"]) <= set(refs)
+    policies = [
+        a
+        for a in result.assets
+        if a.asset_type == "protocol" and any(o.source_type == "loadbalancer" for o in a.occurrences)
+    ]
+    assert policies
+    assert all(
+        "cipherSuites" not in refs[a.asset_id]["cryptoProperties"]["protocolProperties"] for a in policies
+    )
 
 
 def test_components_become_dependencies() -> None:
     result = _sample()
     cbom = build_cbom(result)
     deps = {d["ref"]: d["dependsOn"] for d in cbom["dependencies"]}
-    assert deps["tls13-hybrid-session"] == ["x25519mlkem768", "aes-256-gcm", "sha-384"]
     assert set(deps) == {a.asset_id for a in result.assets if a.components}
+    assert all(deps[a.asset_id] == a.components for a in result.assets if a.components)
 
 
 def test_library_component_has_purl_and_evidence() -> None:
@@ -205,9 +218,15 @@ def test_library_component_for_pinned_unpinned_and_range_declarations(
 def test_certificate_dates_and_signature_algorithm_come_from_the_finding() -> None:
     result = _sample()
     cbom = build_cbom(result)
-    cert = _by_ref(cbom)["cert-legacy-tcp-internal-example-com"]
+    refs = _by_ref(cbom)
+    cert = next(
+        refs[a.asset_id]
+        for a in result.assets
+        if a.asset_type == "certificate"
+        and refs[a.asset_id]["cryptoProperties"]["certificateProperties"]["subjectName"]
+        == "legacy-tcp.internal.example.com"
+    )
     props = cert["cryptoProperties"]["certificateProperties"]
-    assert props["subjectName"] == "legacy-tcp.internal.example.com"
     assert props["notValidAfter"] == "2026-08-01T23:59:59Z"
     assert _prop(cert, "signatureAlgorithm") == "SHA1WITHRSA"
     assert "signatureAlgorithmRef" not in props

@@ -41,8 +41,7 @@ def _stub_pipeline(monkeypatch: pytest.MonkeyPatch, sample: ScanResult) -> list[
 
 
 def test_result_serves_sample_when_no_report(sample: ScanResult):
-    r = result()
-    assert len(r.assets) == 39 and len(r.sessions) == 7
+    assert result() == sample
 
 
 def test_openapi_exposes_scan_result():
