@@ -22,7 +22,7 @@ dependencies = [
 
 [project.optional-dependencies]
 probe = ["sslyze>=6"]
-dev = ["pytest>=8", "pytest-cov", "ruff>=0.6", "mypy"]
+dev = ["pytest>=8", "pytest-cov", "ruff>=0.6", "mypy", "types-PyYAML"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
