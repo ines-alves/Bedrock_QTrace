@@ -621,3 +621,41 @@
   confidence: 0.8
   parameter_source: library_default
   iterations: {arg: 3, keyword: count, default: 1000}
+
+# ---- configured obsolete TLS and SSL versions (M3M4-09, M1M3-16) --------------------------------
+
+# A reference to the ssl module's legacy protocol constants or TLSVersion members. raw_name is one
+# spelling per version ("TLS 1.0", "TLS 1.1", "SSLv3"), the name the network scanner uses, so one asset
+# per version; the constant as written goes in extra["source_constant"]. kind_hint protocol_version:
+# the engine marks it classically broken and keeps it out of the score. Constants that disable a
+# version (ssl.OP_NO_TLSv1), PROTOCOL_TLS, PROTOCOL_TLS_CLIENT and PROTOCOL_SSLv23 emit nothing.
+# Names checked on docs.python.org/3/library/ssl.html, 2026-10-10. # verify
+- id: PY_TLS_10
+  language: python
+  pattern: '\bssl\.(?P<const>PROTOCOL_TLSv1|TLSVersion\.TLSv1)\b'
+  raw_name: TLS 1.0
+  kind_hint: protocol_version
+  usage: unknown
+  library: ssl
+  extra:
+    source_constant: 'ssl.{const}'
+
+- id: PY_TLS_11
+  language: python
+  pattern: '\bssl\.(?P<const>PROTOCOL_TLSv1_1|TLSVersion\.TLSv1_1)\b'
+  raw_name: TLS 1.1
+  kind_hint: protocol_version
+  usage: unknown
+  library: ssl
+  extra:
+    source_constant: 'ssl.{const}'
+
+- id: PY_SSL_30
+  language: python
+  pattern: '\bssl\.(?P<const>PROTOCOL_SSLv3|TLSVersion\.SSLv3)\b'
+  raw_name: SSLv3
+  kind_hint: protocol_version
+  usage: unknown
+  library: ssl
+  extra:
+    source_constant: 'ssl.{const}'

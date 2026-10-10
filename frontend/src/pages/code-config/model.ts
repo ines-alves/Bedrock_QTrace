@@ -60,6 +60,18 @@ function topRecommendation(asset?: Asset): Recommendation | undefined {
   return recs.reduce<Recommendation | undefined>((best, r) => (!best || r.priority < best.priority ? r : best), undefined)
 }
 
+// One finding can belong to several assets (a Java transform or signature composite is an algorithm
+// asset, its component assets and a protocol container). The page shows one row per finding: the worst
+// tier first, then the primitive before its container, then the asset id so the choice is stable.
+function primaryAsset(assets: Asset[]): Asset {
+  return [...assets].sort(
+    (a, b) =>
+      TIER_ORDER[a.tier] - TIER_ORDER[b.tier] ||
+      Number(a.asset_type === 'protocol') - Number(b.asset_type === 'protocol') ||
+      a.asset_id.localeCompare(b.asset_id),
+  )[0]
+}
+
 export function buildRows(data: ScanResult): Row[] {
   const assetsByFinding = new Map<string, Asset[]>()
   for (const asset of data.assets) {
@@ -84,17 +96,16 @@ export function buildRows(data: ScanResult): Row[] {
       rows.push({ key: f.id, kind, finding: f, tier: 'UNKNOWN', flags })
       continue
     }
-    for (const asset of assets) {
-      rows.push({
-        key: `${f.id}:${asset.asset_id}`,
-        kind,
-        finding: f,
-        asset,
-        tier: asset.tier,
-        recommendation: topRecommendation(asset),
-        flags,
-      })
-    }
+    const asset = primaryAsset(assets)
+    rows.push({
+      key: `${f.id}:${asset.asset_id}`,
+      kind,
+      finding: f,
+      asset,
+      tier: asset.tier,
+      recommendation: topRecommendation(asset),
+      flags,
+    })
   }
   return rows
 }
@@ -154,9 +165,8 @@ export type Summary = {
   byTier: Record<Tier, number>
 }
 
-// Counts distinct finding ids so a finding shown under two assets is not counted twice.
+// Each finding is one row (see buildRows), so every count is by finding.
 export function summarize(rows: Row[]): Summary {
-  const seen = new Set<string>()
   const files = new Set<string>()
   const s: Summary = {
     files: 0,
@@ -166,28 +176,13 @@ export function summarize(rows: Row[]): Summary {
     testCode: 0,
     byTier: { CRITICAL: 0, MEDIUM: 0, UNKNOWN: 0, SAFE: 0 },
   }
-  const tierSeen = new Map<string, Tier>()
   for (const r of rows) {
     files.add(r.finding.location.file ?? r.finding.location.resource_id ?? '')
-    if (seen.has(r.finding.id)) {
-      // Second asset of the same finding: only the worst tier counts.
-      const prev = tierSeen.get(r.finding.id)
-      if (r.tier && prev && TIER_ORDER[r.tier] < TIER_ORDER[prev]) {
-        s.byTier[prev] -= 1
-        s.byTier[r.tier] += 1
-        tierSeen.set(r.finding.id, r.tier)
-      }
-      continue
-    }
-    seen.add(r.finding.id)
     s.findings += 1
     if (r.finding.in_test_code) s.testCode += 1
     if (r.kind === 'warning') s.warnings += 1
     else if (r.kind === 'library') s.libraries += 1
-    else if (r.tier) {
-      s.byTier[r.tier] += 1
-      tierSeen.set(r.finding.id, r.tier)
-    }
+    else if (r.tier) s.byTier[r.tier] += 1
   }
   s.files = files.size
   return s

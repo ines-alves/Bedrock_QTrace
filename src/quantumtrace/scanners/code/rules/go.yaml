@@ -408,6 +408,95 @@
     hygiene_only: true
     hygiene_flags: [insecure_rng]
 
+# ---- DES, 3DES and RC4 (M3M4-10) ----------------------------------------------------------------
+
+# crypto/des and crypto/rc4 constructors. The import is required so a local variable named des or rc4
+# is not read as the package. As seen, as in Java and PyCryptodome: DES, TripleDES, RC4. No size: the
+# key length is not evidence of the cipher's strength here. No import-only rule: the call is the evidence.
+# Names checked on pkg.go.dev/crypto/des and crypto/rc4, 2026-10-10. # verify
+- id: GO_DES
+  language: go
+  pattern: '\bdes\.NewCipher\('
+  requires: ['"crypto/des"']
+  raw_name: DES
+  kind_hint: algorithm
+  usage: encryption
+  library: crypto/des
+
+- id: GO_TRIPLE_DES
+  language: go
+  pattern: '\bdes\.NewTripleDESCipher\('
+  requires: ['"crypto/des"']
+  raw_name: TripleDES
+  kind_hint: algorithm
+  usage: encryption
+  library: crypto/des
+
+- id: GO_RC4
+  language: go
+  pattern: '\brc4\.NewCipher\('
+  requires: ['"crypto/rc4"']
+  raw_name: RC4
+  kind_hint: algorithm
+  usage: encryption
+  library: crypto/rc4
+
+# ---- configured obsolete TLS and SSL versions (M3M4-09, M1M3-16) --------------------------------
+
+# tls.Config MinVersion or MaxVersion set to tls.VersionTLS10, tls.VersionTLS11 or tls.VersionSSL30,
+# in a composite literal (MinVersion: ...) or an assignment (cfg.MinVersion = ...). A bare reference
+# (case tls.VersionTLS10: in a version-to-string helper, a comparison) is not a setting and emits
+# nothing. One raw_name spelling per version; the constant goes in extra["source_constant"].
+# Names checked on pkg.go.dev/crypto/tls, 2026-10-10. # verify
+- id: GO_TLS_10
+  language: go
+  pattern: '\b(?:MinVersion|MaxVersion)\s*(?::|=(?!=))\s*tls\.(?P<const>VersionTLS10)\b'
+  requires: ['"crypto/tls"']
+  raw_name: TLS 1.0
+  kind_hint: protocol_version
+  usage: unknown
+  library: crypto/tls
+  extra:
+    source_constant: 'tls.{const}'
+
+- id: GO_TLS_11
+  language: go
+  pattern: '\b(?:MinVersion|MaxVersion)\s*(?::|=(?!=))\s*tls\.(?P<const>VersionTLS11)\b'
+  requires: ['"crypto/tls"']
+  raw_name: TLS 1.1
+  kind_hint: protocol_version
+  usage: unknown
+  library: crypto/tls
+  extra:
+    source_constant: 'tls.{const}'
+
+- id: GO_SSL_30
+  language: go
+  pattern: '\b(?:MinVersion|MaxVersion)\s*(?::|=(?!=))\s*tls\.(?P<const>VersionSSL30)\b'
+  requires: ['"crypto/tls"']
+  raw_name: SSLv3
+  kind_hint: protocol_version
+  usage: unknown
+  library: crypto/tls
+  extra:
+    source_constant: 'tls.{const}'
+
+# ---- TLS certificate verification disabled (M3M4-11) --------------------------------------------
+
+# Hygiene warning, not a primitive: tls.Config{InsecureSkipVerify: true} or cfg.InsecureSkipVerify = true.
+# Only the literal true; a variable or false emits nothing. Visible and unscored, like INSECURE-RNG.
+- id: GO_INSECURE_SKIP_VERIFY
+  language: go
+  pattern: '\bInsecureSkipVerify\s*(?::|=(?!=))\s*true\b'
+  requires: ['"crypto/tls"']
+  raw_name: TLS certificate verification disabled
+  kind_hint: policy
+  usage: unknown
+  library: crypto/tls
+  extra:
+    hygiene_only: true
+    hygiene_flags: [tls_verify_disabled]
+
 # ---- import-only findings (confidence 0.6) ------------------------------------------------------
 
 - id: GO_IMPORT_MD5

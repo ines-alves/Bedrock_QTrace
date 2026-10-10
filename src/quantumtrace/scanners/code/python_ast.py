@@ -59,6 +59,7 @@ QUALIFIERS = frozenset(
         "SHA3_384",
         "SHA3_512",
         "SHA512",
+        "TLSVersion",
         "algorithms",
         "dh",
         "dsa",
@@ -74,6 +75,7 @@ QUALIFIERS = frozenset(
         "pss",
         "random",
         "rsa",
+        "ssl",
         "x25519",
         "x448",
     }

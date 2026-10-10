@@ -386,3 +386,76 @@
   extra:
     hygiene_only: true
     hygiene_flags: [insecure_rng]
+
+# ---- configured obsolete TLS and SSL versions (M3M4-09, M1M3-16) --------------------------------
+
+# SSLContext.getInstance("TLSv1"), "TLSv1.1" and "SSLv3", literal or a file-scope String constant. One
+# raw_name spelling per version ("TLS 1.0", "TLS 1.1", "SSLv3"); the protocol string as written goes
+# in extra["source_constant"]. "TLS", "TLSv1.2", "TLSv1.3" and "SSL" (which spans several versions) emit
+# nothing. Not covered: setEnabledProtocols, jdk.tls.disabledAlgorithms and java.security files.
+# Names checked on the Java SE standard algorithm names page (SSLContext), 2026-10-10. # verify
+- id: JAVA_TLS_10
+  language: java
+  pattern: '\bSSLContext\.getInstance\(\s*"(?P<proto>TLSv1)"'
+  raw_name: TLS 1.0
+  kind_hint: protocol_version
+  usage: unknown
+  library: javax.net.ssl
+  extra:
+    source_constant: '{proto}'
+
+- id: JAVA_TLS_10_REF
+  language: java
+  pattern: '\bSSLContext\.getInstance\(\s*(?P<proto_ref>[A-Za-z_]\w*)\s*[,)]'
+  raw_name: TLS 1.0
+  kind_hint: protocol_version
+  usage: unknown
+  library: javax.net.ssl
+  values_must_match:
+    proto: 'TLSv1'
+  extra:
+    source_constant: '{proto}'
+
+- id: JAVA_TLS_11
+  language: java
+  pattern: '\bSSLContext\.getInstance\(\s*"(?P<proto>TLSv1\.1)"'
+  raw_name: TLS 1.1
+  kind_hint: protocol_version
+  usage: unknown
+  library: javax.net.ssl
+  extra:
+    source_constant: '{proto}'
+
+- id: JAVA_TLS_11_REF
+  language: java
+  pattern: '\bSSLContext\.getInstance\(\s*(?P<proto_ref>[A-Za-z_]\w*)\s*[,)]'
+  raw_name: TLS 1.1
+  kind_hint: protocol_version
+  usage: unknown
+  library: javax.net.ssl
+  values_must_match:
+    proto: 'TLSv1\.1'
+  extra:
+    source_constant: '{proto}'
+
+- id: JAVA_SSL_30
+  language: java
+  pattern: '\bSSLContext\.getInstance\(\s*"(?P<proto>SSLv3)"'
+  raw_name: SSLv3
+  kind_hint: protocol_version
+  usage: unknown
+  library: javax.net.ssl
+  extra:
+    source_constant: '{proto}'
+
+- id: JAVA_SSL_30_REF
+  language: java
+  pattern: '\bSSLContext\.getInstance\(\s*(?P<proto_ref>[A-Za-z_]\w*)\s*[,)]'
+  raw_name: SSLv3
+  kind_hint: protocol_version
+  usage: unknown
+  library: javax.net.ssl
+  values_must_match:
+    proto: 'SSLv3'
+  extra:
+    source_constant: '{proto}'
