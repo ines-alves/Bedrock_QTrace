@@ -1,23 +1,46 @@
 # M1M4 agreement
 
+Status: FINAL
+
+Final on 2026-10-10. The Final decisions table below is the agreed outcome. The Items keep the original asks so the replies stay readable. Where an ask and its reply differ, the reply wins. A reply row also wins over the Final decisions table, which is M4's summary of the replies.
+
 Between M1 (contract, engine, pipeline, CLI, native report) and M4 (cloud adapters, CBOM, API, dashboard). Rules: `README.md`.
 
-M4 accepts the frozen contract in `src/quantumtrace/models.py` and `docs/DECISIONS.md` as correct. M4 does not ask for changes to it.
+M4 accepts the frozen contract in `src/quantumtrace/models.py` and `docs/PLAN.md` section 6 as correct. M4 does not ask for changes to it. (`docs/DECISIONS.md` is local-only, so the sources below cite shared files.)
 
 ## Already decided by M1, adopted by M4 (no reply needed)
 
 | Topic | Decision | Source |
 |---|---|---|
-| Model changes | No new fields on `CryptoAsset` or `TLSSession`. | DECISIONS 2026-10-10, initial contracts |
+| Model changes | No new fields on `CryptoAsset` or `TLSSession`. | `models.py`, `docs/PLAN.md` section 6 |
 | Cloud facts | M4 emits facts in `Finding.extra` using the frozen keys: `origin`, `state`, `public_exposure`, `source_timestamp`, `hygiene_only`, `hygiene_flags`. M4 does not interpret them. | `docs/PLAN.md` section 6 |
 | Findings retained | The engine keeps every original `Finding`, including extra keys. M4 reads cloud details from `ScanResult.findings` through each asset's `finding_ids`. | `docs/PLAN.md` section 6 |
-| Expiry | Engine computes expiry from `source_timestamp` (the dump's `GeneratedAt`), otherwise scan start. M4 emits `source_timestamp` and does not compute expiry. | DECISIONS, expiry decision |
+| Expiry | Engine computes expiry from `source_timestamp` (the dump's `GeneratedAt`), otherwise scan start. M4 emits `source_timestamp` and does not compute expiry. | `docs/PLAN.md` section 6 (`source_timestamp`) |
 | Scan options | `ScanOptions` has only `exclude_dirs` and `scanner_names`. Default excludes include `out` and `agents`. | `models.py` |
 | Roadmap | `ScanResult.roadmap` is a list of `RoadmapItem(phase 0 to 3, action, asset_ids, occurrence_count)`. | `models.py` |
-| Hybrid key exchange | SAFE hybrid key exchange with unobservable authentication has overall verdict UNKNOWN. | DECISIONS, hybrid decision |
-| Score scope | Plaintext, hygiene-only warnings, libraries and derived containers are excluded from the quantum score and readiness. | DECISIONS, scoring decision |
+| Hybrid key exchange | SAFE hybrid key exchange with unobservable authentication has overall verdict UNKNOWN. | `docs/PLAN.md` sections 6 and 7.1 |
+| Score scope | Plaintext, hygiene-only warnings, libraries and derived containers are excluded from the quantum score and readiness. | `docs/PLAN.md` section 7.5 |
 | Dependencies | `pyproject.toml` already has `fastapi`, `uvicorn[standard]`, `python-multipart`, `cyclonedx-python-lib`, `jsonschema`, Python 3.12. | `pyproject.toml` |
-| Reports | Native reports stay valid `ScanResult` documents. No extra top-level blocks. | DECISIONS, contract decision |
+| Reports | Native reports stay valid `ScanResult` documents. No extra top-level blocks. | `docs/PLAN.md` section 6 |
+
+## Final decisions
+
+| ID | Final decision |
+|---|---|
+| M1M4-01 | The engine retains every listed extra key and the observed `hygiene_flags` unchanged in the original Findings. |
+| M1M4-02 | The engine derives expiry and all hygiene interpretation from raw facts, using `source_timestamp` then scan start. Derived warnings are in `CryptoAsset.rationale` and `recommendations`. M4 reads raw `hygiene_flags` from findings and derived advice from assets. HSM backing and multi-region are context, not automatically weaknesses, so the UI shows `multi_region_key` as context. |
+| M1M4-03 | The engine owns the join and tier propagation: listener `Location.resource_id` for policy components, then `extra.certificate_arns` to the certificate `Location.resource_id`. No cloud scanner classification and no `link_cloud`. A configured policy is not observed negotiated traffic. |
+| M1M4-04 | M1 adds the key-spec aliases in task 1.3 and decomposes signature composites in task 1.5. M4 keeps raw names, `usage`, `key_size` and `curve`. The cloud registry stays with M4. Factual mappings need primary-source verification. |
+| M1M4-05 | One `KEY` finding per KMS key with the stated usage. The engine derives the scored algorithm asset. M4 builds one `related-crypto-material` CBOM component per key from the retained finding, referencing the classified algorithm. No `ALGORITHM` finding and no double scoring. |
+| M1M4-06 | Two `PLAINTEXT` hygiene findings. `public-web-alb` keeps `redirects_to_https` and `redirect_only_listener`; `batch-internal-alb` forwards HTTP. Golden rows and UI distinguish the two. Both are excluded from the quantum score. |
+| M1M4-07 | Content-based `can_handle` in scanner-name order, `generic_json` last, no routing by file name. `Location.file` is relative to the scan root. KMS `resource_id` is `KeyArn`, then `KeyId`, then `AliasName` if absent. The alias is in `extra.alias`. The ask's statement that KMS keys have no ARN was wrong. |
+| M1M4-08 | The engine emits the listed CycloneDX 1.6 `primitive` and `mode` values, lowercase `mode` or None, and stable unique `asset_id` values without whitespace. Raw `Finding.mode` may be uppercase. The CBOM uses the asset values. |
+| M1M4-09 | M1 publishes `kb/scoring.yaml` in task 1.3 with `tier_weights`, `exposure`, `broken_multiplier`, `occurrence` (cap, log_divisor), `grade_bands` and `hndl_floor` (score, condition). M4 serves it read-only at `/api/scoring`, outside `ScanResult`, and returns a clear unavailable response when it is missing. |
+| M1M4-10 | Phases are migration planning phases, not regulatory deadlines: 0 this week (classical and hygiene fixes), 1 now (HNDL key exchange), 2 by 2027 (signatures and PKI), 3 by 2030 (symmetric and hash). M4 uses this fixed display table. Published legal or standards deadlines need separate verification. |
+| M1M4-11 | As asked. `build_cbom` and `validate_cbom` belong to M4. The CLI defaults to `out/`, `--format cbom` calls both, `qtrace ui` runs `uvicorn api.main:app`, `/api/result` reads `out/report.json`. A missing optional owner implementation fails explicitly. |
+| M1M4-12 | Strict validation needs the extra. `pyproject.toml` has `cyclonedx-python-lib[json-validation]>=8`. M4 owns full CBOM fixture validation. |
+| M1M4-13 | Format is `docs/GOLDEN.md` and `docs/golden.schema.json`, rows in `tests/golden/expected.yaml`. M4 owns the cloud rows: 10 key resources, 7 listener resources, 5 certificate resources, with the two HTTP listeners keeping distinct redirect flags. No guessed policy classification becomes ground truth. |
+| M1M4-14 | Communications and shared plan updates go directly to `main`. M4 code goes to `m4/<topic>` branches and reaches `main` at milestones. M1 uses the persistent `m1` branch. No force pushes. |
 
 ## Items
 
@@ -130,3 +153,13 @@ Fallback: M1 states the process M4 must follow.
 | M1M4-13 | M1 | unknown | CHANGED | Use docs/GOLDEN.md and docs/golden.schema.json: top-level expectation list, kind asset/finding/session/count. M4 owns cloud rows (10 key resources, 7 listener resources, 5 certificate resources), preserving two HTTP listeners with distinct redirect flags. Evaluator implementation remains 1.12; no guessed policy classifications should become verified ground truth. |
 | M1M4-14 | M1 | unknown | CHANGED | Push tested m4/<topic> branches. M1 integrates cumulative green work at significant milestones, not each task. Default M1 milestones: 1.8 core, 1.9/1.11/1.10 CLI/native reports, 1.12/integration evaluated starter gate. Cross-owner dependencies can use explicitly recorded tested branch commits; no direct or forced main pushes by M4. |
 | M1M4-14 | M1 | unknown | CHANGED | Latest explicit user instruction supersedes the earlier workflow reply: M1 implementation uses one persistent m1 branch, with milestone integration into main. All members publish communications and associated shared plan updates directly to main after upstream reconciliation and applicable checks. Pending implementation remains on member branches; preserve protections and never force-push. PR #6 integration was explicitly requested now. |
+| M1M4-14 | M4 | n/a | AGREED | The later M1 row applies: one persistent m1 branch for M1, communications and shared plan updates directly to main, M4 code on m4/<topic> branches, no force-pushes. The earlier M1 row is superseded. |
+| M1M4-02 | M4 | n/a | AGREED | Change accepted. M4 computes no warning. It reads raw hygiene_flags from findings and derived advice from asset rationale and recommendations. multi_region_key is shown as context. |
+| M1M4-03 | M4 | n/a | AGREED | Change accepted. M4 emits listener_arn as resource_id and certificate_arns in extra, and provides no link_cloud function. The Cloud page labels policy suites as configured, not negotiated. |
+| M1M4-05 | M4 | n/a | AGREED | Change accepted. One KEY finding per key and one related-crypto-material CBOM component per key, built by M4 from the retained finding. |
+| M1M4-06 | M4 | n/a | AGREED | Change accepted. Two PLAINTEXT hygiene findings with distinct redirect flags, in the adapters, the golden rows and the UI. |
+| M1M4-07 | M4 | n/a | AGREED | Change accepted. resource_id is KeyArn, then KeyId, then AliasName. M4's can_handle detects the three files by content. |
+| M1M4-09 | M4 | n/a | AGREED | Change accepted. /api/scoring serves the loaded scoring data read-only and returns an unavailable response when the KB is missing. |
+| M1M4-10 | M4 | n/a | AGREED | Change accepted. The Roadmap page presents the phases as planning phases and claims no regulatory deadline. |
+| M1M4-12 | M4 | n/a | AGREED | Change accepted. M4 has nothing to report. M4 writes the strict validation test for every fixture. |
+| M1M4-13 | M4 | n/a | AGREED | Change accepted. M4 writes the cloud rows in the docs/GOLDEN.md format. |

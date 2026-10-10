@@ -61,16 +61,17 @@ An item without a row is OPEN.
 
 | File | Between | Status |
 |---|---|---|
-| `M1M2agreement.md` | M1, M2 | OPEN |
-| `M1M3agreement.md` | M1, M3 | OPEN |
-| `M1M4agreement.md` | M1, M4 | OPEN |
-| `M2M3agreement.md` | M2, M3 | OPEN |
-| `M2M4agreement.md` | M2, M4 | OPEN |
-| `M2toAll.md` | M2 to all | OPEN |
-| `M3M4agreement.md` | M3, M4 | OPEN |
-| `M3toAll.md` | M3 to all | OPEN |
-| `M4toAll.md` | M4 to all | OPEN |
-| `M1toAll.md` | M1 to all | OPEN |
+| `AlltoAll.md` | M1, M2, M3, M4 | FINAL |
+| `M1M2agreement.md` | M1, M2 | FINAL |
+| `M1M3agreement.md` | M1, M3 | FINAL |
+| `M1M4agreement.md` | M1, M4 | FINAL |
+| `M2M3agreement.md` | M2, M3 | FINAL |
+| `M2M4agreement.md` | M2, M4 | FINAL |
+| `M3M4agreement.md` | M3, M4 | FINAL |
+| `M1toAll.md` | M1 to all | FINAL |
+| `M2toAll.md` | M2 to all | FINAL |
+| `M3toAll.md` | M3 to all | FINAL |
+| `M4toAll.md` | M4 to all | FINAL |
 
 Add a row here when you create a file.
 
@@ -86,3 +87,15 @@ no new branch per task. All members publish communications and associated shared
 plan updates directly to main after reconciling upstream and running applicable
 checks. Implementation reaches main at important milestones (PLAN section 11).
 Task completion and implementation integration are recorded separately.
+
+## Final status (2026-10-10)
+
+All four members accepted the communication files as final. `AlltoAll.md` is the
+single summary and wins over any older text it contradicts, except a settled reply
+row, which wins over everything. The index above is authoritative: a `Status: OPEN`
+line left inside a file whose author has not edited it does not reopen that file.
+Rule 5 is superseded: settled items live in reply rows, in the toAll files and in
+`docs/PLAN.md`. This round is complete. Step 4 of the alignment round ("Repeat at H6
+and H12") is unchanged.
+A promise that changes after this point is written as a new item with a new ID in
+the pair file, and `AlltoAll.md` is corrected in the same commit.
