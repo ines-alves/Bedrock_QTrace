@@ -319,6 +319,32 @@ def test_non_file_evidence_is_rendered():
     assert "pcap: flow 10.0.0.1:1->10.0.0.2:443 frame 17 sni a.example" in policy
 
 
+def test_label_adds_parameters_the_name_lacks():
+    assets = [
+        asset("a1", canonical_name="RSA", key_size=1024),
+        asset("a2", canonical_name="RSA-1024", key_size=1024),
+        asset("a3", canonical_name="AES", key_size=128, mode="ecb"),
+        asset("a4", canonical_name="ECDSA", curve="secp256r1"),
+    ]
+    r = result(assets=assets, summary=summary(["a1", "a2", "a3", "a4"]))
+    rows = table_rows(section(render_markdown_summary(r), "Top risks"))
+    assert [row.split(" | ")[1] for row in rows] == [
+        "RSA 1024-bit (a1)",
+        "RSA-1024 (a2)",
+        "AES 128-bit ecb (a3)",
+        "ECDSA secp256r1 (a4)",
+    ]
+
+
+def test_warning_shown_when_engine_also_made_it_an_asset():
+    """The real engine keeps hygiene findings as UNKNOWN assets; the Warnings section reads findings."""
+    f = finding("w", "random.getrandbits", extra={"hygiene_only": True, "hygiene_flags": ["insecure_rng"]})
+    a = asset("rng", tier=Tier.UNKNOWN, usage=Usage.RNG, finding_ids=["w"])
+    text = render_markdown_summary(result(findings=[f], assets=[a], summary=summary([])))
+    assert len(table_rows(section(text, "Warnings"))) == 1
+    assert "No ranked risks in this result." in text
+
+
 def test_test_code_only_asset_is_marked():
     rows = table_rows(section(render_markdown_summary(full_result()), "Top risks"))
     assert "test code only" in rows[2]

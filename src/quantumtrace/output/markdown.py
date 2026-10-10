@@ -121,7 +121,20 @@ def _recommendation(asset: CryptoAsset) -> str:
 
 
 def _asset_label(asset: CryptoAsset) -> str:
-    return f"{asset.canonical_name} ({asset.asset_id})"
+    """Name, then the parameters the name does not already carry, then the id.
+
+    The engine's canonical_name can be a bare family ("RSA"), so two assets that differ only in key size,
+    curve or mode would otherwise read the same; the id alone is an opaque hash.
+    """
+    name = asset.canonical_name.lower()
+    candidates = [
+        (str(asset.key_size), f"{asset.key_size}-bit") if asset.key_size is not None else None,
+        (asset.curve.lower(), asset.curve) if asset.curve else None,
+        (asset.mode.lower(), asset.mode) if asset.mode else None,
+        (asset.parameter_set.lower(), asset.parameter_set) if asset.parameter_set else None,
+    ]
+    params = [text for needle, text in filter(None, candidates) if needle not in name]
+    return " ".join([asset.canonical_name, *params]) + f" ({asset.asset_id})"
 
 
 # ---------------------------------------------------------------- sections
