@@ -40,6 +40,7 @@
   kind_hint: algorithm
   usage: kdf
   library: javax.crypto
+  iterations: {callee: 'new\s+PBEKeySpec', arg: 2}
 
 - id: JAVA_MESSAGE_DIGEST_REF
   language: java
@@ -68,6 +69,7 @@
   kind_hint: algorithm
   usage: kdf
   library: javax.crypto
+  iterations: {callee: 'new\s+PBEKeySpec', arg: 2}
   values_must_match:
     algo: 'PBKDF2.*'
 

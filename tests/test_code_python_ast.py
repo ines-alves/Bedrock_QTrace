@@ -187,7 +187,7 @@ def test_no_rewrite_on_kit_and_existing_fixtures() -> None:
     files += [
         p
         for p in sorted((FIXTURES / "python").glob("*.py"))
-        if p.name not in ("aliases.py", "gaps.py", "pbkdf2_hashlib.py")
+        if p.name not in ("aliases.py", "gaps.py", "pbkdf2_hashlib.py", "pbkdf2_iterations.py")
     ]
     assert len(files) >= 9
     for path in files:

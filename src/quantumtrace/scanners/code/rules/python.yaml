@@ -35,11 +35,12 @@
 - id: PY_HASHLIB_PBKDF2_HMAC
   language: python
   pattern: >-
-    \bhashlib\.pbkdf2_hmac\(\s*(?:hash_name\s*=\s*)?(?:[bB]?["'](?P<name>(?i:md5|sha1|sha224|sha256|sha384|sha512))["']|(?P<name_ref>[A-Za-z_]\w*))\s*[,)]
+    \bhashlib\.pbkdf2_hmac\((?P<call>)\s*(?:hash_name\s*=\s*)?(?:[bB]?["'](?P<name>(?i:md5|sha1|sha224|sha256|sha384|sha512))["']|(?P<name_ref>[A-Za-z_]\w*))\s*[,)]
   raw_name: 'PBKDF2-HMAC-{name}'
   kind_hint: algorithm
   usage: kdf
   library: hashlib
+  iterations: {arg: 3, keyword: iterations}
   values_must_match:
     name: '(?i)md5|sha1|sha224|sha256|sha384|sha512'
 
@@ -82,11 +83,12 @@
 - id: PY_PBKDF2
   language: python
   pattern: >-
-    \bPBKDF2HMAC\((?:[^()]|\([^()]*\))*?\balgorithm\s*=\s*hashes\.(?P<name>[A-Za-z0-9_]+)\(\)
+    \bPBKDF2HMAC\((?P<call>)(?:[^()]|\([^()]*\))*?\balgorithm\s*=\s*hashes\.(?P<name>[A-Za-z0-9_]+)\(\)
   raw_name: 'PBKDF2-HMAC-{name}'
   kind_hint: algorithm
   usage: kdf
   library: cryptography
+  iterations: {arg: 2, keyword: iterations}
 
 # ---- RSA ----------------------------------------------------------------------------------------
 
@@ -567,9 +569,10 @@
 - id: PYC_PBKDF2
   language: python
   pattern: >-
-    \bPBKDF2\((?:(?:[^()]|\([^()]*\))*?\bhmac_hash_module\s*=\s*|(?:\s*(?:[^,()=]|\([^()]*\))+,){5}\s*)(?P<name>SHA1|SHA224|SHA256|SHA384|SHA512|SHA3_224|SHA3_256|SHA3_384|SHA3_512)\b
+    \bPBKDF2\((?P<call>)(?:(?:[^()]|\([^()]*\))*?\bhmac_hash_module\s*=\s*|(?:\s*(?:[^,()=]|\([^()]*\))+,){5}\s*)(?P<name>SHA1|SHA224|SHA256|SHA384|SHA512|SHA3_224|SHA3_256|SHA3_384|SHA3_512)\b
   requires: ['\b(?:Crypto|Cryptodome)\b']
   raw_name: 'PBKDF2-HMAC-{name}'
   kind_hint: algorithm
   usage: kdf
   library: pycryptodome
+  iterations: {arg: 3, keyword: count}

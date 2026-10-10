@@ -27,6 +27,7 @@ Rule fields (YAML list of mappings):
                                                              always dropped, whatever its spelling)
   absorbed_by: [RULE_ID, ...]                                drop the hit when its match starts inside the
                                                              match of a hit of one of these rules
+  iterations: {arg, keyword, callee, loop_param}             where the PBKDF2 iteration count is: see below
   emit: false                                                record only, produce no finding
 
 Pattern groups: a group named X holds a literal; a group named X_ref holds an identifier that is
@@ -42,6 +43,17 @@ producer), the producer's result is bound to a variable once, and that variable 
 directly or as an argument of the function that contains the sink. Reassigned or conflicting bindings,
 imported keys and unused allocations never link: the size stays None with key_size_source
 "unresolved" (or "ambiguous" for conflicting sizes). A linked size has key_size_source "flow".
+
+Iterations (PBKDF2): a rule with `iterations` reports extra["iterations"] (an int) when the count is an
+int literal, a file-scope constant or Python parameter default, or the argument of the single call site
+(or of several call sites that agree) of the enclosing function when the count is one of its parameters
+(one hop). Anything else (an expression, a second hop, disagreeing call sites, no call site) emits no
+key; it is never 0. `arg` is the 0-based index among the positional arguments and `keyword` the keyword
+name, of the call at the match: the pattern holds an empty group `call` right after the opening
+parenthesis. `callee` (a regex naming the constructor, PBEKeySpec in Java) reads the call from the enclosing function
+instead, and must be unique there. `loop_param: true` (hand-rolled KDFs) takes the bound of a counting
+loop of the enclosing function when exactly one such bound is a parameter of that function. The
+confidence of the finding is not changed.
 
 Usage inference (RSA only): a generation hit (provides_key_size RSA) whose rule usage is unknown becomes
 usage signature, with extra["usage_source"] "flow" and confidence at most 0.8, only when every RSA sink
@@ -122,7 +134,9 @@ _RULE_KEYS = {
     "literal_key",
     "values_must_match",
     "absorbed_by",
+    "iterations",
 }
+_ITERATIONS_KEYS = {"arg", "keyword", "callee", "loop_param"}
 _CASE_KEYS = {"mode", "mode_source", "requires", "forbids"}
 _RESERVED_EXTRA = {
     "rule",
@@ -131,6 +145,7 @@ _RESERVED_EXTRA = {
     "resolved_from_line",
     "mode_source",
     "usage_source",
+    "iterations",
 }
 FLOW_DEPTH = 3
 
@@ -146,6 +161,14 @@ class ModeCase:
     mode_source: str | None
     requires: tuple[re.Pattern[str], ...]
     forbids: tuple[re.Pattern[str], ...]
+
+
+@dataclass(frozen=True)
+class IterationsSpec:
+    arg: int | None
+    keyword: str | None
+    callee: re.Pattern[str] | None
+    loop_param: bool
 
 
 @dataclass(frozen=True)
@@ -181,6 +204,7 @@ class Rule:
     literal_key: str | None = None
     values_must_match: tuple[tuple[str, re.Pattern[str]], ...] = ()
     absorbed_by: tuple[str, ...] = ()
+    iterations: IterationsSpec | None = None
 
     @property
     def expects_key_size(self) -> bool:
@@ -253,6 +277,27 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
     absorbed_by = raw.get("absorbed_by") or []
     if not isinstance(absorbed_by, list) or not all(isinstance(v, str) for v in absorbed_by):
         raise ValueError(f"{where}: absorbed_by must be a list of rule ids")
+    iterations = None
+    spec = raw.get("iterations")
+    if spec is not None:
+        if not isinstance(spec, dict) or set(spec) - _ITERATIONS_KEYS:
+            raise ValueError(f"{where}: iterations takes only {sorted(_ITERATIONS_KEYS)}")
+        arg, keyword, callee = spec.get("arg"), spec.get("keyword"), spec.get("callee")
+        loop_param = bool(spec.get("loop_param", False))
+        if loop_param == (arg is not None or keyword is not None):
+            raise ValueError(f"{where}: iterations needs arg and/or keyword, or loop_param")
+        if arg is not None and (not isinstance(arg, int) or isinstance(arg, bool) or arg < 0):
+            raise ValueError(f"{where}: iterations.arg must be a non-negative integer")
+        if keyword is not None and not isinstance(keyword, str):
+            raise ValueError(f"{where}: iterations.keyword must be a string")
+        if callee is None and not loop_param and "call" not in _compile(raw["pattern"], where).groupindex:
+            raise ValueError(f"{where}: iterations needs a `call` group in the pattern or a callee")
+        iterations = IterationsSpec(
+            arg=arg,
+            keyword=keyword,
+            callee=_compile(callee, where) if callee else None,
+            loop_param=loop_param,
+        )
     cases = []
     for case in raw.get("mode_cases") or []:
         bad = set(case) - _CASE_KEYS
@@ -298,6 +343,7 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         literal_key=literal_key,
         values_must_match=tuple((group, _compile(p, where)) for group, p in must_match.items()),
         absorbed_by=tuple(absorbed_by),
+        iterations=iterations,
     )
 
 
@@ -615,6 +661,8 @@ class _Hit:
     literal_inline: bool = False
     visible: frozenset[str] = frozenset()
     span: tuple[int, int] = (0, 0)
+    call_paren: int | None = None
+    iterations: int | None = None
 
 
 def _literal_length(value: str | bytes) -> int:
@@ -745,6 +793,7 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
             literal_inline=bool(groups.get("literal")),
             visible=frozenset() if rule.redact else frozenset(visible),
             span=m.span(),
+            call_paren=m.start("call") - 1 if "call" in groups else None,
         )
 
 
@@ -780,6 +829,7 @@ _GO_FUNC = re.compile(
 _NOT_METHODS = {"if", "for", "while", "switch", "catch", "return", "new", "else", "synchronized"}
 _ASSIGN = re.compile(r"^\s*(?P<lhs>[^=()]+?)\s*:?=(?!=)\s*(?P<rhs>.*)$")
 _CALLEE = re.compile(r"\s*(?:await\s+)?(?:[A-Za-z_]\w*\s*\.\s*)*(?P<fn>[A-Za-z_]\w*)\s*\(")
+_LOOP_BOUND = re.compile(r"\bfor\b[^;{}\n]*;\s*[A-Za-z_]\w*\s*<=?\s*(?P<bound>[A-Za-z_]\w*)\s*;")
 _RETURN = re.compile(r"^\s*return\b(?P<expr>.*)$")
 _RECEIVER = re.compile(r"\b([A-Za-z_]\w*)\s*\.\s*\w+\s*\(")
 _IDENTS = re.compile(r"[A-Za-z_]\w*")
@@ -846,6 +896,21 @@ def _target_names(lhs: str) -> tuple[str, ...]:
         if tokens and re.fullmatch(r"[A-Za-z_]\w*", tokens[-1]) and tokens[-1] != "_":
             names.append(tokens[-1])
     return tuple(names)
+
+
+_KEYWORD_ARG = re.compile(r"^([A-Za-z_]\w*)\s*=(?!=)\s*(.+)$", re.S)
+
+
+def _argument_for(args: list[str], name: str, position: int) -> str | None:
+    """The argument bound to parameter `name` (keyword, else the positional at `position`)."""
+    arg = None
+    for k, raw in enumerate(args):
+        keyword = _KEYWORD_ARG.match(raw)
+        if keyword and keyword.group(1) == name:
+            return keyword.group(2)
+        if not keyword and k == position:
+            arg = raw
+    return arg
 
 
 def _call_args(masked: str, open_paren: int) -> list[str]:
@@ -961,14 +1026,7 @@ class _Flow:
             return None
         found: set[_Source] = set()
         for line, args in sites:
-            arg = None
-            for k, raw in enumerate(args):
-                keyword = re.match(r"^([A-Za-z_]\w*)\s*=(?!=)\s*(.+)$", raw, re.S)
-                if keyword and keyword.group(1) == name:
-                    arg = keyword.group(2)
-                    break
-                if not keyword and k == position:
-                    arg = raw
+            arg = _argument_for(args, name, position)
             base = _BASE_IDENT.fullmatch(arg.strip()) if arg else None
             if not base:
                 return None
@@ -1055,6 +1113,75 @@ class _Flow:
                     confidence = min(hit.confidence, HEURISTIC_CONFIDENCE_CAP) if hopped else hit.confidence
                     kept.append(replace(hit, line=line, confidence=confidence))
         return kept
+
+    def _int_of(self, expr: str, line: int) -> int | None:
+        """An int literal, or an identifier that resolves to an int constant or parameter default."""
+        expr = expr.strip()
+        if _INT.fullmatch(expr):
+            return _parse_int(expr)
+        if _IDENT.fullmatch(expr):
+            resolved = self.consts.resolve_full(expr, line)
+            if resolved is not None and isinstance(resolved[0], int):
+                return resolved[0]
+        return None
+
+    def _count_expression(self, hit: _Hit, spec: IterationsSpec, scope: int | None) -> str | None:
+        """The source text of the iteration count argument, or None."""
+        if spec.loop_param:
+            if scope is None:
+                return None
+            func = self.funcs[scope]
+            body = "\n".join(self.lines[func.first - 1 : func.last])
+            bounds = {m.group("bound") for m in _LOOP_BOUND.finditer(body) if m.group("bound") in func.params}
+            return next(iter(bounds)) if len(bounds) == 1 else None
+        if spec.callee is None:
+            if hit.call_paren is None:
+                return None
+            sites = [_call_args(self.masked, hit.call_paren)]
+        else:
+            sites = []
+            for m in re.finditer(rf"(?:{spec.callee.pattern})\s*\(", self.masked):
+                line = self.masked.count("\n", 0, m.start()) + 1
+                if scope is None or self.funcs[scope].first <= line <= self.funcs[scope].last:
+                    sites.append(_call_args(self.masked, m.end() - 1))
+        counts = set()
+        for args in sites:
+            found = None
+            if spec.keyword is not None:
+                for raw in args:
+                    keyword = _KEYWORD_ARG.match(raw)
+                    if keyword and keyword.group(1) == spec.keyword:
+                        found = keyword.group(2)
+            if found is None and spec.arg is not None:
+                positional = [a for a in args if not _KEYWORD_ARG.match(a)]
+                if spec.arg < len(positional):
+                    found = positional[spec.arg]
+            if found is None:
+                return None
+            counts.add(found.strip())
+        return counts.pop() if len(counts) == 1 else None
+
+    def apply_iterations(self) -> None:
+        """Set the iteration count on PBKDF2 hits: literal, constant, or one call-site hop."""
+        for hit in self.hits:
+            spec = hit.rule.iterations
+            if spec is None:
+                continue
+            scope = self.scope_of(hit.line)
+            expr = self._count_expression(hit, spec, scope)
+            if expr is None:
+                continue
+            value = self._int_of(expr, hit.line)
+            if value is None and scope is not None and expr in self.funcs[scope].params:
+                func = self.funcs[scope]
+                position = func.params.index(expr)
+                values: set[int | None] = set()
+                for line, args in self._call_sites(func, scope):
+                    arg = _argument_for(args, expr, position)
+                    values.add(self._int_of(arg, line) if arg is not None else None)
+                if len(values) == 1:
+                    value = values.pop()
+            hit.iterations = value
 
     def apply_modes(self) -> None:
         for hit in self.hits:
@@ -1144,13 +1271,17 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
         hits.extend(_match_hits(rule, masked, lines, consts))
     hits = _drop_absorbed(_conditions_hold(hits, masked, language))
     if any(
-        h.rule.mode_cases or h.rule.literal_key or (h.rule.inherit_key_size and h.key_size is None)
+        h.rule.mode_cases
+        or h.rule.literal_key
+        or h.rule.iterations
+        or (h.rule.inherit_key_size and h.key_size is None)
         for h in hits
     ):
         flow = _Flow(masked, language, hits, consts)
         flow.apply()
         flow.apply_usage()
         flow.apply_modes()
+        flow.apply_iterations()
         hits = flow.apply_literal_keys(language)
 
     for hit in hits:
@@ -1179,6 +1310,8 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
             extra["usage_source"] = hit.usage_source
         if hit.resolved_from_line is not None:
             extra["resolved_from_line"] = hit.resolved_from_line
+        if hit.iterations is not None:
+            extra["iterations"] = hit.iterations
         if hit.key_size_source:
             extra["key_size_source"] = hit.key_size_source
         if hit.unresolved:

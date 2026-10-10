@@ -126,6 +126,7 @@
   library: crypto/hmac
   scope: function
   confidence: 0.8
+  iterations: {loop_param: true}
   requires:
     - '\b(?P<arr>[A-Za-z_]\w*)\[(?P<idx>[A-Za-z_]\w*)\]\s*(?:\^=|=\s*(?P=arr)\[(?P=idx)\]\s*\^)'
     - '(?s)\b(?P<u>[A-Za-z_]\w*)\s*:?=\s*[A-Za-z_]\w*\.Sum\(.*?\.Write\(\s*(?P=u)\s*\)'
@@ -142,6 +143,7 @@
   library: crypto/hmac
   scope: function
   confidence: 0.8
+  iterations: {loop_param: true}
   requires:
     - '\b(?P<arr>[A-Za-z_]\w*)\[(?P<idx>[A-Za-z_]\w*)\]\s*(?:\^=|=\s*(?P=arr)\[(?P=idx)\]\s*\^)'
     - '(?s)\b(?P<u>[A-Za-z_]\w*)\s*:?=\s*[A-Za-z_]\w*\.Sum\(.*?\.Write\(\s*(?P=u)\s*\)'
@@ -158,6 +160,7 @@
   library: crypto/hmac
   scope: function
   confidence: 0.8
+  iterations: {loop_param: true}
   requires:
     - '\b(?P<arr>[A-Za-z_]\w*)\[(?P<idx>[A-Za-z_]\w*)\]\s*(?:\^=|=\s*(?P=arr)\[(?P=idx)\]\s*\^)'
     - '(?s)\b(?P<u>[A-Za-z_]\w*)\s*:?=\s*[A-Za-z_]\w*\.Sum\(.*?\.Write\(\s*(?P=u)\s*\)'
@@ -168,20 +171,22 @@
 # The library call: golang.org/x/crypto/pbkdf2 (or crypto/pbkdf2). The hash is the fifth argument.
 - id: GO_PBKDF2_LIBRARY
   language: go
-  pattern: '\bpbkdf2\.Key\((?:[^(),]|\([^()]*\))+,(?:[^(),]|\([^()]*\))+,[^,]+,[^,]+,\s*(?P<name>md5|sha1|sha256|sha512)\.New\b'
+  pattern: '\bpbkdf2\.Key\((?P<call>)(?:[^(),]|\([^()]*\))+,(?:[^(),]|\([^()]*\))+,[^,]+,[^,]+,\s*(?P<name>md5|sha1|sha256|sha512)\.New\b'
   raw_name: 'PBKDF2-HMAC-{name}'
   kind_hint: algorithm
   usage: kdf
   library: pbkdf2
+  iterations: {arg: 2}
 
 # crypto/pbkdf2 (Go 1.24) takes the hash first: pbkdf2.Key(sha256.New, password, salt, iter, keyLen).
 - id: GO_PBKDF2_STDLIB
   language: go
-  pattern: '\bpbkdf2\.Key\(\s*(?P<name>md5|sha1|sha256|sha512)\.New\b'
+  pattern: '\bpbkdf2\.Key\((?P<call>)\s*(?P<name>md5|sha1|sha256|sha512)\.New\b'
   raw_name: 'PBKDF2-HMAC-{name}'
   kind_hint: algorithm
   usage: kdf
   library: crypto/pbkdf2
+  iterations: {arg: 3}
 
 # ---- RSA ----------------------------------------------------------------------------------------
 
