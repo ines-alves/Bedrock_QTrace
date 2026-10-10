@@ -37,6 +37,7 @@ def _http_finding(flow: Flow, file: str) -> Finding | ScanError:
         protocol="http",
         negotiated=None,  # nothing is negotiated in the clear
         detector=DETECTOR_HTTP,
+        confidence=1.0,  # the request line was observed, not inferred from a port
         location=location,
         session_id=None,  # never a session (M2M4-03)
         extra={
