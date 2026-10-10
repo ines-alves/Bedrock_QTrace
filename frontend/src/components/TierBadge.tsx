@@ -1,0 +1,15 @@
+import type { components } from '../api/schema'
+
+type Tier = components['schemas']['Tier']
+
+// Brand palette has no red/amber, so tiers differ by fill and outline, not hue.
+const style: Record<Tier, string> = {
+  CRITICAL: 'bg-paper text-ink',
+  MEDIUM: 'border border-steel text-steel',
+  SAFE: 'bg-jade text-ink',
+  UNKNOWN: 'border border-dashed border-paper/40 text-paper/60',
+}
+
+export default function TierBadge({ tier }: { tier: Tier }) {
+  return <span className={`px-2 py-0.5 text-[10px] uppercase tracking-widest ${style[tier]}`}>{tier}</span>
+}
