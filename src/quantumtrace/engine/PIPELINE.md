@@ -45,7 +45,7 @@ Config/keyfile/binary scanners and the optional probe adapter remain unavailable
 Their files or requested probes produce explicit coverage errors; scans never
 trigger implicit network traffic. M4 ACM is loaded and its five resources verified.
 Real registered capture routing and M4 CBOM builder/strict validator are verified;
-full H6 still waits for the CLI/API integration and owner checks requiring tshark.
+full H6 still waits for the CLI milestone and owner checks requiring tshark.
 M3 manifests are routed through the registered adapter; their library Findings
 remain inventory and are excluded from quantum counts, readiness and scoring.
 M3 Markdown output is available through `output.markdown.write_markdown_summary`;
@@ -111,3 +111,15 @@ components supply dependency links; they do not establish role-specific cipher
 suites. Session cipher-suite export uses observed session metadata. The CLI will
 call `output.cyclonedx.build_cbom` and `validate_cbom` in task 1.10. Pinned, unpinned and range library declarations are exported without inventing
 versions; the original declaration remains in evidence.
+
+
+# API integration
+
+M4's `api.main:app` imports `pipeline.run` lazily. `/api/scan` accepts server-side
+`paths`, resolves relative paths from the repository root, and writes the returned
+ScanResult for `/api/result`, `/api/cbom`, `/api/validate` and `/api/report.md`.
+`/api/scoring` uses the shared scoring loader. Missing pipeline builds return 503;
+missing paths return 400. File/zip uploads are deferred to M4 task 4.8. Real route
+integration checks use a temporary report destination and verify the starter result and strict
+CBOM validation. After task 1.11, M4 can delegate persistence to the atomic native
+writer; API persistence currently uses its own direct write.
