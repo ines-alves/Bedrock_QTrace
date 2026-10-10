@@ -29,8 +29,8 @@ Note on hours: by the user's instruction hour values are ignored for now. `By` a
 | M3D-08 | M4 | `render_markdown_summary(result) -> str` and `write_markdown_summary(result, path)`, sorted and deterministic (P1) | after M3D-04 |
 | M3D-09 | M4 | `frontend/src/pages/CodeConfig.tsx`: findings grouped by file, snippet and line, tier badge, recommendation, filters (P1) | after M4D-03 |
 | M3D-10 | All | `python_ast.py` alias resolution (P1); `output/sarif.py` (P2, only if everything above is green) | later |
-| M3D-11 | M1 | Code golden rows in `docs/GOLDEN.md` format for the 24 kit files (asset rows with line and tier, finding rows for hygiene flags, count rows), with the D.4 corrections of `M1M3-08`. Location in `tests/golden/expected.yaml` to be confirmed by M1 | after M3D-04 |
-| M3D-12 | M1, M2 | `scanners/config/keyfiles.py` and `webserver.py` (P2). Owns `.pem`, `.crt`, `.cer`, `.der`, `.key` and SSH key files (`M2M3-01`). Until they exist such files yield no findings | later |
+| M3D-11 | M1 | Code golden rows in `docs/GOLDEN.md` format for the 24 kit files (asset rows with line and tier, finding rows for hygiene flags, count rows), with the D.4 corrections of `M1M3-08`. Written to the code section of `tests/golden/expected.yaml` (confirmed by M1 in `M3C-01`) | after M3D-04 |
+| M3D-12 | M1, M2 | `scanners/config/keyfiles.py` and `webserver.py` (P2). Owns `.pem`, `.crt`, `.cer`, `.der`, `.key` and SSH key files `id_rsa`, `id_dsa`, `id_ecdsa`, `id_ed25519`, `*.pub` (`M2M3-01`, agreed). Until they exist M1 reports key and config files as unsupported coverage, not as a successful scan | later |
 
 ## 3. Needs
 
@@ -40,18 +40,18 @@ Note on hours: by the user's instruction hour values are ignored for now. `By` a
 | M3N-02 | M4 | `scan_result_sample.json` with the code cases listed in the reply to `M3M4-02` (`M4D-01`) | before M3D-09 |
 | M3N-03 | M4 | Scaffold, generated TS types, `useScanResult()`, `TierBadge`, sortable table, empty Code & Config route (`M4D-03`) | before M3D-09 |
 | M3N-04 | M2 | P2 only: `kb/tls_registry.yaml` with `load_registry()` (`M2D-03`) and `describe_certificate` in `certs.py` (`M2D-07`, `M2M3-02`). Nothing for the code scanner | before M3D-12 |
-| M3N-05 | M1 | `M1M3-09`: resolve config findings that carry `extra["codepoint"]` (P2) | before M3D-12 |
+| M3N-05 | M1 | Answered by `M1M3-09`: config findings keep `raw_name`, carry verified `codepoint` and `iana_name`, and set `kind_hint` `cipher_suite` or `group`; tasks 1.3 to 1.5 resolve them (P2) | before M3D-12 |
 
 ## 4. Promises
 
 - M3 scanners only detect. They never assign tier, threat, score, pq_status or verdict.
 - M3 imports models and helpers from `quantumtrace.models` and `quantumtrace.scanners.base`. It uses `finding_id` for identity, `is_test_path` for `in_test_code` and `@register` for the adapter. It never redefines or shadows them.
-- M3 adds no field to `Finding` or `CryptoAsset`. Extra data goes in `Finding.extra`. Keys M3 uses: `rule`, `key_size_source`, `unresolved`, `resolved_from_line`, `hand_rolled`, `hygiene_only`, `hygiene_flags`, `mode_source`, `provider_assumed`, `codepoint`, `iana_name`.
+- M3 adds no field to `Finding` or `CryptoAsset`. Extra data goes in `Finding.extra`. Keys M3 uses: `rule`, `key_size_source`, `unresolved`, `resolved_from_line`, `hand_rolled`, `hygiene_only`, `hygiene_flags`, `mode_source`, `codepoint`, `iana_name`.
 - `key_size_source` is one of `literal`, `constant`, `param_default`, `lookahead`, `flow`, `ambiguous`, `unresolved`. (`file_scope` is retired by `M1M3-01`; `flow` is not emitted until the engine change lands.)
 - Confidence: rule value by default. 0.8 maximum when the size came from `lookahead` or `flow`. 0.5 maximum when the size is `ambiguous` or `unresolved`, or an identifier could not be resolved. 0.6 for import-only findings.
-- Size inheritance (`M1M3-01`): RSA and AES sizes pass from a generation to a consumer only through a same-file flow link (producer function, binding variable, consumer call). Unlinked, imported or unused allocations stay None, `unresolved`, confidence at most 0.5.
-- Mode inference (`M1M3-06`): bare Java `AES` gives `mode=ECB`, `mode_source=jca_default`, `provider_assumed=SunJCE` only when the file names no provider; a Go `block.Encrypt` loop with no chaining mode gives ECB, `mode_source=block_loop`. Confidence at most 0.8.
-- Config findings (P2) keep `raw_name` as seen and carry `extra["codepoint"]` and `extra["iana_name"]`, `None` when unresolved (`M2M3-03`).
+- Size inheritance (`M1M3-01`, agreed): RSA and AES sizes pass from a generation to a consumer only through a demonstrated same-file flow link (producer function, binding variable, consumer call) that resolves the actual argument or parameter identity and scope. Unrelated calls, reassigned or conflicting bindings and distinct keys of the same size never link. Unknown stays None, `unresolved`, confidence at most 0.5. Directly observed constant, literal or default provenance is kept.
+- Mode inference (`M1M3-06`, M1 version): bare Java `AES` leaves `mode` None, because the active provider is not verified from one file. `mode` is set only from an explicit transform string, or, for Go, `mode_source=block_loop` with ECB when the code shows each plaintext block encrypted independently with no XOR, IV or previous-block state. Otherwise `mode` is None. Confidence at most 0.8. Negative cases (custom provider, manual chaining) get tests.
+- Config findings (P2, `M1M3-09`, M1 version): `raw_name` exactly as observed, `kind_hint` `cipher_suite` for suites and `group` for groups and curve aliases, and `extra["codepoint"]` and `extra["iana_name"]` only when verified, `None` otherwise. Config settings are never labelled negotiated. Names the registry does not resolve stay `None`; M3 does not rely on the registry for X9.62 names other than those M2 lists (`M2M3-03`).
 - Detector names have the form `code.<language>.regex:<RULE_ID>`.
 - Output of one file is sorted by line, rule id and raw name. Ids are hash based and stable.
 - `Location.file` is relative to the scan root, in posix form. `snippet` is at most 200 characters.
