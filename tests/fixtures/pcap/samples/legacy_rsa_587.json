@@ -1,0 +1,189 @@
+[
+  {
+    "id": "0abb27c6e8b7",
+    "raw_name": "TLS 1.2",
+    "kind_hint": "protocol_version",
+    "usage": "unknown",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.2",
+    "negotiated": true,
+    "in_test_code": false,
+    "detector": "pcap.tls.version",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49174->192.0.2.33:587",
+      "sni": "mail03.lab",
+      "frame": 338,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "7e0b2ef17c58",
+    "extra": {
+      "codepoint": "0x0303",
+      "iana_name": null,
+      "session": {
+        "flow": "192.0.2.10:49174->192.0.2.33:587",
+        "sni": "mail03.lab",
+        "version": "TLS 1.2",
+        "offered_groups": [],
+        "negotiated_group": null,
+        "offered_cipher_suites": [
+          "0x0035",
+          "0x002F"
+        ],
+        "negotiated_cipher_suite": "0x002F",
+        "offered_sig_schemes": [
+          "0x0401"
+        ],
+        "cert_key": null,
+        "cert_sig_alg": null,
+        "transport": "tls",
+        "service": "smtp-starttls",
+        "peer_banners": null
+      },
+      "authentication_observable": false,
+      "certificate_state": "absent"
+    }
+  },
+  {
+    "id": "becdd3ab70c4",
+    "raw_name": "0x0035",
+    "kind_hint": "cipher_suite",
+    "usage": "unknown",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.2",
+    "negotiated": false,
+    "in_test_code": false,
+    "detector": "pcap.tls.cipher_suite",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49174->192.0.2.33:587",
+      "sni": "mail03.lab",
+      "frame": 338,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "7e0b2ef17c58",
+    "extra": {
+      "codepoint": "0x0035",
+      "iana_name": "TLS_RSA_WITH_AES_256_CBC_SHA"
+    }
+  },
+  {
+    "id": "274d6fb94069",
+    "raw_name": "0x002F",
+    "kind_hint": "cipher_suite",
+    "usage": "unknown",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.2",
+    "negotiated": false,
+    "in_test_code": false,
+    "detector": "pcap.tls.cipher_suite",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49174->192.0.2.33:587",
+      "sni": "mail03.lab",
+      "frame": 338,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "7e0b2ef17c58",
+    "extra": {
+      "codepoint": "0x002F",
+      "iana_name": "TLS_RSA_WITH_AES_128_CBC_SHA"
+    }
+  },
+  {
+    "id": "2e44df4a564d",
+    "raw_name": "0x002F",
+    "kind_hint": "cipher_suite",
+    "usage": "unknown",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.2",
+    "negotiated": true,
+    "in_test_code": false,
+    "detector": "pcap.tls.cipher_suite",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49174->192.0.2.33:587",
+      "sni": "mail03.lab",
+      "frame": 340,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "7e0b2ef17c58",
+    "extra": {
+      "codepoint": "0x002F",
+      "iana_name": "TLS_RSA_WITH_AES_128_CBC_SHA"
+    }
+  },
+  {
+    "id": "e60b523ed618",
+    "raw_name": "0x0401",
+    "kind_hint": "signature_scheme",
+    "usage": "signature",
+    "key_size": null,
+    "curve": null,
+    "mode": null,
+    "padding": null,
+    "library": null,
+    "language": null,
+    "protocol": "TLS 1.2",
+    "negotiated": false,
+    "in_test_code": false,
+    "detector": "pcap.tls.signature_scheme",
+    "confidence": 1.0,
+    "location": {
+      "source_type": "pcap",
+      "file": "network.pcap",
+      "line": null,
+      "snippet": null,
+      "flow": "192.0.2.10:49174->192.0.2.33:587",
+      "sni": "mail03.lab",
+      "frame": 338,
+      "resource_id": null,
+      "target": null
+    },
+    "session_id": "7e0b2ef17c58",
+    "extra": {
+      "codepoint": "0x0401",
+      "iana_name": "rsa_pkcs1_sha256"
+    }
+  }
+]
