@@ -98,11 +98,14 @@ class ClassifiedNode:
         identity = normalized.identity
         params = identity.parameters
         finding = normalized.finding
+        asset_type = identity.asset_type
+        if self.node.kind == "container" and asset_type != "certificate":
+            asset_type = "protocol"
         return CryptoAsset(
             asset_id=self.node.node_id,
             canonical_name=identity.algorithm_id or normalized.resolved_name,
             family=self.family,
-            asset_type="protocol" if self.node.kind == "container" else identity.asset_type,
+            asset_type=asset_type,
             primitive=self.primitive,
             usage=identity.usage,
             key_size=params.key_size,

@@ -44,8 +44,8 @@ inventing one.
 Config/keyfile/binary scanners and the optional probe adapter remain unavailable.
 Their files or requested probes produce explicit coverage errors; scans never
 trigger implicit network traffic. M4 ACM is loaded and its five resources verified.
-Real registered capture routing is verified; full H6 still waits for the CLI,
-CBOM/API integration and owner checks requiring tshark.
+Real registered capture routing and M4 CBOM builder/strict validator are verified;
+full H6 still waits for the CLI/API integration and owner checks requiring tshark.
 M3 manifests are routed through the registered adapter; their library Findings
 remain inventory and are excluded from quantum counts, readiness and scoring.
 M3 Markdown output is available through `output.markdown.write_markdown_summary`;
@@ -99,3 +99,15 @@ Task 1.9 acceptance separates fake-scanner orchestration, available code/cloud
 starter scans, direct published network-sample consumption and real pure-Python
 capture consumption. Full H6 waits for registered owner adapters, actual tshark
 checks, and complete starter coverage; golden accuracy remains task 1.12.
+
+
+# Certificate and CBOM projections
+
+Certificate containers retain the public `certificate` asset type and their
+algorithm children, resource identity and listener links. They remain excluded
+from scoring as containers. Observed validity stays in original Finding.extra;
+M4's CBOM writer exports those dates as certificateProperties. Generic policy
+components supply dependency links; they do not establish role-specific cipher
+suites. Session cipher-suite export uses observed session metadata. The CLI will
+call `output.cyclonedx.build_cbom` and `validate_cbom` in task 1.10. Unversioned
+library export is pending an M4 correction; the real pinned starter library works.

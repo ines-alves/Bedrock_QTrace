@@ -284,6 +284,7 @@ def test_acm_routing_certificate_joins_and_source_timestamp_hygiene():
         if asset.components and any(site.source_type == SourceType.ACM for site in asset.occurrences)
     ]
     assert len(certificates) == 5
+    assert all(asset.asset_type == "certificate" for asset in certificates)
     assert all(asset.max_points == 0 and asset.tier == Tier.CRITICAL for asset in certificates)
     by_id = {asset.asset_id: asset for asset in result.assets}
     for cert in certificates:
@@ -369,3 +370,36 @@ def test_registered_pcap_empty_capture_error(tmp_path):
     assert len(result.errors) == 1
     assert result.errors[0].detector == "pcap" and result.errors[0].path == "empty.PCAP"
     assert result.errors[0].message == "capture is empty"
+
+
+def test_real_cbom_certificate_validity_and_policy_dependencies():
+    from quantumtrace.output.cyclonedx import build_cbom, validate_cbom
+
+    root = Path(__file__).resolve().parents[1]
+    result = pipeline.run([root / "cloud-posture", root / "sample-repos", root / "network-capture"])
+    cbom = build_cbom(result)
+    assert validate_cbom(cbom) == []
+    components = {component["bom-ref"]: component for component in cbom["components"]}
+    findings = {raw.id: raw for raw in result.findings}
+    certificates = [asset for asset in result.assets if asset.asset_type == "certificate"]
+    assert len(certificates) == 5
+    for asset in certificates:
+        assert asset.risk_points == asset.max_points == 0 and asset.components
+        raw = findings[asset.finding_ids[0]]
+        props = components[asset.asset_id]["cryptoProperties"]["certificateProperties"]
+        assert props["notValidBefore"] == raw.extra["not_before"]
+        assert props["notValidAfter"] == raw.extra["not_after"]
+        assert props["subjectName"] == raw.extra["domain"]
+    dependencies = {row["ref"]: row["dependsOn"] for row in cbom["dependencies"]}
+    policies = [
+        asset
+        for asset in result.assets
+        if asset.components
+        and not asset.component_of
+        and any(findings[fid].kind_hint == KindHint.POLICY for fid in asset.finding_ids)
+    ]
+    assert policies
+    for asset in policies:
+        assert dependencies[asset.asset_id] == asset.components
+        assert "cipherSuites" not in components[asset.asset_id]["cryptoProperties"]["protocolProperties"]
+    assert ScanResult.model_validate_json(result.model_dump_json()) == result
