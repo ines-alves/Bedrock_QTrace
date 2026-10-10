@@ -1,9 +1,9 @@
 """tshark runner: the primary capture parser, returning the same dataclasses as ``purepy.py``.
 
 One ``tshark -T fields`` pass over the handshake messages (plus the STARTTLS / SSLRequest upgrade
-requests) is turned into ``PureResult``/``Flow``/``TlsHello`` objects, so ``tls_session.py`` builds
-findings from either parser and the two can be compared field by field. TLS flows only for now;
-SSH and plaintext HTTP extraction arrive with ``ssh.py`` and the plaintext task.
+requests and the SSH banner / KEXINIT packets) is turned into ``PureResult``/``Flow``/``TlsHello``/
+``SshSide`` objects, so ``tls_session.py`` and ``ssh.py`` build findings from either parser and the
+two can be compared field by field. Plaintext HTTP extraction arrives with the plaintext task.
 
 Detect-only and never raises: every failure is recorded in ``PureResult.errors``.
 """
@@ -15,19 +15,20 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from quantumtrace.scanners.network.purepy import HRR_RANDOM, Flow, PureResult, TlsHello
+from quantumtrace.scanners.network.purepy import HRR_RANDOM, Flow, PureResult, SshSide, TlsHello
 from quantumtrace.scanners.network.registry import SIGNALLING_SUITES, is_grease
 
 DEFAULT_TIMEOUT = 120.0
 
-# Display filter: the four handshake messages we read, and the plaintext upgrade requests that
-# explain a TLS flow on a STARTTLS or Postgres port. `smtp.req.command` is not usable because
-# tshark cuts the verb to four characters ("STAR").
+# Display filter: the four handshake messages we read, the plaintext upgrade requests that explain
+# a TLS flow on a STARTTLS or Postgres port, and the SSH banner and KEXINIT (message 20) packets.
+# `smtp.req.command` is not usable because tshark cuts the verb to four characters ("STAR").
 DISPLAY_FILTER = (
     "tls.handshake.type == 1 or tls.handshake.type == 2 or "
     "tls.handshake.type == 11 or tls.handshake.type == 12 or "
     'smtp.command_line contains "STARTTLS" or '
-    "pgsql.request_code == 80877103"  # 0x04D2162F, the Postgres SSLRequest
+    "pgsql.request_code == 80877103 or "  # 0x04D2162F, the Postgres SSLRequest
+    "ssh.protocol or ssh.message_code == 20"
 )
 
 # Column order is the contract between the command line and `parse_rows`.
@@ -58,11 +59,24 @@ COLUMNS = (
     "tls.handshake.certificate",
     "smtp.command_line",
     "pgsql.request_code",
+    "ssh.protocol",
+    "ssh.message_code",
+    "ssh.direction",
+    "ssh.kex_algorithms",
+    "ssh.server_host_key_algorithms",
+    "ssh.encryption_algorithms_client_to_server",
+    "ssh.encryption_algorithms_server_to_client",
+    "ssh.mac_algorithms_client_to_server",
+    "ssh.mac_algorithms_server_to_client",
+    "ssh.compression_algorithms_client_to_server",
+    "ssh.compression_algorithms_server_to_client",
 )
 _COL = {name: i for i, name in enumerate(COLUMNS)}
 _AGGREGATOR = ","
 
 _CH, _SH, _CERT, _SKE = 1, 2, 11, 12
+_SSH_KEXINIT = 20
+_SSH_PORT = 22
 
 
 def tshark_available() -> bool:
@@ -160,6 +174,8 @@ class _Acc:
     upgrade: str | None = None
     saw_certificate_row: bool = False
     saw_ske_row: bool = False
+    ssh: dict[str, SshSide] = field(default_factory=dict)  # "client" / "server"
+    ssh_warnings: list[str] = field(default_factory=list)
 
 
 # --- row parsing (pure) --------------------------------------------------------------------
@@ -207,6 +223,62 @@ def _hello(msg_type: int, cells: list[str], frame: int | None) -> TlsHello:
     return hello
 
 
+def _ssh_role(cells: list[str], src_port: int | None, dst_port: int | None) -> str | None:
+    """``client`` or ``server`` for the sender of an SSH row. ``ssh.direction`` is True on packets
+    sent by the server; without it the well-known port decides."""
+    direction = cells[_COL["ssh.direction"]].split(_AGGREGATOR)[0].strip().lower()
+    if direction in ("true", "1"):
+        return "server"
+    if direction in ("false", "0"):
+        return "client"
+    if dst_port == _SSH_PORT:
+        return "client"
+    if src_port == _SSH_PORT:
+        return "server"
+    return None
+
+
+def _ssh_row(acc: _Acc, cells: list[str], frame: int, src, dst, res: PureResult) -> None:
+    role = _ssh_role(cells, src[1], dst[1])
+    if role is None:
+        res.errors.append(f"SSH packet in frame {frame} cannot be attributed to a client or a server")
+        return
+    sender, receiver = _endpoint(src), _endpoint(dst)
+    if sender and receiver:
+        if role == "client":
+            acc.client, acc.server = acc.client or sender, acc.server or receiver
+        else:
+            acc.server, acc.client = acc.server or sender, acc.client or receiver
+    side = acc.ssh.get(role)
+    banner = cells[_COL["ssh.protocol"]].strip()
+    if side is None:
+        side = acc.ssh[role] = SshSide(banner=banner)
+        side.frame = frame
+    elif banner and not side.banner:
+        side.banner = banner
+        if not side.has_kexinit:
+            side.frame = frame
+    if _SSH_KEXINIT not in _nums(cells[_COL["ssh.message_code"]]):
+        return
+    if side.has_kexinit:
+        acc.ssh_warnings.append(f"more than one KEXINIT from the {role}; only the first is used")
+        return
+    side.has_kexinit = True
+    side.frame = frame
+    side.kex = _names(cells[_COL["ssh.kex_algorithms"]])
+    side.host_key = _names(cells[_COL["ssh.server_host_key_algorithms"]])
+    side.enc_c2s = _names(cells[_COL["ssh.encryption_algorithms_client_to_server"]])
+    side.enc_s2c = _names(cells[_COL["ssh.encryption_algorithms_server_to_client"]])
+    side.mac_c2s = _names(cells[_COL["ssh.mac_algorithms_client_to_server"]])
+    side.mac_s2c = _names(cells[_COL["ssh.mac_algorithms_server_to_client"]])
+    side.comp_c2s = _names(cells[_COL["ssh.compression_algorithms_client_to_server"]])
+    side.comp_s2c = _names(cells[_COL["ssh.compression_algorithms_server_to_client"]])
+
+
+def _names(cell: str) -> list[str]:
+    return [t.strip() for t in cell.split(_AGGREGATOR) if t.strip()]
+
+
 def parse_rows(text: str) -> PureResult:
     """Turn ``tshark -T fields`` output (columns = ``COLUMNS``) into per-stream ``Flow`` records."""
     res = PureResult()
@@ -237,6 +309,9 @@ def parse_rows(text: str) -> PureResult:
                 acc.first_ts = float(cells[_COL["frame.time_epoch"]].split(_AGGREGATOR)[0])
             except ValueError:
                 acc.first_ts = 0.0
+        if _first_text(cells[_COL["ssh.protocol"]]) or _SSH_KEXINIT in _nums(cells[_COL["ssh.message_code"]]):
+            _ssh_row(acc, cells, frame, src, dst, res)
+            continue
         types = _nums(cells[_COL["tls.handshake.type"]])
         sender = _endpoint(src)
         receiver = _endpoint(dst)
@@ -276,6 +351,14 @@ def _endpoint(pair: tuple[str | None, int | None]) -> tuple[str, int] | None:
 
 
 def _flow(stream_id: int, acc: _Acc) -> Flow | None:
+    if acc.ssh:
+        if acc.client is None or acc.server is None:
+            return None
+        flow = Flow(stream_id, acc.client, acc.server, acc.first_ts or 0.0)
+        flow.kind = "ssh"
+        flow.ssh_client, flow.ssh_server = acc.ssh.get("client"), acc.ssh.get("server")
+        flow.warnings.extend(acc.ssh_warnings)
+        return flow
     if not acc.client_hellos and not acc.server_hellos:
         return None  # an upgrade request that was never followed by TLS: plaintext task, not TLS
     if acc.client is None or acc.server is None:

@@ -236,6 +236,139 @@ def test_garbage_line_is_reported():
     assert len(res.errors) == 1 and "line 1" in res.errors[0]
 
 
+# --- SSH canned rows ----------------------------------------------------------------------
+
+
+def ssh_row(frame, *, stream=0, role="client", banner="", kexinit=False, lists=None, **over):
+    """One SSH packet row; ``lists`` = kex, host key, enc c2s, enc s2c, mac c2s, mac s2c."""
+    client = ("10.0.0.1", "50000")
+    server = ("10.0.0.2", "22")
+    (sip, sport), (dip, dport) = (client, server) if role == "client" else (server, client)
+    cols = dict(
+        frame__number=str(frame),
+        frame__time_epoch="1700000000.5",
+        tcp__stream=str(stream),
+        ip__src=sip,
+        tcp__srcport=sport,
+        ip__dst=dip,
+        tcp__dstport=dport,
+        ssh__direction="False" if role == "client" else "True",
+    )
+    if banner:
+        cols["ssh__protocol"] = banner
+    if kexinit:
+        kex, host, enc_c, enc_s, mac_c, mac_s = lists
+        cols.update(
+            ssh__message_code="20",
+            ssh__kex_algorithms=kex,
+            ssh__server_host_key_algorithms=host,
+            ssh__encryption_algorithms_client_to_server=enc_c,
+            ssh__encryption_algorithms_server_to_client=enc_s,
+            ssh__mac_algorithms_client_to_server=mac_c,
+            ssh__mac_algorithms_server_to_client=mac_s,
+            ssh__compression_algorithms_client_to_server="none",
+            ssh__compression_algorithms_server_to_client="none",
+        )
+    cols.update(over)
+    return row(**cols)
+
+
+LISTS = (
+    "curve25519-sha256,group14",
+    "ssh-ed25519",
+    "aes128-ctr,chacha20",
+    "aes128-ctr",
+    "hmac-sha2-256",
+    "hmac-sha1",
+)
+
+
+def test_ssh_flow_is_built_from_banner_and_kexinit_rows():
+    res = flows(
+        ssh_row(6, role="server", banner="SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu1"),
+        ssh_row(8, banner="SSH-2.0-OpenSSH_9.6"),
+        ssh_row(10, kexinit=True, lists=LISTS),
+        ssh_row(12, role="server", kexinit=True, lists=LISTS),
+    )
+    assert res.errors == [] and len(res.flows) == 1
+    flow = res.flows[0]
+    assert flow.kind == "ssh" and flow.flow == "10.0.0.1:50000->10.0.0.2:22"
+    assert flow.ssh_client.banner == "SSH-2.0-OpenSSH_9.6"  # server banner came first on the wire
+    assert flow.ssh_server.banner == "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu1"
+    c = flow.ssh_client
+    assert c.has_kexinit and c.frame == 10
+    assert c.kex == ["curve25519-sha256", "group14"]
+    assert c.host_key == ["ssh-ed25519"]
+    assert (c.enc_c2s, c.enc_s2c) == (["aes128-ctr", "chacha20"], ["aes128-ctr"])
+    assert (c.mac_c2s, c.mac_s2c) == (["hmac-sha2-256"], ["hmac-sha1"])
+    assert c.comp_c2s == c.comp_s2c == ["none"]
+    assert flow.ssh_server.frame == 12
+
+
+def test_ssh_banner_only_keeps_the_banner_frame_and_no_kexinit():
+    res = flows(ssh_row(6, role="server", banner="SSH-2.0-x"), ssh_row(8, banner="SSH-2.0-y"))
+    flow = res.flows[0]
+    assert not flow.ssh_client.has_kexinit and flow.ssh_client.frame == 8
+    assert flow.ssh_client.kex == []
+
+
+def test_ssh_banner_and_kexinit_in_one_frame():
+    res = flows(ssh_row(9, banner="SSH-2.0-y", kexinit=True, lists=LISTS))
+    side = res.flows[0].ssh_client
+    assert side.banner == "SSH-2.0-y" and side.has_kexinit and side.frame == 9
+
+
+def test_second_ssh_kexinit_keeps_the_first_and_warns():
+    other = ("x", "y", "z", "z", "m", "m")
+    res = flows(
+        ssh_row(8, banner="SSH-2.0-y"),
+        ssh_row(10, kexinit=True, lists=LISTS),
+        ssh_row(30, kexinit=True, lists=other),
+    )
+    flow = res.flows[0]
+    assert flow.ssh_client.kex == ["curve25519-sha256", "group14"] and flow.ssh_client.frame == 10
+    assert any("more than one KEXINIT" in w for w in flow.warnings)
+
+
+def test_ssh_direction_falls_back_to_the_well_known_port():
+    res = flows(
+        ssh_row(8, banner="SSH-2.0-y", ssh__direction=""),
+        ssh_row(6, role="server", banner="SSH-2.0-x", ssh__direction=""),
+    )
+    flow = res.flows[0]
+    assert flow.client == ("10.0.0.1", 50000) and flow.server == ("10.0.0.2", 22)
+    assert flow.ssh_client.banner == "SSH-2.0-y"
+
+
+def test_ssh_row_that_cannot_be_oriented_is_reported():
+    res = flows(ssh_row(8, banner="SSH-2.0-y", ssh__direction="", tcp__dstport="2222", tcp__srcport="50000"))
+    assert res.flows == [] and "frame 8" in res.errors[0]
+
+
+def test_ssh_ipv6_endpoints_are_bracketed():
+    res = flows(
+        ssh_row(
+            8,
+            banner="SSH-2.0-y",
+            ip__src="",
+            ipv6__src="2001:db8::1",
+            ip__dst="",
+            ipv6__dst="2001:db8::2",
+            tcp__dstport="22",
+        )
+    )
+    assert res.flows[0].flow == "[2001:db8::1]:50000->[2001:db8::2]:22"
+
+
+def test_ssh_and_tls_streams_coexist():
+    res = flows(
+        ssh_row(8, stream=0, banner="SSH-2.0-y"),
+        client_row(frame=20, stream=1),
+        server_row(frame=22, stream=1),
+    )
+    assert [f.kind for f in res.flows] == ["ssh", "tls"]
+
+
 # --- command line and runner ------------------------------------------------------------
 
 
@@ -246,6 +379,8 @@ def test_command_requests_every_column_and_numeric_fields_mode():
     assert "fields" in cmd and "occurrence=a" in cmd
     assert "tls_tcp" in cmd
     assert "smtp.req.command" not in " ".join(cmd)  # tshark cuts the verb to "STAR"
+    assert "ssh.message_code == 20" in cmd[cmd.index("-Y") + 1]
+    assert " in {" not in cmd[cmd.index("-Y") + 1]  # Wireshark 4.6 rejects `x in {1 2}`
 
 
 def test_missing_tshark_is_an_error_not_an_exception(monkeypatch):
@@ -313,17 +448,19 @@ def test_unreadable_files_are_errors(tmp_path):
 
 
 @needs_tshark
-def test_kit_has_97_tls_flows_and_no_errors():
+def test_kit_has_97_tls_and_24_ssh_flows_and_no_errors():
     res = tshark.read_flows_tshark(KIT)
     assert res.errors == []
-    assert len(res.flows) == 97 and all(f.kind == "tls" for f in res.flows)
-    assert all(f.client_hello and f.server_hello for f in res.flows)
+    tls = [f for f in res.flows if f.kind == "tls"]
+    assert len(tls) == 97 and len(res.flows) == 97 + 24
+    assert all(f.client_hello and f.server_hello for f in tls)
+    assert sum(f.kind == "ssh" for f in res.flows) == 24
 
 
 @needs_tshark
 def test_kit_matches_purepy_on_every_field():
     """Same counts is not enough: the two parsers must agree on each recorded value."""
-    ts = {f.stream_id: f for f in tshark.read_flows_tshark(KIT).flows}
+    ts = {f.stream_id: f for f in tshark.read_flows_tshark(KIT).flows if f.kind == "tls"}
     pp = {f.stream_id: f for f in purepy.read_flows(KIT).flows if f.kind == "tls"}
     assert set(ts) == set(pp) and len(ts) == 97
     skipped = {"first_ts", "kind", "http", "ssh_client", "ssh_server"}
@@ -337,3 +474,19 @@ def test_kit_matches_purepy_on_every_field():
     # the upgrade evidence the service label relies on
     assert sum(f.upgrade_request == "smtp-starttls" for f in ts.values()) == 11
     assert sum(f.upgrade_request == "postgres-sslrequest" for f in ts.values()) == 8
+
+
+@needs_tshark
+def test_kit_ssh_flows_match_purepy_on_every_field():
+    ts = {f.stream_id: f for f in tshark.read_flows_tshark(KIT).flows if f.kind == "ssh"}
+    pp = {f.stream_id: f for f in purepy.read_flows(KIT).flows if f.kind == "ssh"}
+    assert set(ts) == set(pp) and len(ts) == 24
+    for stream_id, expected in pp.items():
+        actual = ts[stream_id]
+        for name in ("client", "server", "warnings"):
+            assert getattr(actual, name) == getattr(expected, name), (stream_id, name)
+        for side in ("ssh_client", "ssh_server"):
+            assert dataclasses.asdict(getattr(actual, side)) == dataclasses.asdict(getattr(expected, side)), (
+                stream_id,
+                side,
+            )
