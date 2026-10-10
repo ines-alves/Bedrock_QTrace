@@ -579,3 +579,13 @@ def test_policy_components_are_labelled_by_suite_not_unresolved():
     policies = [a for a in run([path]).assets if a.canonical_name == "ELBSecurityPolicy-TLS13-1-2-2021-06"]
     assert policies and all("unresolved" not in a.rationale for a in policies)
     assert all("cipher_suite=TLS_AES_256_GCM_SHA384 (SAFE)" in a.rationale for a in policies)
+
+
+@pytest.mark.parametrize("name", ["EC", "EdDSA", "XDH", "DHKEM"])
+def test_unobserved_use_or_variant_keeps_known_shor_tier(name, kb):
+    assert result(kb, name, usage=Usage.UNKNOWN).tier == Tier.CRITICAL
+
+
+def test_pbkdf2_follows_its_observed_underlying_hash(kb):
+    assert result(kb, "PBKDF2-HMAC-MD5", usage=Usage.KDF).tier == Tier.MEDIUM
+    assert result(kb, "PBKDF2-HMAC-SHA3_256", usage=Usage.KDF).tier == Tier.SAFE

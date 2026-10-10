@@ -478,13 +478,6 @@ def _jose(finding: Finding, name: str) -> _Recipe | None:
         )
     if name == "ECDH-ES":
         return _Recipe((ComponentSpec("ECDH", Usage.KEY_EXCHANGE, "key_exchange", inherit_parameters=True),))
-    if name == "EDDSA":
-        curve = finding.curve.casefold() if finding.curve else None
-        algorithm = {"ed25519": "Ed25519", "ed448": "Ed448"}.get(curve or "", "ambiguous-jose-eddsa")
-        return _Recipe(
-            (ComponentSpec(algorithm, Usage.SIGNATURE, "signature", inherit_parameters=True),),
-            notes=("JOSE EdDSA alone does not distinguish Ed25519 from Ed448",),
-        )
     return None
 
 
@@ -688,23 +681,17 @@ def decompose(
             certificate_arns=links,
         )
     recipe = recipe or _recipe(finding, name, kb)
+    # EdDSA is one signature atom: the observed curve names its variant, otherwise the EdDSA
+    # family entry keeps the (known) tier without claiming Ed25519 or Ed448.
     if name.upper() == "EDDSA":
-        if finding.curve and finding.curve.casefold() in {"ed25519", "ed448"}:
-            base = replace(
-                normalize(finding.model_copy(update={"raw_name": finding.curve, "extra": {}}), kb),
-                finding=finding,
-            )
-        else:
-            base = replace(
-                base,
-                identity=replace(
-                    base.identity,
-                    algorithm_id=None,
-                    unresolved_name="eddsa",
-                    unresolved_namespace=finding.kind_hint,
-                ),
-                unknown_reasons=("EdDSA variant not observed",),
-            )
+        variant = (
+            finding.curve if finding.curve and finding.curve.casefold() in {"ed25519", "ed448"} else name
+        )
+        usage = Usage.SIGNATURE if finding.usage == Usage.UNKNOWN else finding.usage
+        base = replace(
+            normalize(finding.model_copy(update={"raw_name": variant, "usage": usage, "extra": {}}), kb),
+            finding=finding,
+        )
     # Metadata describes observed certificate key/signature; never borrow subject
     # size/curve for its issuer's signature. Matching resource joins happen later.
     if finding.kind_hint == KindHint.CERTIFICATE and not cloud_recipe:

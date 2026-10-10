@@ -152,13 +152,18 @@ def test_jca_and_cloud_signatures(name, algorithm, hash_name, padding, kb):
         ("AES/CBC/PKCS5Padding", "AES", "cbc", "pkcs5"),
         ("DESede/CBC/NoPadding", "3DES", "cbc", "none"),
         (" AES / GCM / NoPadding ", "AES", "gcm", "none"),
+        ("AES/EAX/NoPadding", "AES", "other", "none"),
+        ("AES/KW/NoPadding", "AES", "other", "none"),
+        ("AES/OCB/NoPadding", "AES", "other", "none"),
     ],
 )
 def test_jca_transform_preserves_parameters(name, algorithm, mode, padding, kb):
     result = decompose(finding(name, key_size=256), kb)
     assert algorithms(result) == {(algorithm, Usage.ENCRYPTION)}
-    params = atoms(result)[0].normalized.identity.parameters
-    assert (params.key_size, params.mode, params.padding) == (256, mode, padding)
+    atom = atoms(result)[0].normalized
+    params = atom.identity.parameters
+    assert (params.key_size, params.mode, params.padding) == (256, mode, None)
+    assert any(item.field == "padding" for item in atom.provenance)
 
 
 def test_rsa_oaep_does_not_guess_mgf1_digest(kb):
@@ -217,7 +222,8 @@ def test_jose_algorithms(name, algorithm, size, curve, padding, hash_name, kb):
 
 def test_jose_eddsa_requires_observed_curve(kb):
     result = decompose(finding("EdDSA"), kb)
-    assert len(atoms(result)) == 1 and not atoms(result)[0].normalized.is_resolved
+    assert [node.normalized.identity.algorithm_id for node in atoms(result)] == ["EdDSA"]
+    assert result.root.kind == "atom" and result.root.normalized.is_resolved
     for curve in ("Ed25519", "Ed448"):
         observed = decompose(finding("EdDSA", curve=curve), kb)
         assert algorithms(observed) == {(curve, Usage.SIGNATURE)}
@@ -571,7 +577,8 @@ def test_psk_or_anonymous_uncertainty_is_preserved(name, kb):
 
 def test_jose_eddsa_parent_identity_never_claims_unobserved_variant(kb):
     ambiguous = decompose(finding("EdDSA"), kb)
-    assert ambiguous.root.normalized.identity.algorithm_id is None
+    assert ambiguous.root.normalized.identity.algorithm_id == "EdDSA"
+    assert ambiguous.root.normalized.identity.parameters.curve is None
     ed448 = decompose(finding("EdDSA", curve="Ed448"), kb)
     assert ed448.root.normalized.identity.algorithm_id == "Ed448"
 

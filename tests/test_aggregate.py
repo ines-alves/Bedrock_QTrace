@@ -79,7 +79,6 @@ def test_alias_merge_and_unique_detector_occurrences(kb):
         {"key_size": 128},
         {"mode": "CBC"},
         {"usage": Usage.MAC},
-        {"padding": "PKCS7"},
         {"raw_name": "ChaCha20"},
         {"extra": {"hygiene_only": True}},
         {"location": Location(source_type=SourceType.KMS, resource_id="key:1")},
@@ -87,6 +86,14 @@ def test_alias_merge_and_unique_detector_occurrences(kb):
 )
 def test_different_identity_does_not_merge(kb, change):
     assert len(aggregate([classified(kb), classified(kb, finding(**change))]).assets) == 2
+
+
+def test_padding_splits_rsa_schemes_but_not_block_cipher_configurations(kb):
+    aes = aggregate([classified(kb), classified(kb, finding(padding="PKCS7", line=11))])
+    assert len(aes.assets) == 1 and len(aes.assets[0].occurrences) == 1
+    rsa = finding("RSA", key_size=2048)
+    rows = [classified(kb, rsa), classified(kb, rsa.model_copy(update={"padding": "OAEPPadding"}))]
+    assert len(aggregate(rows).assets) == 2
 
 
 @pytest.mark.parametrize(

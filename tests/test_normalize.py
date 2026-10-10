@@ -115,9 +115,9 @@ def test_aliases(raw, canonical, kb):
         ("AES-256-GCM", "AES", {"key_size": 256, "mode": "gcm"}),
         ("aes_192_ctr", "AES", {"key_size": 192, "mode": "ctr"}),
         ("AES-GCM-256", "AES", {"key_size": 256, "mode": "gcm"}),
-        ("AES/ECB/PKCS5Padding", "AES", {"mode": "ecb", "padding": "pkcs5"}),
-        (" AES / ECB / PKCS5Padding ", "AES", {"mode": "ecb", "padding": "pkcs5"}),
-        ("AES/GCM/NoPadding", "AES", {"mode": "gcm", "padding": "none"}),
+        ("AES/ECB/PKCS5Padding", "AES", {"mode": "ecb", "padding": None}),
+        (" AES / ECB / PKCS5Padding ", "AES", {"mode": "ecb", "padding": None}),
+        ("AES/GCM/NoPadding", "AES", {"mode": "gcm", "padding": None}),
         ("Camellia256CBC", "Camellia", {"key_size": 256, "mode": "cbc"}),
         ("ffdhe3072", "DH", {"key_size": 3072}),
         ("ECDHE-P256", "ECDH", {"curve": "secp256r1"}),
@@ -306,7 +306,9 @@ def test_distinct_identity_groups_and_semantic_hashes(kb):
     )
     assert normalize(finding("unknown-a"), kb).identity != normalize(finding("unknown-b"), kb).identity
     assert normalize(finding("ec", usage=Usage.KEY_EXCHANGE), kb).identity.algorithm_id == "ECDH"
-    assert not normalize(finding("ec"), kb).is_resolved
+    generic = normalize(finding("ec"), kb)
+    assert generic.is_resolved and generic.identity.algorithm_id == "EC"
+    assert normalize(finding("ec", usage=Usage.SIGNATURE), kb).identity.algorithm_id == "ECDSA"
 
 
 class FixtureRegistry:
@@ -473,3 +475,31 @@ def test_atomic_hybrid_identity_remains_combiner(kb):
     assert result.identity.parameters.parameter_set is None
     assert kb.get(result.identity.algorithm_id).components[0].algorithm_id == "X25519"
     assert result.finding.usage == Usage.KEY_EXCHANGE
+
+
+@pytest.mark.parametrize(
+    "raw,usage,algorithm,parameters",
+    [
+        ("random.randbytes", Usage.RNG, "INSECURE-RNG", {}),
+        ("DES3", Usage.ENCRYPTION, "3DES", {}),
+        ("TripleDES", Usage.ENCRYPTION, "3DES", {}),
+        ("ARC4", Usage.ENCRYPTION, "RC4", {}),
+        ("ECDHC", Usage.KEY_EXCHANGE, "ECDH", {}),
+        ("XDH", Usage.KEY_EXCHANGE, "XDH", {}),
+        ("DHKEM", Usage.KEY_EXCHANGE, "DHKEM", {}),
+        ("PBKDF2-HMAC-MD5", Usage.KDF, "PBKDF2", {"underlying_hash": "MD5"}),
+        ("PBKDF2-HMAC-SHA3_256", Usage.KDF, "PBKDF2", {"underlying_hash": "SHA3-256"}),
+    ],
+)
+def test_observed_library_spellings_resolve(raw, usage, algorithm, parameters, kb):
+    identity = normalize(finding(raw, usage=usage), kb).identity
+    assert identity.algorithm_id == algorithm
+    assert {key: getattr(identity.parameters, key) for key in parameters} == parameters
+
+
+def test_xdh_variant_and_nist_curve_spellings(kb):
+    assert normalize(finding("XDH", curve="X448"), kb).identity.algorithm_id == "X448"
+    curves = {
+        normalize(finding("EC", usage=Usage.SIGNATURE, curve=c), kb).identity for c in ("P-224", "SECP224R1")
+    }
+    assert len(curves) == 1 and next(iter(curves)).parameters.curve == "secp224r1"
