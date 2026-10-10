@@ -57,7 +57,28 @@ def test_sessions(result):
     assert [(s.sni, s.verdict_tier) for s in hybrid] == [("vault01.lab", Tier.UNKNOWN)]
     assert all(s.cert_key is None for s in tls)
     session_findings = [f for f in result.findings if f.kind_hint == KindHint.PROTOCOL_VERSION]
-    assert all(f.extra["authentication_observable"] is False for f in session_findings)
+    # M1M2-07: SSH host key algorithm selection is observed, a TLS Certificate message is not.
+    assert {f.protocol: f.extra["authentication_observable"] for f in session_findings} == {
+        "TLS 1.2": False,
+        "TLS 1.3": False,
+        "SSH-2.0": True,
+    }
+    assert all("certificate_state" not in f.extra for f in session_findings if f.protocol == "SSH-2.0")
+    assert all(s.cert_key for s in ssh)
+
+
+def test_ssh_aead_mac_is_offered_not_negotiated(result):
+    """M1M4-22: no negotiated MAC for an AEAD cipher, the offer is kept with negotiated False."""
+    macs = [f for f in result.findings if f.detector == "pcap.ssh.mac"]
+    by_session = {}
+    for f in macs:
+        by_session.setdefault(f.session_id, []).append(f)
+    modern = next(s for s in result.sessions if s.negotiated_cipher_suite == "chacha20-poly1305@openssh.com")
+    assert [(f.raw_name, f.negotiated) for f in by_session[modern.session_id]] == [
+        ("hmac-sha2-256-etm@openssh.com", False)
+    ]
+    legacy = next(s for s in result.sessions if s.negotiated_cipher_suite == "aes128-cbc")
+    assert sorted(f.negotiated for f in by_session[legacy.session_id]) == [False, True]
 
 
 def test_every_tier_and_source(result):

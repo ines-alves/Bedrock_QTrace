@@ -147,3 +147,24 @@ def test_matches_sample_fixture_lb_findings() -> None:
     sample = ScanResult.model_validate_json(SAMPLE.read_text())
     expected = {f.id: f for f in sample.findings if f.detector == "cloud.loadbalancer"}
     assert {f.id: f for f in _scan() if isinstance(f, Finding)} == expected
+
+
+def test_symmetric_default_depends_on_the_partition() -> None:
+    """AWS KMS key-spec reference: AES-256-GCM, except China Regions (SM4, 128-bit)."""
+    spec = yaml.safe_load(REGISTRY.read_text())["kms_key_specs"]["SYMMETRIC_DEFAULT"]
+    assert spec["verified"] is True
+    assert spec["default"] == {"algorithm": "AES", "key_size": 256, "mode": "gcm"}
+    assert spec["partitions"] == {"aws-cn": {"algorithm": "SM4", "key_size": 128, "mode": None}}
+    assert set(spec["default_partitions"]).isdisjoint(spec["partitions"])
+    kms = json.loads((ROOT / "cloud-posture" / "kms_key_inventory.json").read_text())
+    symmetric = [k for k in kms["Keys"] if k["KeySpec"] == "SYMMETRIC_DEFAULT"]
+    assert len(symmetric) == 4
+    assert {k["KeyArn"].split(":")[1] for k in symmetric} <= set(spec["default_partitions"])
+
+
+def test_every_row_source_resolves_to_a_url() -> None:
+    reg = yaml.safe_load(REGISTRY.read_text())
+    urls = reg["meta"]["sources"]
+    for row in reg["elb_policies"].values():
+        assert all(part in urls for part in row["source"].split("+"))
+    assert all(u.startswith("https://docs.aws.amazon.com/") for u in urls.values())

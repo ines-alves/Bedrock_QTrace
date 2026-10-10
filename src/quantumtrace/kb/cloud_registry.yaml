@@ -18,7 +18,16 @@
 #   pq_hybrid     true when the policy name contains PQ.
 #   verified      true when protocols and cipher_suites were read from the AWS tables above.
 #
+# `source` on a row is the key into meta.sources (alb, nlb, or alb+nlb when both pages list it).
 # A policy name that is not in this table is UNKNOWN: the finding keeps the name and gets no suites.
+meta:
+  schema: 1
+  fetched: '2026-10-10'
+  sources:
+    alb: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/describe-ssl-policies.html
+    nlb: https://docs.aws.amazon.com/elasticloadbalancing/latest/network/describe-ssl-policies.html
+    kms_key_spec: https://docs.aws.amazon.com/kms/latest/developerguide/symm-asymm-choose-key-spec.html
+    arn_partitions: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html
 elb_policies:
   ELBSecurityPolicy-2015-05:
     source: nlb
@@ -984,3 +993,29 @@ elb_policies:
     groups_verified: false
     groups_complete: false
     pq_hybrid: false
+
+# KMS key specs whose meaning depends on the provider partition. Only specs whose algorithm AWS does not fix
+# by name appear here. RSA_*, ECC_NIST_P*, EC_prime256v1 and the other spellings are aliases in
+# kb/algorithms.yaml (M1, M1M4-20).
+# Sources, fetched 2026-10-10:
+#   https://docs.aws.amazon.com/kms/latest/developerguide/symm-asymm-choose-key-spec.html
+#     "SYMMETRIC_DEFAULT represents AES-256-GCM ... with 256-bit keys." and "The only exception in China
+#     Regions, where SYMMETRIC_DEFAULT represents a 128-bit symmetric key that uses SM4 encryption."
+#   https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html
+#     partitions: "aws - AWS Regions", "aws-cn - China Regions", "aws-us-gov - AWS GovCloud (US) Regions".
+# The partition is the second field of the KeyArn (arn:<partition>:kms:<region>:<account>:key/<id>).
+# A partition without a row is UNKNOWN: use `default` only for the partitions listed under `default_partitions`.
+# mode is lowercase like the schema mode of kb/algorithms.yaml. mode is null for SM4 because the AWS page states no mode.
+kms_key_specs:
+  SYMMETRIC_DEFAULT:
+    verified: true
+    default_partitions: [aws, aws-us-gov]
+    default:
+      algorithm: AES
+      key_size: 256
+      mode: gcm
+    partitions:
+      aws-cn:
+        algorithm: SM4
+        key_size: 128
+        mode: null
