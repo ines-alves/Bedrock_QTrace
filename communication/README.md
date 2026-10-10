@@ -44,8 +44,8 @@ An item without a row is OPEN.
 2. An item is settled when the replier from the other side writes AGREED or CHANGED. REJECTED is not settled.
 3. After a REJECTED, the author edits the item to a new Preference and keeps the old row. The other side replies again.
 4. Silence is not agreement. If an item is OPEN after its deadline, the author pings once in chat. If still OPEN at the next stand-up, it is decided there and the decision is written as a reply row by the author with the note `stand-up`.
-5. When an item is settled, the author adds one line to `docs/DECISIONS.md`: `H<hour> | <ID> | <final decision>`.
-6. After H1, changes to `models.py` are only new optional fields. No renaming, no removing.
+5. When an item is settled, the author adds one line to `docs/DECISIONS.md`: a row in the existing table format `| <date> | <member> | <ID>: <final decision> |`.
+6. `models.py` is frozen. Any change, including a new optional field, needs AGREED from all four members.
 7. Never edit another member's code. Write an item instead.
 8. Be concrete: name files, fields and values.
 9. No secrets. Plain text. No em dashes. No emojis.
