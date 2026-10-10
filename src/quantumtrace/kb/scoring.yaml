@@ -1,0 +1,42 @@
+# Approved default policy, docs/PLAN.md 7.5 and communication/M1M4-09.
+tier_weights:
+  CRITICAL: 10
+  MEDIUM: 4
+  UNKNOWN: 2
+  SAFE: 0
+exposure:
+  negotiated_key_exchange: 1.5
+  public_loadbalancer_policy: 1.5
+  negotiated_other: 1.2
+  kms_enabled: 1.2
+  production: 1.0
+  offered_only: 0.4
+  kms_inactive: 0.3
+  test_only: 0.3
+broken_multiplier: 1.5
+occurrence:
+  cap: 31
+  log_divisor: 5
+grade_bands:
+- grade: A
+  minimum: 0
+  maximum: 10
+- grade: B
+  minimum: 11
+  maximum: 25
+- grade: C
+  minimum: 26
+  maximum: 40
+- grade: D
+  minimum: 41
+  maximum: 60
+- grade: E
+  minimum: 61
+  maximum: 80
+- grade: F
+  minimum: 81
+  maximum: 100
+hndl_floor:
+  score: 60
+  condition: hndl_exposed_and_negotiated
+aes_192_tier: MEDIUM

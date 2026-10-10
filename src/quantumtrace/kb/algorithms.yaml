@@ -1,0 +1,1467 @@
+# QuantumTrace policy and sourced facts; do not treat legacy aliases as compliance.
+- id: 3DES
+  family: 3DES
+  primitive_by_usage:
+    default: block-cipher
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - &id001
+    url: repo:docs/PLAN.md#7-domain-knowledge
+    checked_on: '2026-10-10'
+    note: Repository quantum-risk policy; tiers and legacy flags are policy, not a
+      certification.
+  classically_broken: true
+  replacement:
+    default: &id002
+      algorithm_id: AES
+      key_size: 256
+      mode: gcm
+      standard: NIST SP 800-38D
+  aliases:
+  - TDEA
+  - DESede
+  - 3des-cbc
+- id: AES
+  family: AES
+  primitive_by_usage:
+    default: block-cipher
+  threat: grover
+  note: Unknown key size is MEDIUM; nominal key bits do not assert a NIST quantum
+    category. SIV uses CBOM mode other.
+  sources:
+  - *id001
+  - &id010
+    url: https://csrc.nist.gov/projects/computer-security-objects-register/algorithm-registration
+    checked_on: '2026-10-10'
+    note: Verified algorithm OIDs only; security levels are not inferred from OIDs.
+  key_sizes:
+  - 128
+  - 192
+  - 256
+  tier_by_key_size:
+    '128': MEDIUM
+    '192': MEDIUM
+    '256': SAFE
+    unknown: MEDIUM
+  modes: &id003
+  - ecb
+  - cbc
+  - ctr
+  - cfb
+  - ofb
+  - gcm
+  - ccm
+  - other
+  primitive_by_mode:
+    gcm: ae
+    ccm: ae
+  patterns:
+  - ^aes(?P<size>128|192|256)?(?P<mode>gcm|cbc|ctr|ecb|ccm|cfb|ofb|siv)?$
+  - ^aes(?P<mode>gcm|cbc|ctr|ecb|ccm|cfb|ofb)(?P<size>128|192|256)$
+  replacement:
+    default: *id002
+  warnings:
+  - ecb_mode
+  aliases:
+  - AES/ECB/PKCS5Padding
+  - AES/GCM/NoPadding
+  oids:
+    AES-128-GCM: 2.16.840.1.101.3.4.1.6
+    AES-256-GCM: 2.16.840.1.101.3.4.1.46
+- id: Argon2
+  family: KDF
+  primitive_by_usage:
+    default: kdf
+  tier: SAFE
+  threat: none
+  note: Follow observed underlying hash/cipher where available; SAFE default is quantum
+    policy, not a password-hardening audit.
+  sources:
+  - *id001
+  follow_underlying_hash: true
+  aliases:
+  - argon2i
+  - argon2d
+  - argon2id
+- id: BLAKE2
+  family: BLAKE2
+  primitive_by_usage:
+    default: hash
+  tier: SAFE
+  threat: grover
+  note: Standard BLAKE2b/BLAKE2s output policy; observed truncated output requires
+    re-evaluation.
+  sources:
+  - *id001
+  aliases:
+  - blake2b
+  - blake2s
+  patterns:
+  - ^blake2[bs]?(?P<size>128|224|256|384|512)$
+- id: BLAKE3
+  family: BLAKE3
+  primitive_by_usage:
+    default: hash
+  tier: SAFE
+  threat: grover
+  note: Default 256-bit output quantum policy; truncated output must be re-evaluated.
+  sources:
+  - *id001
+  aliases: []
+  patterns:
+  - ^blake3[bs]?(?P<size>128|224|256|384|512)$
+- id: Blowfish
+  family: Blowfish
+  primitive_by_usage:
+    default: block-cipher
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  classically_broken: true
+  replacement:
+    default: *id002
+  aliases: []
+- id: CMAC
+  family: CMAC
+  primitive_by_usage:
+    default: mac
+  tier: UNKNOWN
+  threat: unknown
+  note: Requires underlying cipher and observed key-size classification; generic name
+    is UNKNOWN.
+  sources:
+  - *id001
+  patterns:
+  - ^cmacaes(?P<size>128|192|256)?$
+  follow_underlying_hash: false
+- id: Camellia
+  family: Camellia
+  primitive_by_usage:
+    default: block-cipher
+  threat: grover
+  note: Unknown key size is MEDIUM; nominal key bits do not assert a NIST quantum
+    category. SIV uses CBOM mode other.
+  sources:
+  - *id001
+  key_sizes:
+  - 128
+  - 192
+  - 256
+  tier_by_key_size:
+    '128': MEDIUM
+    '192': MEDIUM
+    '256': SAFE
+    unknown: MEDIUM
+  modes: *id003
+  primitive_by_mode:
+    gcm: ae
+    ccm: ae
+  patterns:
+  - ^camellia(?P<size>128|192|256)?(?P<mode>gcm|cbc|ctr|ecb|ccm|cfb|ofb|siv)?$
+  - ^camellia(?P<mode>gcm|cbc|ctr|ecb|ccm|cfb|ofb)(?P<size>128|192|256)$
+  replacement:
+    default: *id002
+  warnings:
+  - ecb_mode
+- id: ChaCha20
+  family: ChaCha20
+  primitive_by_usage:
+    default: stream-cipher
+  tier: SAFE
+  threat: none
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  aliases:
+  - chacha
+  key_sizes:
+  - 256
+- id: ChaCha20-Poly1305
+  family: ChaCha20
+  primitive_by_usage:
+    default: ae
+  tier: SAFE
+  threat: none
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  aliases:
+  - chacha20-poly1305@openssh.com
+  key_sizes:
+  - 256
+- id: DES
+  family: DES
+  primitive_by_usage:
+    default: block-cipher
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  classically_broken: true
+  replacement:
+    default: *id002
+  aliases: []
+- id: DH
+  family: DH
+  primitive_by_usage:
+    default: key-agree
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  replacement:
+    default: &id004
+      algorithm_id: ML-KEM
+      parameter_set: '768'
+      standard: NIST FIPS 203
+  aliases:
+  - dhe
+  - ffdhe
+  - diffiehellman
+  patterns:
+  - ^(?:dh|dhe|ffdhe)(?P<size>1024|2048|3072|4096|6144|8192)$
+  classically_broken_if:
+    key_size_lt: 2048
+- id: DSA
+  family: DSA
+  primitive_by_usage:
+    default: signature
+  tier: CRITICAL
+  threat: shor
+  note: Classically deprecated signing policy; not a claim that every signature is
+    forgeable.
+  sources:
+  - *id001
+  replacement:
+    default: &id005
+      algorithm_id: ML-DSA
+      parameter_set: '65'
+      standard: NIST FIPS 204
+  aliases:
+  - dss
+  classically_broken: true
+- id: ECDH
+  family: ECDH
+  primitive_by_usage:
+    default: key-agree
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  replacement:
+    default: *id004
+  aliases:
+  - ecdh
+  - ecdhe
+  - ecdhEphemeral
+  - prime256v1
+  - secp256r1
+  - P-256
+  - P-384
+  - secp384r1
+  - P-521
+  - secp521r1
+  - secp256k1
+  curve_aliases:
+    prime256v1: secp256r1
+    p256: secp256r1
+    p384: secp384r1
+    p521: secp521r1
+  patterns:
+  - ^ecdh[e]?(?P<curve>secp\d+r1|secp256k1|p256|p384|p521)?$
+- id: ECDSA
+  family: ECDSA
+  primitive_by_usage:
+    default: signature
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - &id008
+    url: https://docs.aws.amazon.com/kms/latest/APIReference/API_CreateKey.html
+    checked_on: '2026-10-10'
+    note: KeySpec spellings; cloud mappings remain owned by M4.
+  replacement:
+    default: *id005
+  aliases:
+  - ec
+  - ecc
+  - ECC_NIST_P256
+  - ECC_NIST_P384
+  - ECC_NIST_P521
+  - ECC_SECG_P256K1
+  - EC_prime256v1
+  - EC_secp384r1
+- id: ECIES
+  family: ECIES
+  primitive_by_usage:
+    default: pke
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  replacement:
+    default: *id004
+  aliases:
+  - eciesencryption
+- id: Ed25519
+  family: EdDSA
+  primitive_by_usage:
+    default: signature
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - &id006
+    url: https://www.rfc-editor.org/rfc/rfc8410
+    checked_on: '2026-10-10'
+    note: X25519, X448, Ed25519 and Ed448 algorithm identifiers.
+  replacement:
+    default: *id005
+  aliases:
+  - eddsa
+  - ssh-ed25519
+  oid: 1.3.101.112
+- id: Ed448
+  family: EdDSA
+  primitive_by_usage:
+    default: signature
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id006
+  replacement:
+    default: *id005
+  oid: 1.3.101.113
+- id: ElGamal
+  family: ElGamal
+  primitive_by_usage:
+    default: pke
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  replacement:
+    default: *id004
+- id: FN-DSA
+  family: FN-DSA
+  primitive_by_usage:
+    default: signature
+  tier: SAFE
+  threat: none
+  note: Falcon-derived FN-DSA/FIPS 206 remains in development; no final standard/OID/category
+    asserted.
+  sources:
+  - *id001
+  - &id007
+    url: https://csrc.nist.gov/projects/post-quantum-cryptography
+    checked_on: '2026-10-10'
+    note: FIPS 203/204/205 final; Falcon and HQC standardization remains in progress.
+  aliases:
+  - Falcon
+  parameter_sets:
+  - '512'
+  - '1024'
+  patterns:
+  - ^(?:fndsa|falcon)(?P<param>512|1024)$
+  standards_status: in_development
+- id: GMAC
+  family: GMAC
+  primitive_by_usage:
+    default: mac
+  tier: UNKNOWN
+  threat: unknown
+  note: Requires underlying cipher and observed key-size classification; generic name
+    is UNKNOWN.
+  sources:
+  - *id001
+  patterns:
+  - ^gmacaes(?P<size>128|192|256)?$
+  follow_underlying_hash: false
+- id: HKDF
+  family: KDF
+  primitive_by_usage:
+    default: kdf
+  tier: SAFE
+  threat: none
+  note: Follow observed underlying hash/cipher where available; SAFE default is quantum
+    policy, not a password-hardening audit.
+  sources:
+  - *id001
+  follow_underlying_hash: true
+  aliases: []
+  patterns:
+  - ^hkdf(?:hmac)?(?P<param>sha1|sha256|sha384|sha512)$
+- id: HMAC
+  family: HMAC
+  primitive_by_usage:
+    default: mac
+  tier: UNKNOWN
+  threat: unknown
+  note: Resolve underlying hash; SHA-1 MAC is not a collision-broken signature.
+  sources:
+  - *id001
+  patterns:
+  - ^hmac(?P<param>sha1|sha224|sha256|sha384|sha512|md5|sha3256|sha3384|sha3512)$
+  follow_underlying_hash: true
+- id: HMAC-MD5
+  family: HMAC
+  primitive_by_usage:
+    default: mac
+  tier: MEDIUM
+  threat: grover
+  note: MAC policy does not assign the collision-break flag of an unkeyed hash; key
+    length is retained separately.
+  sources:
+  - *id001
+  aliases: []
+- id: HMAC-SHA1
+  family: HMAC
+  primitive_by_usage:
+    default: mac
+  tier: MEDIUM
+  threat: grover
+  note: MAC policy does not assign the collision-break flag of an unkeyed hash; key
+    length is retained separately.
+  sources:
+  - *id001
+  aliases: []
+- id: HMAC-SHA224
+  family: HMAC
+  primitive_by_usage:
+    default: mac
+  tier: MEDIUM
+  threat: grover
+  note: MAC policy does not assign the collision-break flag of an unkeyed hash; key
+    length is retained separately.
+  sources:
+  - *id001
+  aliases:
+  - HMAC_224
+- id: HMAC-SHA256
+  family: HMAC
+  primitive_by_usage:
+    default: mac
+  tier: SAFE
+  threat: grover
+  note: MAC policy does not assign the collision-break flag of an unkeyed hash; key
+    length is retained separately.
+  sources:
+  - *id001
+  aliases:
+  - HmacSHA256
+  - HMAC_256
+- id: HMAC-SHA3-256
+  family: HMAC
+  primitive_by_usage:
+    default: mac
+  tier: SAFE
+  threat: grover
+  note: MAC policy does not assign the collision-break flag of an unkeyed hash; key
+    length is retained separately.
+  sources:
+  - *id001
+  aliases: []
+- id: HMAC-SHA3-384
+  family: HMAC
+  primitive_by_usage:
+    default: mac
+  tier: SAFE
+  threat: grover
+  note: MAC policy does not assign the collision-break flag of an unkeyed hash; key
+    length is retained separately.
+  sources:
+  - *id001
+  aliases: []
+- id: HMAC-SHA3-512
+  family: HMAC
+  primitive_by_usage:
+    default: mac
+  tier: SAFE
+  threat: grover
+  note: MAC policy does not assign the collision-break flag of an unkeyed hash; key
+    length is retained separately.
+  sources:
+  - *id001
+  aliases: []
+- id: HMAC-SHA384
+  family: HMAC
+  primitive_by_usage:
+    default: mac
+  tier: SAFE
+  threat: grover
+  note: MAC policy does not assign the collision-break flag of an unkeyed hash; key
+    length is retained separately.
+  sources:
+  - *id001
+  aliases:
+  - HMAC_384
+- id: HMAC-SHA512
+  family: HMAC
+  primitive_by_usage:
+    default: mac
+  tier: SAFE
+  threat: grover
+  note: MAC policy does not assign the collision-break flag of an unkeyed hash; key
+    length is retained separately.
+  sources:
+  - *id001
+  aliases:
+  - HMAC_512
+- id: HQC
+  family: HQC
+  primitive_by_usage:
+    default: kem
+  tier: SAFE
+  threat: none
+  note: Selected for standardization; no final standard/OID/category asserted.
+  sources:
+  - *id001
+  - *id007
+  standards_status: in_development
+- id: HSS
+  family: HSS
+  primitive_by_usage:
+    default: signature
+  tier: SAFE
+  threat: none
+  note: SP 800-208 covers selected stateful parameter sets; correct state management
+    is essential, family recognition is not compliance.
+  sources:
+  - *id001
+  - url: https://csrc.nist.gov/pubs/sp/800/208/final
+    checked_on: '2026-10-10'
+    note: Approved selected LMS/HSS and XMSS/XMSSMT parameter sets.
+  pqc_standard: NIST SP 800-208
+  standards_status: final
+  aliases: []
+- id: IDEA
+  family: IDEA
+  primitive_by_usage:
+    default: block-cipher
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  classically_broken: true
+  replacement:
+    default: *id002
+  aliases: []
+- id: INSECURE-RNG
+  family: Warning
+  primitive_by_usage:
+    default: other
+  tier: UNKNOWN
+  threat: unknown
+  note: Observed insecure RNG hygiene warning; excluded from quantum score/readiness.
+  sources:
+  - *id001
+  aliases:
+  - random.getrandbits
+  - java.util.Random
+  - math/rand
+  classically_broken: true
+  scoring_excluded: true
+- id: KMS-SYMMETRIC-DEFAULT
+  family: Provider-specific
+  primitive_by_usage:
+    default: unknown
+  tier: UNKNOWN
+  threat: unknown
+  note: Provider/region-dependent mapping belongs to cloud_registry.yaml. Do not infer
+    AES from this spelling alone; China-region behavior differs.
+  sources:
+  - *id001
+  - *id008
+  aliases:
+  - SYMMETRIC_DEFAULT
+- id: Kyber-Draft
+  family: Kyber
+  primitive_by_usage:
+    default: kem
+  tier: SAFE
+  threat: none
+  note: Legacy Kyber implementation must not be represented as final ML-KEM compliance.
+  sources:
+  - *id001
+  - *id007
+  parameter_sets:
+  - '768'
+  standards_status: pre_standard
+  deprecated_pqc_draft: true
+- id: LMS
+  family: LMS
+  primitive_by_usage:
+    default: signature
+  tier: SAFE
+  threat: none
+  note: SP 800-208 covers selected stateful parameter sets; correct state management
+    is essential, family recognition is not compliance.
+  sources:
+  - *id001
+  - url: https://csrc.nist.gov/pubs/sp/800/208/final
+    checked_on: '2026-10-10'
+    note: Approved selected LMS/HSS and XMSS/XMSSMT parameter sets.
+  pqc_standard: NIST SP 800-208
+  standards_status: final
+  aliases: []
+- id: MD4
+  family: MD4
+  primitive_by_usage:
+    default: hash
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  replacement:
+    default: &id009
+      algorithm_id: SHA-384
+      standard: NIST FIPS 180-4
+  classically_broken_if:
+    usages:
+    - hash
+    - signature
+    - authentication
+- id: MD5
+  family: MD5
+  primitive_by_usage:
+    default: hash
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  replacement:
+    default: *id009
+  classically_broken_if:
+    usages:
+    - hash
+    - signature
+    - authentication
+- id: ML-DSA
+  family: ML-DSA
+  primitive_by_usage:
+    default: signature
+  tier: SAFE
+  threat: none
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id007
+  - *id010
+  - url: https://csrc.nist.gov/pubs/fips/204/final
+    checked_on: '2026-10-10'
+    note: Final standard and parameter sets; legacy aliases need implementation verification.
+  aliases:
+  - Dilithium
+  deprecated_aliases:
+  - Dilithium
+  patterns:
+  - ^(?:mldsa|dilithium)(?P<param>44|65|87|2|3|5)$
+  parameter_sets:
+  - '44'
+  - '65'
+  - '87'
+  param_map:
+    '2': '44'
+    '3': '65'
+    '5': '87'
+  nist_quantum_level_by_param:
+    '44': 2
+    '65': 3
+    '87': 5
+  oids:
+    '44': 2.16.840.1.101.3.4.3.17
+    '65': 2.16.840.1.101.3.4.3.18
+    '87': 2.16.840.1.101.3.4.3.19
+  pqc_standard: NIST FIPS 204
+  standards_status: final
+  note_if_alias:
+    Dilithium: Pre-standard name; parameter-name correspondence does not prove final
+      FIPS compliance.
+- id: ML-KEM
+  family: ML-KEM
+  primitive_by_usage:
+    default: kem
+  tier: SAFE
+  threat: none
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id007
+  - *id010
+  - url: https://csrc.nist.gov/pubs/fips/203/final
+    checked_on: '2026-10-10'
+    note: Final standard and parameter sets; legacy aliases need implementation verification.
+  aliases:
+  - Kyber
+  deprecated_aliases:
+  - Kyber
+  patterns:
+  - ^(?:mlkem|kyber)(?P<param>512|768|1024)$
+  parameter_sets:
+  - '512'
+  - '768'
+  - '1024'
+  param_map: {}
+  nist_quantum_level_by_param:
+    '512': 1
+    '768': 3
+    '1024': 5
+  oids:
+    '512': 2.16.840.1.101.3.4.4.1
+    '768': 2.16.840.1.101.3.4.4.2
+    '1024': 2.16.840.1.101.3.4.4.3
+  pqc_standard: NIST FIPS 203
+  standards_status: final
+  note_if_alias:
+    Kyber: Pre-standard name; parameter-name correspondence does not prove final FIPS
+      compliance.
+- id: PBKDF2
+  family: KDF
+  primitive_by_usage:
+    default: kdf
+  tier: SAFE
+  threat: none
+  note: Follow observed underlying hash/cipher where available; SAFE default is quantum
+    policy, not a password-hardening audit.
+  sources:
+  - *id001
+  follow_underlying_hash: true
+  aliases:
+  - PBKDF2-HMAC-SHA256
+  - PBKDF2WithHmacSHA256
+  patterns:
+  - ^pbkdf2(?:with)?hmac(?P<param>sha1|sha224|sha256|sha384|sha512)$
+  warnings:
+  - pbkdf2_iterations_below_100000
+- id: Poly1305
+  family: Poly1305
+  primitive_by_usage:
+    default: mac
+  tier: SAFE
+  threat: none
+  note: QuantumTrace MAC policy, not a claim of 256-bit tag security.
+  sources:
+  - *id001
+- id: RC2
+  family: RC2
+  primitive_by_usage:
+    default: block-cipher
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  classically_broken: true
+  replacement:
+    default: *id002
+  aliases: []
+- id: RC4
+  family: RC4
+  primitive_by_usage:
+    default: stream-cipher
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  classically_broken: true
+  replacement:
+    default: *id002
+  aliases: []
+- id: RSA
+  family: RSA
+  primitive_by_usage:
+    encryption: pke
+    signature: signature
+    authentication: signature
+    key_exchange: pke
+    unknown: pke
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id008
+  replacement:
+    encryption: *id004
+    key_exchange: *id004
+    signature: *id005
+    authentication: *id005
+  aliases:
+  - rsaencryption
+  - rsassapkcs1v15
+  - rsassapss
+  - rsaoaep
+  - rsapss
+  - rsakeytransport
+  - RSA_2048
+  - RSA_3072
+  - RSA_4096
+  patterns:
+  - ^rsa(?P<size>\d{3,5})?$
+  classically_broken_if:
+    key_size_lt: 2048
+  forward_secrecy: false
+- id: SEED
+  family: SEED
+  primitive_by_usage:
+    default: block-cipher
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  key_sizes:
+  - 128
+  replacement:
+    default: *id002
+- id: SHA-1
+  family: SHA-1
+  primitive_by_usage:
+    default: hash
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  replacement:
+    default: *id009
+  classically_broken_if:
+    usages:
+    - hash
+    - signature
+    - authentication
+  aliases:
+  - sha
+- id: SHA-224
+  family: SHA-2
+  primitive_by_usage:
+    default: hash
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id010
+  replacement:
+    default: *id009
+  oid: 2.16.840.1.101.3.4.2.4
+- id: SHA-256
+  family: SHA-2
+  primitive_by_usage:
+    default: hash
+  tier: SAFE
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id010
+  replacement: {}
+  oid: 2.16.840.1.101.3.4.2.1
+- id: SHA-384
+  family: SHA-2
+  primitive_by_usage:
+    default: hash
+  tier: SAFE
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id010
+  replacement: {}
+  oid: 2.16.840.1.101.3.4.2.2
+- id: SHA-512
+  family: SHA-2
+  primitive_by_usage:
+    default: hash
+  tier: SAFE
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id010
+  replacement: {}
+  oid: 2.16.840.1.101.3.4.2.3
+- id: SHA-512/224
+  family: SHA-2
+  primitive_by_usage:
+    default: hash
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id010
+  replacement:
+    default: *id009
+  oid: 2.16.840.1.101.3.4.2.5
+- id: SHA-512/256
+  family: SHA-2
+  primitive_by_usage:
+    default: hash
+  tier: SAFE
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id010
+  replacement: {}
+  oid: 2.16.840.1.101.3.4.2.6
+- id: SHA1withRSA
+  family: RSA
+  primitive_by_usage:
+    default: signature
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - &id011
+    url: https://www.rfc-editor.org/rfc/rfc4253
+    checked_on: '2026-10-10'
+    note: SSH signature and fixed DH group identities.
+  - url: https://www.rfc-editor.org/rfc/rfc8332
+    checked_on: '2026-10-10'
+    note: Negotiated RSA SHA-2 signature algorithms reuse ssh-rsa key format.
+  components:
+  - algorithm_id: RSA
+    usage: signature
+  - algorithm_id: SHA-1
+    usage: signature
+  classically_broken: true
+  replacement:
+    default: *id005
+- id: SHA3-224
+  family: SHA-3
+  primitive_by_usage:
+    default: hash
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id010
+  replacement:
+    default: *id009
+  oid: 2.16.840.1.101.3.4.2.7
+- id: SHA3-256
+  family: SHA-3
+  primitive_by_usage:
+    default: hash
+  tier: SAFE
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id010
+  replacement: {}
+  oid: 2.16.840.1.101.3.4.2.8
+- id: SHA3-384
+  family: SHA-3
+  primitive_by_usage:
+    default: hash
+  tier: SAFE
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id010
+  replacement: {}
+  oid: 2.16.840.1.101.3.4.2.9
+- id: SHA3-512
+  family: SHA-3
+  primitive_by_usage:
+    default: hash
+  tier: SAFE
+  threat: grover
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id010
+  replacement: {}
+  oid: 2.16.840.1.101.3.4.2.10
+- id: SHAKE128
+  family: SHAKE
+  primitive_by_usage:
+    default: xof
+  tier: MEDIUM
+  threat: grover
+  note: Output length remains observed evidence; no fixed category inferred from the
+    family name.
+  sources:
+  - *id001
+  - *id010
+  oid: 2.16.840.1.101.3.4.2.11
+- id: SHAKE256
+  family: SHAKE
+  primitive_by_usage:
+    default: xof
+  tier: SAFE
+  threat: grover
+  note: Output length remains observed evidence; no fixed category inferred from the
+    family name.
+  sources:
+  - *id001
+  - *id010
+  oid: 2.16.840.1.101.3.4.2.12
+- id: SLH-DSA
+  family: SLH-DSA
+  primitive_by_usage:
+    default: signature
+  tier: SAFE
+  threat: none
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id007
+  - url: https://csrc.nist.gov/pubs/fips/205/final
+    checked_on: '2026-10-10'
+    note: Final hash-based signature standard; no family-wide OID inferred.
+  aliases:
+  - SPHINCS
+  - SPHINCS+
+  - SPHINCSplus
+  deprecated_aliases:
+  - SPHINCS
+  - SPHINCS+
+  - SPHINCSplus
+  patterns:
+  - ^(?:slhdsa|sphincs\+?|sphincsplus)(?P<param>sha2|shake)?(?P<size>128|192|256)(?P<variant>s|f)$
+  parameter_sets:
+  - SHA2-128s
+  - SHA2-128f
+  - SHA2-192s
+  - SHA2-192f
+  - SHA2-256s
+  - SHA2-256f
+  - SHAKE-128s
+  - SHAKE-128f
+  - SHAKE-192s
+  - SHAKE-192f
+  - SHAKE-256s
+  - SHAKE-256f
+  nist_quantum_level_by_param:
+    SHA2-128s: 1
+    SHA2-128f: 1
+    SHA2-192s: 3
+    SHA2-192f: 3
+    SHA2-256s: 5
+    SHA2-256f: 5
+    SHAKE-128s: 1
+    SHAKE-128f: 1
+    SHAKE-192s: 3
+    SHAKE-192f: 3
+    SHAKE-256s: 5
+    SHAKE-256f: 5
+  pqc_standard: NIST FIPS 205
+  standards_status: final
+  note_if_alias:
+    SPHINCS+: Legacy algorithm name; verify final parameter set and implementation.
+- id: SM2
+  family: SM2
+  primitive_by_usage:
+    default: signature
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  replacement:
+    default: *id005
+- id: SNTRUP761
+  family: NTRU-Prime
+  primitive_by_usage:
+    default: kem
+  tier: SAFE
+  threat: none
+  note: No NIST final-standard claim; component of documented SSH hybrid.
+  sources:
+  - *id001
+  - &id012
+    url: https://www.openssh.org/pq.html
+    checked_on: '2026-10-10'
+    note: SSH hybrid names; no claim of post-quantum authentication.
+  parameter_sets:
+  - '761'
+  standards_status: not_claimed
+- id: SecP256r1Kyber768Draft00
+  family: Hybrid-KEM
+  primitive_by_usage:
+    default: kem
+  tier: SAFE
+  threat: none
+  note: Pre-standard draft hybrid; policy SAFE KEX is not final ML-KEM conformance.
+    No numeric codepoint asserted.
+  sources:
+  - *id001
+  components:
+  - algorithm_id: ECDH
+    curve: secp256r1
+  - algorithm_id: Kyber-Draft
+    parameter_set: '768'
+  standards_status: pre_standard
+  deprecated_pqc_draft: true
+  replacement:
+    default:
+      algorithm_id: X25519MLKEM768
+- id: SecP256r1MLKEM768
+  family: Hybrid-KEM
+  primitive_by_usage:
+    default: kem
+  tier: SAFE
+  threat: none
+  note: 'Atomic hybrid KEX policy: classical half is Shor-vulnerable; confidentiality
+    depends on the PQ half. Authentication is separate. FIPS 203 applies to ML-KEM,
+    not to certification of this combiner.'
+  sources:
+  - *id001
+  components:
+  - algorithm_id: ECDH
+    curve: secp256r1
+  - algorithm_id: ML-KEM
+    parameter_set: '768'
+- id: SecP384r1MLKEM1024
+  family: Hybrid-KEM
+  primitive_by_usage:
+    default: kem
+  tier: SAFE
+  threat: none
+  note: 'Atomic hybrid KEX policy: classical half is Shor-vulnerable; confidentiality
+    depends on the PQ half. Authentication is separate. FIPS 203 applies to ML-KEM,
+    not to certification of this combiner.'
+  sources:
+  - *id001
+  components:
+  - algorithm_id: ECDH
+    curve: secp384r1
+  - algorithm_id: ML-KEM
+    parameter_set: '1024'
+- id: X25519
+  family: ECDH
+  primitive_by_usage:
+    default: key-agree
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id006
+  replacement:
+    default: *id004
+  aliases:
+  - curve25519
+  - curve25519-sha256
+  - curve25519-sha256@libssh.org
+  oid: 1.3.101.110
+- id: X25519Kyber768Draft00
+  family: Hybrid-KEM
+  primitive_by_usage:
+    default: kem
+  tier: SAFE
+  threat: none
+  note: Pre-standard draft hybrid; policy SAFE KEX is not final ML-KEM conformance.
+    No numeric codepoint asserted.
+  sources:
+  - *id001
+  components:
+  - algorithm_id: X25519
+  - algorithm_id: Kyber-Draft
+    parameter_set: '768'
+  standards_status: pre_standard
+  deprecated_pqc_draft: true
+  replacement:
+    default:
+      algorithm_id: X25519MLKEM768
+- id: X25519MLKEM768
+  family: Hybrid-KEM
+  primitive_by_usage:
+    default: kem
+  tier: SAFE
+  threat: none
+  note: 'Atomic hybrid KEX policy: classical half is Shor-vulnerable; confidentiality
+    depends on the PQ half. Authentication is separate. FIPS 203 applies to ML-KEM,
+    not to certification of this combiner.'
+  sources:
+  - *id001
+  components:
+  - algorithm_id: X25519
+  - algorithm_id: ML-KEM
+    parameter_set: '768'
+- id: X448
+  family: ECDH
+  primitive_by_usage:
+    default: key-agree
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id006
+  replacement:
+    default: *id004
+  aliases:
+  - curve448
+  oid: 1.3.101.111
+- id: XMSS
+  family: XMSS
+  primitive_by_usage:
+    default: signature
+  tier: SAFE
+  threat: none
+  note: SP 800-208 covers selected stateful parameter sets; correct state management
+    is essential, family recognition is not compliance.
+  sources:
+  - *id001
+  - url: https://csrc.nist.gov/pubs/sp/800/208/final
+    checked_on: '2026-10-10'
+    note: Approved selected LMS/HSS and XMSS/XMSSMT parameter sets.
+  pqc_standard: NIST SP 800-208
+  standards_status: final
+  aliases:
+  - XMSSMT
+- id: bcrypt
+  family: KDF
+  primitive_by_usage:
+    default: kdf
+  tier: SAFE
+  threat: none
+  note: Follow observed underlying hash/cipher where available; SAFE default is quantum
+    policy, not a password-hardening audit.
+  sources:
+  - *id001
+  follow_underlying_hash: true
+  aliases: []
+- id: diffie-hellman-group1-sha1
+  family: SSH-KEX
+  primitive_by_usage:
+    default: key-agree
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id011
+  - url: https://www.rfc-editor.org/rfc/rfc8268
+    checked_on: '2026-10-10'
+    note: group16 uses 4096-bit fixed MODP group.
+  components:
+  - algorithm_id: DH
+    key_size: 1024
+    usage: key_exchange
+  - algorithm_id: SHA-1
+    usage: hash
+  classically_broken: true
+  replacement:
+    default: *id004
+- id: diffie-hellman-group14-sha1
+  family: SSH-KEX
+  primitive_by_usage:
+    default: key-agree
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id011
+  - url: https://www.rfc-editor.org/rfc/rfc8268
+    checked_on: '2026-10-10'
+    note: group16 uses 4096-bit fixed MODP group.
+  components:
+  - algorithm_id: DH
+    key_size: 2048
+    usage: key_exchange
+  - algorithm_id: SHA-1
+    usage: hash
+  classically_broken: false
+  replacement:
+    default: *id004
+- id: diffie-hellman-group16-sha512
+  family: SSH-KEX
+  primitive_by_usage:
+    default: key-agree
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id011
+  - url: https://www.rfc-editor.org/rfc/rfc8268
+    checked_on: '2026-10-10'
+    note: group16 uses 4096-bit fixed MODP group.
+  components:
+  - algorithm_id: DH
+    key_size: 4096
+    usage: key_exchange
+  - algorithm_id: SHA-512
+    usage: hash
+  classically_broken: false
+  replacement:
+    default: *id004
+- id: mlkem768x25519-sha256
+  family: Hybrid-KEM
+  primitive_by_usage:
+    default: kem
+  tier: SAFE
+  threat: none
+  note: 'Atomic hybrid KEX policy: classical half is Shor-vulnerable; confidentiality
+    depends on the PQ half. Authentication is separate. FIPS 203 applies to ML-KEM,
+    not to certification of this combiner.'
+  sources:
+  - *id001
+  - *id012
+  components:
+  - algorithm_id: X25519
+  - algorithm_id: ML-KEM
+    parameter_set: '768'
+- id: rsa-sha2-256
+  family: RSA
+  primitive_by_usage:
+    default: signature
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id011
+  - url: https://www.rfc-editor.org/rfc/rfc8332
+    checked_on: '2026-10-10'
+    note: Negotiated RSA SHA-2 signature algorithms reuse ssh-rsa key format.
+  components:
+  - algorithm_id: RSA
+    usage: signature
+  - algorithm_id: SHA-256
+    usage: signature
+  classically_broken: false
+  replacement:
+    default: *id005
+- id: rsa-sha2-512
+  family: RSA
+  primitive_by_usage:
+    default: signature
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id011
+  - url: https://www.rfc-editor.org/rfc/rfc8332
+    checked_on: '2026-10-10'
+    note: Negotiated RSA SHA-2 signature algorithms reuse ssh-rsa key format.
+  components:
+  - algorithm_id: RSA
+    usage: signature
+  - algorithm_id: SHA-512
+    usage: signature
+  classically_broken: false
+  replacement:
+    default: *id005
+- id: scrypt
+  family: KDF
+  primitive_by_usage:
+    default: kdf
+  tier: SAFE
+  threat: none
+  note: Follow observed underlying hash/cipher where available; SAFE default is quantum
+    policy, not a password-hardening audit.
+  sources:
+  - *id001
+  follow_underlying_hash: true
+  aliases: []
+- id: sntrup761x25519-sha512
+  family: Hybrid-KEM
+  primitive_by_usage:
+    default: kem
+  tier: SAFE
+  threat: none
+  note: Atomic SSH hybrid policy; no NIST FIPS standard inferred. Authentication remains
+    separate.
+  sources:
+  - *id001
+  - *id012
+  aliases:
+  - sntrup761x25519-sha512@openssh.com
+  components:
+  - algorithm_id: X25519
+  - algorithm_id: SNTRUP761
+    parameter_set: '761'
+- id: ssh-rsa
+  family: RSA
+  primitive_by_usage:
+    default: signature
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - *id011
+  - url: https://www.rfc-editor.org/rfc/rfc8332
+    checked_on: '2026-10-10'
+    note: Negotiated RSA SHA-2 signature algorithms reuse ssh-rsa key format.
+  components:
+  - algorithm_id: RSA
+    usage: signature
+  - algorithm_id: SHA-1
+    usage: signature
+  classically_broken: true
+  replacement:
+    default: *id005
