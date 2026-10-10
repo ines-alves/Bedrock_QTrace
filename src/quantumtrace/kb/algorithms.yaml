@@ -31,8 +31,8 @@
   primitive_by_usage:
     default: block-cipher
   threat: grover
-  note: Unknown key size is MEDIUM; nominal key bits do not assert a NIST quantum
-    category. SIV uses CBOM mode other.
+  note: 'Policy: tier follows the observed key size (256-bit SAFE; 128-bit, 192-bit
+    or unobserved size MEDIUM); nominal key bits do not assert a NIST quantum category.'
   sources:
   - *id001
   - &id010
@@ -147,8 +147,8 @@
   primitive_by_usage:
     default: block-cipher
   threat: grover
-  note: Unknown key size is MEDIUM; nominal key bits do not assert a NIST quantum
-    category. SIV uses CBOM mode other.
+  note: 'Policy: tier follows the observed key size (256-bit SAFE; 128-bit, 192-bit
+    or unobserved size MEDIUM); nominal key bits do not assert a NIST quantum category.'
   sources:
   - *id001
   key_sizes:
