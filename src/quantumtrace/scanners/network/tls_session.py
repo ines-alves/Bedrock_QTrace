@@ -119,6 +119,7 @@ def _finding(
         protocol=protocol,
         negotiated=negotiated,
         detector=detector,
+        confidence=1.0,  # directly observed on the wire
         location=location,
         session_id=sid,
         extra=extra,
