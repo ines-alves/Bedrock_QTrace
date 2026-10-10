@@ -27,8 +27,33 @@ def _read(name: str) -> dict[str, Any]:
     return data
 
 
+def _uncertain_aliases(kind: KindHint, row: dict[str, Any]) -> frozenset[str] | None:
+    """None blocks a whole row; a set marks only generator-described alias uncertainty."""
+    if row.get("verified") is False:
+        return None
+    if "verify" not in row:
+        return frozenset()
+    markers = row["verify"]
+    if kind != KindHint.GROUP or not isinstance(markers, list) or not markers:
+        return None
+    aliases = row.get("openssl")
+    if not isinstance(aliases, list):
+        return None
+    uncertain = set()
+    for marker in markers:
+        match = (
+            re.fullmatch(r"openssl alias (\S+) paired via openssl ecparam", marker)
+            if isinstance(marker, str)
+            else None
+        )
+        if match is None or match[1] not in aliases:
+            return None
+        uncertain.add(match[1])
+    return frozenset(uncertain)
+
+
 class TLSRegistry:
-    """Resolve only named, sourced rows without verify markers; keep namespaces separate."""
+    """Keep confirmed numeric rows distinct from individually unverified aliases."""
 
     def __init__(self) -> None:
         self.data = _read("tls_registry.yaml")
@@ -36,18 +61,24 @@ class TLSRegistry:
     def resolve(self, kind: KindHint, codepoint: str) -> RegistryResolution | None:
         namespace = _NAMESPACES.get(kind)
         row = self.data.get(namespace, {}).get(codepoint) if namespace else None
-        if not isinstance(row, dict) or "verify" in row:
+        if not isinstance(row, dict) or _uncertain_aliases(kind, row) is None:
             return None
         name = row.get("label" if kind == KindHint.PROTOCOL_VERSION else "iana")
         if not isinstance(name, str) or not name.strip():
             return None
-        # Version rows in M2's schema have no per-row reference. Preserve uncertainty.
         reference = row.get("ref")
         if not isinstance(reference, str) or not reference.strip():
             return None
-        return RegistryResolution(
-            kind, codepoint, name, True, f"https://www.iana.org/assignments/tls-parameters ({reference})"
-        )
+        if kind == KindHint.PROTOCOL_VERSION:
+            rfcs = re.findall(r"\[RFC(\d+)\]", reference)
+            if not rfcs:
+                return None
+            source = " ".join(
+                f"https://www.rfc-editor.org/rfc/rfc{number}.html" for number in dict.fromkeys(rfcs)
+            )
+        else:
+            source = f"https://www.iana.org/assignments/tls-parameters ({reference})"
+        return RegistryResolution(kind, codepoint, name, True, source)
 
     def resolve_name(self, kind: KindHint, raw_name: str) -> RegistryResolution | None:
         namespace = _NAMESPACES.get(kind)
@@ -56,6 +87,9 @@ class TLSRegistry:
         matches = []
         for code, row in self.data.get(namespace, {}).items():
             if isinstance(row, dict) and raw_name in row.get("openssl", []):
+                uncertain = _uncertain_aliases(kind, row)
+                if uncertain is None or raw_name in uncertain:
+                    continue
                 resolved = self.resolve(kind, code)
                 if resolved:
                     matches.append(resolved)

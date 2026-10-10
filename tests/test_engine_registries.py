@@ -32,10 +32,10 @@ def test_tls_numeric_namespaces_and_openssl():
     )
     assert tls.resolve(KindHint.ALGORITHM, "0x001D") is None
     assert tls.resolve(KindHint.GROUP, "0xFFFF") is None
-    assert tls.resolve(KindHint.PROTOCOL_VERSION, "0x0304") is None
+    assert tls.resolve(KindHint.PROTOCOL_VERSION, "0x0304").iana_name == "TLS 1.3"
     for kind, namespace in [(KindHint.GROUP, "groups"), (KindHint.SIGNATURE_SCHEME, "signature_schemes")]:
         for code, row in tls.data[namespace].items():
-            if "verify" in row:
+            if "verify" in row and code != "0x0017":
                 assert tls.resolve(kind, code) is None
 
 
@@ -110,3 +110,54 @@ def test_real_kms_and_listener_findings():
     assert any(asset.components and asset.max_points == 0 for asset in assets)
     assert all(asset.risk_points <= asset.max_points for asset in assets)
     assert analyze(list(reversed(findings))) == (assets, summary)
+
+
+def test_numeric_group_confirmation_is_separate_from_alias_uncertainty():
+    tls = TLSRegistry()
+    assert tls.resolve(KindHint.GROUP, "0x0017").iana_name == "secp256r1"
+    assert tls.resolve_name(KindHint.GROUP, "prime256v1") is None
+    assert tls.resolve_name(KindHint.GROUP, "secp256r1").iana_name == "secp256r1"
+    assert tls.resolve_name(KindHint.GROUP, "P-256").iana_name == "secp256r1"
+    assets, _ = analyze([raw("0x0017")])
+    assert any(asset.tier == Tier.CRITICAL for asset in assets)
+    conflicting, _ = analyze([raw("0x0017", extra={"iana_name": "secp384r1"})])
+    assert conflicting[0].tier == Tier.UNKNOWN
+
+
+@pytest.mark.parametrize(
+    "marker",
+    [
+        [],
+        "alias",
+        [None],
+        ["openssl alias absent paired via openssl ecparam"],
+        ["openssl alias prime256v1 paired via openssl ecparam", "not in IANA snapshot"],
+        ["codepoint unverified"],
+    ],
+)
+def test_numeric_lookup_never_ignores_general_or_malformed_uncertainty(marker):
+    tls = TLSRegistry()
+    tls.data["groups"]["0x0017"]["verify"] = marker
+    assert tls.resolve(KindHint.GROUP, "0x0017") is None
+    assert tls.resolve_name(KindHint.GROUP, "secp256r1") is None
+
+
+@pytest.mark.parametrize(
+    "code,label,rfc",
+    [
+        ("0x0300", "SSL 3.0", "6101"),
+        ("0x0301", "TLS 1.0", "2246"),
+        ("0x0302", "TLS 1.1", "4346"),
+        ("0x0303", "TLS 1.2", "5246"),
+        ("0x0304", "TLS 1.3", "8446"),
+    ],
+)
+def test_version_rows_cite_the_actual_rfc(code, label, rfc):
+    tls = TLSRegistry()
+    row = tls.resolve(KindHint.PROTOCOL_VERSION, code)
+    assert row.iana_name == label and row.source == f"https://www.rfc-editor.org/rfc/rfc{rfc}.html"
+    assets, _ = analyze([raw(code, kind=KindHint.PROTOCOL_VERSION, usage=Usage.UNKNOWN)])
+    assert assets[0].max_points == 0
+    assert "verified TLS registry unavailable" not in assets[0].rationale
+    tls.data["versions"][code].pop("ref")
+    assert tls.resolve(KindHint.PROTOCOL_VERSION, code) is None

@@ -42,15 +42,17 @@ inferred here.
 validated owner adapter. Its `RegistryResolution` contains exactly the requested
 namespace/codepoint, an IANA name, `verified=True` and a nonempty source reference.
 The adapter owns file-schema and primary-source validation. Missing, mismatched
-or verify-only rows cannot resolve numeric evidence. Bare decimal values and hex
+or numerically unverified rows cannot resolve evidence. Alias-only uncertainty
+is scoped to its marked alias by the production adapter. Bare decimal values and hex
 outside GROUP/CIPHER_SUITE/SIGNATURE_SCHEME/PROTOCOL_VERSION remain unknown. Observed
 `extra.codepoint` and `extra.iana_name` are cross-checked with raw names and rows;
 conflicts retain evidence and prevent a resolved verdict. Unknown hex identity
 uses canonical uppercase four-digit spelling within its original namespace.
 
 Task 1.8 connects the published owner files through engine/registries.py.
-Normalization still accepts injected resolvers and supplies no guessed tables. The synthetic private codepoints in tests exercise
-resolver mechanics and make no real-world registry claims. SSH/composite names
+Normalization still accepts injected resolvers and supplies no guessed tables.
+The synthetic private codepoints in tests exercise resolver mechanics and make no
+real-world registry claims. SSH/composite names
 retain their KB identity/components for later decomposition; `ssh-rsa` is not
 rewritten to a bare RSA key, and fixed DH group/hash metadata remains in the KB.
 
@@ -123,7 +125,7 @@ adapters described below. Known
 key-spec aliases reuse the sourced KB; provider-specific SYMMETRIC_DEFAULT and
 unmapped policies retain explicit absent coverage. Verified fake adapters/private
 codes in tests exercise mechanics and make no production assignment claims.
-Task 1.8 supplies production file adapters. Unknown/verify-only inputs
+Task 1.8 supplies production file adapters. Unknown/unverified numeric inputs
 never gain invented rows, key sizes, parameters, OIDs or standard compliance.
 
 # Decomposition fact references
@@ -330,9 +332,11 @@ visible in the returned assets.
 
 `engine/registries.py` adapts the published schema-1 owner tables without changing
 owner files. TLS lookup keeps namespaces separate, requires a nonempty name and
-reference, and rejects every `verify` marker. Unique exact OpenSSL aliases resolve
-through their sourced TLS row. Numeric version rows currently lack per-row sources
-and remain unresolved; textual protocol evidence is retained. Cloud recipes accept
+reference, and rejects general/draft verification uncertainty. Alias-only markers
+from the owner generator apply to their named alias, not the confirmed numeric
+mapping; marked aliases remain unavailable through resolve_name. Unique exact OpenSSL aliases resolve
+through their sourced TLS row. Version rows now carry RFC references and resolve within their own namespace;
+the adapter cites direct RFC URLs rather than an assumed IANA version table. Cloud recipes accept
 only verified policy rows and sourced cipher names. No classical groups are invented
 when AWS leaves them undocumented; a partial hybrid list does not prove absence of
 other groups. KMS SYMMETRIC_DEFAULT requires a matching observed KMS ARN partition:
@@ -346,3 +350,7 @@ Primary adapter references checked 2026-10-10: the
 [AWS KMS key spec reference](https://docs.aws.amazon.com/kms/latest/developerguide/symm-asymm-choose-key-spec.html)
 and [AWS ALB policy table](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/describe-ssl-policies.html).
 These references establish names/mappings; the repository KB assigns all tiers.
+
+Task 1.9 adds [pipeline and session contracts](PIPELINE.md), including routing,
+partial-scan errors, observed session metadata, negotiation/authentication rules,
+and the distinction between published parser consumption and registered H6 coverage.
