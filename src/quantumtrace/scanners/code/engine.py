@@ -66,8 +66,15 @@ identifier of the key) or a group `literal` (an inline string literal). The hit 
 a string or bytes literal: inline, a file-scope constant, a Python parameter default, or a constant
 reached through call-site arguments of the enclosing function (same flow as inherit_key_size, at most
 FLOW_DEPTH hops). The finding moves to the line of the literal. Keys that come from a generation, an
-import, a local assignment or an unresolvable call site never qualify. A literal reached through a
+import, a call or an unresolvable call site never qualify. A literal reached through a
 call-site hop has confidence at most 0.8. The size of the literal is never reported.
+
+Local key assignment (M1M3-12): a string or bytes literal assigned to a local of the function that holds
+the sink (`key = b"..."`, `key := []byte("...")`, `byte[] key = "...".getBytes(...)`) also qualifies,
+when that name has exactly one assignment in the function and is never extended with an augmented
+assignment. The finding moves to the literal's line with confidence at most 0.8, and the AES finding
+takes the literal's length as its size (key_size_source flow, resolved_from_line the assignment). A name
+that is reassigned, bound to a call, or a literal that is only plaintext never qualifies.
 
 Snippets: every string literal of the matched line is replaced by <redacted> unless its text equals a
 value one of the rule's literal groups captured (an algorithm, transform or name). A key literal that
@@ -474,7 +481,7 @@ _PY_ASSIGN = re.compile(r"^(?P<name>[A-Za-z_]\w*)\s*(?::\s*[^=]+?)?\s*=(?!=)\s*(
 _JAVA_FINAL = re.compile(
     r"\b(?:static\s+final|final\s+static)\b[^=;()]*?\b(?P<name>[A-Za-z_]\w*)\s*=\s*(?P<val>[^;]+);"
 )
-_GO_DECL = re.compile(r"^\s*(?:const|var)\s+(?P<name>[A-Za-z_]\w*)(?:\s+[\w.\[\]*]+)?\s*=\s*(?P<val>.+?)\s*$")
+_GO_DECL = re.compile(r"^(?:const|var)\s+(?P<name>[A-Za-z_]\w*)(?:\s+[\w.\[\]*]+)?\s*=\s*(?P<val>.+?)\s*$")
 _GO_BLOCK_START = re.compile(r"^\s*(?:const|var)\s*\(\s*$")
 _GO_BLOCK_END = re.compile(r"^\s*\)\s*$")
 _GO_ENTRY = re.compile(r"^\s*(?P<name>[A-Za-z_]\w*)(?:\s+[\w.\[\]*]+)?\s*=\s*(?P<val>.+?)\s*$")
@@ -727,6 +734,8 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
                 size_source = "lookahead" if size is not None else None
 
         key_arg = groups.get("key_arg")
+        if not key_arg and rule.key_size_from_length:
+            key_arg = groups.get("key_size_ref")
         if not key_arg and rule.key_arg_pattern is not None:
             window = "\n".join(lines[line - 1 : line + rule.key_arg_lines])
             found = rule.key_arg_pattern.search(window)
@@ -814,6 +823,7 @@ class _Assign:
     scope: int | None
     names: tuple[str, ...]
     callee: str | None
+    rhs: str = ""
 
 
 _JAVA_METHOD = re.compile(
@@ -924,6 +934,7 @@ class _Flow:
     def __init__(self, masked: str, language: str, hits: list[_Hit], consts: Constants) -> None:
         self.masked = masked
         self.consts = consts
+        self.language = language
         self.lines = masked.split("\n")
         self.hits = hits
         self.funcs = _functions(masked, language)
@@ -940,7 +951,13 @@ class _Flow:
             if names:
                 callee = _CALLEE.match(m.group("rhs"))
                 self.assigns.append(
-                    _Assign(number, self.scope_of(number), names, callee.group("fn") if callee else None)
+                    _Assign(
+                        number,
+                        self.scope_of(number),
+                        names,
+                        callee.group("fn") if callee else None,
+                        m.group("rhs"),
+                    )
                 )
 
     def scope_of(self, line: int) -> int | None:
@@ -956,6 +973,23 @@ class _Flow:
             return self.masked
         func = self.funcs[scope]
         return "\n".join(self.lines[func.first - 1 : func.last])
+
+    def _local_literal(self, assign: _Assign, name: str) -> set[_Source] | None:
+        """The single assignment of `name` in its function when it binds a string or bytes literal that
+        is never extended (`name += ...`): the source is the literal's length and line."""
+        if len(assign.names) != 1:
+            return None
+        value = _parse_value(assign.rhs, self.language)
+        if not isinstance(value, (str, bytes)):
+            return None
+        first, last = (1, len(self.lines)) if assign.scope is None else self._span(assign.scope)
+        extended = re.compile(rf"\b{re.escape(name)}\s*(?:<<|>>|[-+*/%&|^])=")
+        if any(extended.search(self.lines[n - 1]) for n in range(first, last + 1)):
+            return None
+        return {(_literal_length(value) * 8, assign.line, None)}
+
+    def _span(self, index: int) -> tuple[int, int]:
+        return self.funcs[index].first, self.funcs[index].last
 
     def _bound(self, line: int) -> set[str]:
         for assign in self.assigns:
@@ -1010,6 +1044,10 @@ class _Flow:
             direct: set[_Source] = {s for s in self._sources(family) if s[2] == assign.line}
             if direct:
                 return direct
+            if literal:
+                local = self._local_literal(assign, name)
+                if local is not None:
+                    return local
             targets = self.by_name.get(assign.callee or "", [])
             if len(targets) == 1:
                 return self._producer(targets[0], family)
@@ -1036,7 +1074,24 @@ class _Flow:
             found |= traced
         return found
 
+    def _apply_providers(self) -> None:
+        """Size a key source (provides_key_size, key_size_from_length) whose key identifier is a local
+        literal or reaches a literal through call sites, so consumers can inherit the size."""
+        for hit in self.hits:
+            family = hit.rule.provides_key_size
+            if not family or hit.key_size is not None or not hit.rule.key_size_from_length or not hit.key_arg:
+                continue
+            traced = self.trace(hit.key_arg, self.scope_of(hit.line), family, 0, True) or set()
+            sizes = {size for size, _, _ in traced}
+            if len(sizes) == 1:
+                hit.key_size = next(iter(sizes))
+                hit.key_size_source = "flow"
+                lines = [at for _, at, _ in traced if at is not None]
+                hit.resolved_from_line = min(lines) if lines else hit.resolved_from_line
+                hit.confidence = min(hit.confidence, HEURISTIC_CONFIDENCE_CAP)
+
     def apply(self) -> None:
+        self._apply_providers()
         for hit in self.hits:
             family = hit.rule.inherit_key_size
             if not family or hit.key_size is not None:
@@ -1090,7 +1145,9 @@ class _Flow:
         traced = self.trace(name, scope, hit.rule.literal_key or "", 0, True)
         if traced:
             lines = {at for _, at, gen in traced if gen is None and at is not None}
-            hopped = scope is not None and name in self.funcs[scope].params
+            hopped = (scope is not None and name in self.funcs[scope].params) or any(
+                a.scope == scope and name in a.names for a in self.assigns
+            )
             return lines, hopped
         assigned = any(a.scope == scope and name in a.names for a in self.assigns)
         if language == "python" and not assigned:
