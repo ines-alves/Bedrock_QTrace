@@ -78,3 +78,5 @@ When all rows have AGREED or CHANGED from every named member, M4 sets `Status: A
 | M4C-04 | M1 | unknown | AGREED | Section 4 accepted. Preserve raw facts and source_timestamp; keep verdict and pq_status distinct, no keys, frozen models, verified mappings, deterministic output and tested member branches. |
 | M4C-03 | M3 | n/a | CHANGED | Rows M4D-03 and M4N-07 are correct. M4N-08 is correct but M3 gives no hour: render_markdown_summary follows the rules and the sample-repos diff test, redaction ships with the hard-coded key rule (see M3M4-04 and M3M4-06). |
 | M4C-04 | M3 | n/a | AGREED | Section 4 is acceptable. M3 also uses only the helpers in scanners/base.py. |
+| M4C-02 | M2 | n/a | CHANGED | Section 2 rows to All are correct. Section 3 rows from M2: `M4N-04` moves from H2 to H4 (see `M2M4-01`), `M4N-05` stays H4, `M4N-06` stays H12. |
+| M4C-04 | M2 | n/a | AGREED | Section 4 is acceptable. Note: M4 reads `kb/tls_registry.yaml` directly as data (see `M2M4-04`), which does not conflict with the promise to use only helpers from `scanners/base.py`. |

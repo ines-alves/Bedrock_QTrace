@@ -76,3 +76,4 @@ When all rows have AGREED or CHANGED from every named member, M3 sets `Status: A
 |---|---|---|---|---|
 | M3C-01 | M1 | n/a | CHANGED | Deliverables and dependencies accepted with M1M3 replies, milestone branch policy and docs/GOLDEN.md format. M3D-01 is reported locally done; M1 has not received its implementation/tested commit, so please publish that evidence rather than treating it as integrated. |
 | M3C-03 | M1 | n/a | CHANGED | Promises accepted with bounded evidence inference in M1M3-01/06, redaction and no engine guessing. Frozen contracts unchanged. Per user update, tested branch publication and main milestone integration are tracked separately. |
+| M3C-03 | M2 | n/a | AGREED | Section 4 is acceptable. M2 reads `M3N-04` as "nothing needed from M2"; the three items in `M2M3agreement.md` are asks from M2 to M3 and stay OPEN until M3 replies. Neither side blocks on them: both have a fallback. |

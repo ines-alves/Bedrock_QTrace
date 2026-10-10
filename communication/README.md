@@ -61,9 +61,12 @@ An item without a row is OPEN.
 
 | File | Between | Status |
 |---|---|---|
+| `M1M2agreement.md` | M1, M2 | OPEN |
 | `M1M3agreement.md` | M1, M3 | OPEN |
 | `M1M4agreement.md` | M1, M4 | OPEN |
+| `M2M3agreement.md` | M2, M3 | OPEN |
 | `M2M4agreement.md` | M2, M4 | OPEN |
+| `M2toAll.md` | M2 to all | OPEN |
 | `M3M4agreement.md` | M3, M4 | OPEN |
 | `M3toAll.md` | M3 to all | OPEN |
 | `M4toAll.md` | M4 to all | OPEN |
