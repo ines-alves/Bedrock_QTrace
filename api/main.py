@@ -1,5 +1,6 @@
 """Thin HTTP layer: serves a ScanResult and its CBOM, report and scoring views, no business logic."""
 
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -8,6 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from quantumtrace.kb.loader import KnowledgeBaseError, load_scoring
 from quantumtrace.models import ScanResult
@@ -38,6 +40,14 @@ def _current() -> ScanResult:
     return ScanResult.model_validate_json((REPORT if REPORT.exists() else SAMPLE).read_text())
 
 
+def _outside_scan_roots(path: Path) -> bool:
+    """True when QTRACE_SCAN_ROOTS (os.pathsep separated, set in the Docker image) does not cover path."""
+    roots = os.environ.get("QTRACE_SCAN_ROOTS")
+    return roots is not None and not any(
+        path.resolve().is_relative_to(Path(root).resolve()) for root in roots.split(os.pathsep)
+    )
+
+
 def _pipeline_run() -> Callable[..., ScanResult]:
     """Import lazily: pipeline.run belongs to M1 and may not be on this branch yet."""
     try:
@@ -57,6 +67,11 @@ def scan(request: ScanRequest) -> ScanResult:
     """Scan server-side paths, store the result as out/report.json and return it."""
     run = _pipeline_run()
     paths = [ROOT / item for item in request.paths]
+    outside = [item for item, path in zip(request.paths, paths, strict=True) if _outside_scan_roots(path)]
+    if outside:
+        raise HTTPException(
+            status_code=400, detail=f"paths outside the allowed scan roots: {', '.join(outside)}"
+        )
     missing = [item for item, path in zip(request.paths, paths, strict=True) if not path.exists()]
     if missing:
         raise HTTPException(status_code=400, detail=f"paths not found: {', '.join(missing)}")
@@ -91,6 +106,18 @@ def scoring() -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=f"scoring data unavailable: {exc}") from exc
 
 
+class SinglePageApp(StaticFiles):
+    """Serve index.html for client-side routes such as /code-config, but keep 404 for unknown /api and /assets paths."""
+
+    async def get_response(self, path, scope):  # type: ignore[no-untyped-def]
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404 or path.startswith(("api/", "assets/")):
+                raise
+            return await super().get_response("index.html", scope)
+
+
 # Registered last so the routes above win. The Vite dev server proxies /api, so no CORS is needed.
 if DIST.is_dir():
-    app.mount("/", StaticFiles(directory=DIST, html=True), name="frontend")
+    app.mount("/", SinglePageApp(directory=DIST, html=True), name="frontend")

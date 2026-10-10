@@ -1,4 +1,89 @@
-# JunctionX QuantumTrace — material de descoberta
+# QuantumTrace
+
+Cryptographic inventory and post-quantum readiness scanner. It reads source code, cloud configuration exports
+and network captures, classifies every cryptographic asset (CRITICAL, MEDIUM, SAFE or UNKNOWN against quantum
+attacks), scores the result from 0 (best) to 100 (worst) with a grade from A to F, and writes a validated
+CycloneDX CBOM, a JSON report and a Markdown summary. A React dashboard shows the result.
+
+## Quick start (Docker)
+
+```bash
+docker build -t quantumtrace .
+docker run --rm -p 8000:8000 quantumtrace
+```
+
+Open http://localhost:8000. With no scan stored, the dashboard shows a bundled sample. Use the Scan paths field
+on the Overview page with `sample-repos cloud-posture network-capture` to scan the starter kit that ships in the
+image, or mount your own directory:
+
+```bash
+# Scan a directory from the command line and keep the reports in ./out
+docker run --rm -v "$PWD":/data -v "$PWD/out":/app/out quantumtrace \
+  qtrace scan /data --out /app/out --format json,cbom,md
+
+# Show that scan in the dashboard (it reads out/report.json)
+docker run --rm -p 8000:8000 -v "$PWD/out":/app/out quantumtrace
+```
+
+Inside the container, the Scan paths field accepts only `/data` and the three starter kit directories. The
+limit is the `QTRACE_SCAN_ROOTS` environment variable (separated by `:`). When it is unset, as in local
+development, any server-side path is accepted, so do not expose that setup to other users.
+
+## Local development
+
+```bash
+make install                      # uv sync into .venv (Python 3.12)
+make check                        # ruff and pytest
+.venv/bin/qtrace scan sample-repos cloud-posture network-capture --out out/ --format json,cbom,md
+make api                          # FastAPI on :8000
+npm --prefix frontend ci
+make ui                           # Vite on :5173, proxies /api to :8000
+```
+
+`tshark` improves network capture parsing. Without it the scanner falls back to a pure Python parser.
+
+## How it fits together
+
+```mermaid
+flowchart LR
+    code[Source code] --> scanners
+    cloud[Cloud exports: KMS, load balancers, ACM] --> scanners
+    pcap[Network capture and SSH] --> scanners
+    scanners[Scanners emit Findings] --> engine
+    kb[(Knowledge base: algorithms, TLS registry, scoring)] --> engine
+    engine[Engine: normalize, classify, aggregate, score] --> result[ScanResult]
+    result --> report[report.json, summary.md]
+    result --> cbom[CycloneDX CBOM, validated]
+    result --> api[FastAPI]
+    api --> ui[React dashboard]
+```
+
+`ScanResult` is the single contract between the scanners, the engine, the outputs and the dashboard.
+
+| Path | Content |
+|---|---|
+| `src/quantumtrace/scanners/` | Code, cloud and network scanners (each emits Findings) |
+| `src/quantumtrace/engine/` | Normalization, classification, aggregation, scoring, roadmap |
+| `src/quantumtrace/kb/` | Algorithm, TLS and cloud registries and the scoring policy |
+| `src/quantumtrace/output/` | CycloneDX CBOM, JSON report and Markdown summary writers |
+| `api/main.py` | HTTP layer over one stored ScanResult |
+| `frontend/` | Vite, React and Tailwind dashboard |
+| `docs/PLAN.md` | Design and plan |
+
+## API
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/result` | The current ScanResult (`out/report.json`, or the bundled sample) |
+| `POST /api/scan` | Body `{"paths": [...]}`, scans server-side paths and stores `out/report.json` |
+| `GET /api/cbom` | CycloneDX 1.6 CBOM built from the current result |
+| `GET /api/validate` | Strict schema validation of that CBOM |
+| `GET /api/report.md` | Markdown summary |
+| `GET /api/scoring` | The scoring policy behind the score, read only |
+
+---
+
+# Starter kit (material de descoberta)
 
 Material para o desafio de inventario criptografico / migracao PQC:
 codigo-fonte para analise estatica, exports sinteticos de configuracao

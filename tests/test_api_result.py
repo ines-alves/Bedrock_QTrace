@@ -3,15 +3,17 @@
 httpx is not installed, so the route functions are called directly instead of through TestClient.
 """
 
+import asyncio
 import sys
 import types
 from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import api.main as main
-from api.main import ScanRequest, app, cbom, report_md, result, scan, scoring, validate
+from api.main import ScanRequest, SinglePageApp, app, cbom, report_md, result, scan, scoring, validate
 from quantumtrace.kb.loader import KnowledgeBaseError
 from quantumtrace.models import ScanResult
 from quantumtrace.output.cyclonedx import build_cbom
@@ -106,3 +108,32 @@ def test_scan_rejects_missing_paths_before_running(monkeypatch: pytest.MonkeyPat
 def test_scan_requires_at_least_one_path():
     with pytest.raises(ValueError):
         ScanRequest(paths=[])
+
+
+def test_scan_is_limited_to_the_configured_roots(monkeypatch: pytest.MonkeyPatch, sample: ScanResult):
+    calls = _stub_pipeline(monkeypatch, sample)
+    monkeypatch.setenv("QTRACE_SCAN_ROOTS", str(main.ROOT / "sample-repos"))
+    for outside in ("cloud-posture", "sample-repos/../cloud-posture", "/etc"):
+        with pytest.raises(HTTPException) as error:
+            scan(ScanRequest(paths=[outside]))
+        assert error.value.status_code == 400 and outside in error.value.detail
+    assert calls == []
+    scan(ScanRequest(paths=["sample-repos"]))
+    assert calls == [[main.ROOT / "sample-repos"]]
+
+
+def _serve(directory: Path, path: str):
+    scope = {"type": "http", "method": "GET", "headers": []}
+    return asyncio.run(SinglePageApp(directory=directory, html=True).get_response(path, scope))
+
+
+def test_single_page_app_falls_back_to_index_but_not_for_api_or_asset_paths(tmp_path: Path):
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "index.html").write_text("<html>app</html>")
+    (tmp_path / "assets" / "a.js").write_text("js")
+    assert _serve(tmp_path, "assets/a.js").path == str(tmp_path / "assets" / "a.js")
+    assert _serve(tmp_path, "code-config").path == str(tmp_path / "index.html")
+    for missing in ("api/typo", "assets/missing.js"):
+        with pytest.raises(StarletteHTTPException) as error:
+            _serve(tmp_path, missing)
+        assert error.value.status_code == 404
