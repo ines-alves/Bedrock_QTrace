@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
-import { useLocation } from 'react-router-dom'
 import { useScan } from '../api/useScanResult'
 import FolderBrowser from './FolderBrowser'
 
@@ -45,16 +44,15 @@ function ExportMenu() {
 }
 
 export default function ScanBar() {
-  const { data, source, busy, message, scan, scanGithub, scanZip, clear } = useScan()
+  const { data, source, busy, message, scan, scanGithub, scanZip, clear, scanStarterKit } = useScan()
   const [confirming, setConfirming] = useState(false)
   const [link, setLink] = useState('')
   const [dragging, setDragging] = useState(false)
   const [hint, setHint] = useState<string>()
-  // undefined until the user opens or closes the panel. Until then it is open only on the Overview
-  // while the bundled sample is showing, so a new user sees how to scan and nobody else loses space.
+  // undefined until the user opens or closes the panel. Until then it is open only while nothing is scanned,
+  // so a new user sees how to scan and nobody else loses space.
   const [chosen, setChosen] = useState<boolean>()
-  const { pathname } = useLocation()
-  const open = chosen ?? (source === 'sample' && pathname === '/')
+  const open = chosen ?? source === 'none'
   // A scan that succeeds closes the panel, so the results are what you land on.
   const wasBusy = useRef(false)
   useEffect(() => {
@@ -86,7 +84,7 @@ export default function ScanBar() {
     : (message ?? hint) ??
       (source === 'scan' && data
         ? `Live scan of ${data.inputs.join(', ')}: ${data.assets.length} assets, ${data.findings.length} findings.`
-        : 'Bundled sample result. Run the scanner to see it live.')
+        : 'No scan yet. Scan something below, or scan the starter kit.')
 
   return (
     <section aria-label="Scan" className="mb-8 glass p-5">
@@ -97,11 +95,11 @@ export default function ScanBar() {
             className="rounded-full bg-paper px-4 py-1 font-head font-semibold text-ink hover:bg-aqua">
             {open ? 'Close' : 'Scan'}
           </button>
-          {source === 'scan' &&
+          {source !== undefined && source !== 'none' &&
             (confirming ? (
               <span className="flex items-center gap-2">
                 <span>Clear this scan?</span>
-                <button type="button" disabled={busy} onClick={() => { setConfirming(false); void clear() }}
+                <button type="button" disabled={busy} onClick={() => { setConfirming(false); setChosen(undefined); void clear() }}
                   className="rounded-full border border-critical px-3 py-1 text-critical hover:bg-critical hover:text-on-accent">
                   Yes, clear
                 </button>
@@ -116,11 +114,18 @@ export default function ScanBar() {
                 Clear
               </button>
             ))}
-          <ExportMenu />
+          {source !== undefined && source !== 'none' && <ExportMenu />}
         </div>
       </div>
       {open && (
         <div id="scan-panel" className="mt-4 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-paper/60">
+            <p>Starter kit examples: pick what to scan, or use a zip, a GitHub link or any folder below.</p>
+            <button type="button" disabled={busy} onClick={() => void scanStarterKit()}
+              className="underline hover:text-paper disabled:opacity-40">
+              Scan the whole starter kit
+            </button>
+          </div>
           <div className="flex flex-wrap items-stretch gap-3">
             {PRESETS.map((p) => {
               const parts = selected.filter((s) => s.startsWith(`${p.path}/`))

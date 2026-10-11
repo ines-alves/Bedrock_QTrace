@@ -22,7 +22,6 @@ COPY pyproject.toml ./
 COPY src ./src
 RUN pip install -e .
 COPY api ./api
-COPY tests/fixtures/scan_result_sample.json ./tests/fixtures/scan_result_sample.json
 COPY sample-repos ./sample-repos
 COPY cloud-posture ./cloud-posture
 COPY network-capture ./network-capture

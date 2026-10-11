@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
 import { ScanProvider, useScan } from './api/useScanResult'
+import EmptyState from './components/EmptyState.tsx'
 import ScanBar from './components/ScanBar.tsx'
 import ThemeSwitcher from './components/ThemeSwitcher.tsx'
 import { useTheme } from './components/useTheme'
@@ -15,12 +16,10 @@ const link = ({ isActive }: { isActive: boolean }) =>
 
 function SourceChip() {
   const { source, data } = useScan()
-  if (!source || !data) return null
-  const live = source === 'scan'
+  if (source !== 'scan' || !data) return null
   return (
-    <span className={`rounded-full border px-3 py-1 text-xs ${live ? 'border-aqua text-aqua' : 'border-paper/30 text-paper/60'}`}
-      title={`Scan ${data.scan_id}`}>
-      {live ? `Live scan, ${data.finished_at.slice(0, 16).replace('T', ' ')} UTC` : 'Bundled sample'}
+    <span className="rounded-full border border-aqua px-3 py-1 text-xs text-aqua" title={`Scan ${data.scan_id}`}>
+      {`Scan of ${data.inputs.length} input${data.inputs.length === 1 ? '' : 's'}, ${data.finished_at.slice(0, 16).replace('T', ' ')} UTC`}
     </span>
   )
 }
@@ -46,15 +45,23 @@ export default function App() {
       </header>
       <main className="p-6">
         <ScanBar />
-        <Routes>
-          <Route path="/" element={<Overview />} />
-          <Route path="/code-config" element={<CodeConfig />} />
-          <Route path="/network" element={<Network />} />
-          <Route path="/cloud" element={<Cloud />} />
-          <Route path="/cbom" element={<Cbom />} />
-          <Route path="/roadmap" element={<Roadmap />} />
-        </Routes>
+        <Pages />
       </main>
     </ScanProvider>
+  )
+}
+
+function Pages() {
+  const { source } = useScan()
+  if (source === 'none') return <EmptyState />
+  return (
+    <Routes>
+      <Route path="/" element={<Overview />} />
+      <Route path="/code-config" element={<CodeConfig />} />
+      <Route path="/network" element={<Network />} />
+      <Route path="/cloud" element={<Cloud />} />
+      <Route path="/cbom" element={<Cbom />} />
+      <Route path="/roadmap" element={<Roadmap />} />
+    </Routes>
   )
 }

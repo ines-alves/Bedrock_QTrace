@@ -59,8 +59,15 @@ def _stub_pipeline(monkeypatch: pytest.MonkeyPatch, sample: ScanResult) -> list[
     return calls
 
 
-def test_result_serves_sample_when_no_report(sample: ScanResult):
-    assert result() == sample
+def test_nothing_is_served_until_a_scan_has_run(monkeypatch: pytest.MonkeyPatch, sample: ScanResult):
+    assert source() == {"source": "none"}
+    for route in (result, cbom, validate, report_md):
+        with pytest.raises(HTTPException) as error:
+            route()
+        assert error.value.status_code == 404 and "No scan yet" in error.value.detail
+    _stub_pipeline(monkeypatch, sample)
+    assert main.scan_starter_kit() == sample
+    assert source() == {"source": "scan"} and result() == sample
 
 
 def test_openapi_exposes_scan_result():
@@ -76,11 +83,15 @@ def test_openapi_exposes_scan_result():
 
 
 def test_cbom_and_validate_use_the_current_result(sample: ScanResult):
+    main.REPORT.parent.mkdir(exist_ok=True)
+    main.REPORT.write_text(sample.model_dump_json())
     assert cbom() == build_cbom(sample)
     assert validate().model_dump() == {"valid": True, "errors": []}
 
 
 def test_report_md_is_the_markdown_summary(sample: ScanResult):
+    main.REPORT.parent.mkdir(exist_ok=True)
+    main.REPORT.write_text(sample.model_dump_json())
     response = report_md()
     assert response.media_type == "text/markdown"
     assert response.body.decode() == render_markdown_summary(sample)
@@ -157,11 +168,20 @@ def test_single_page_app_falls_back_to_index_but_not_for_api_or_asset_paths(tmp_
         assert error.value.status_code == 404
 
 
-def test_source_tells_a_scan_from_the_bundled_sample(monkeypatch: pytest.MonkeyPatch, sample: ScanResult):
-    assert source() == {"source": "sample"}
+def test_source_is_none_until_a_scan_is_stored(monkeypatch: pytest.MonkeyPatch, sample: ScanResult):
+    assert source() == {"source": "none"}
     calls = _stub_pipeline(monkeypatch, sample)
     scan(ScanRequest(paths=["sample-repos"]))
     assert calls and source() == {"source": "scan"}
+
+
+def test_starter_kit_scan_runs_the_pipeline_over_the_three_kit_folders(
+    monkeypatch: pytest.MonkeyPatch, sample: ScanResult
+):
+    calls = _stub_pipeline(monkeypatch, sample)
+    main.scan_starter_kit()
+    assert calls == [[main.ROOT / name for name in ("sample-repos", "cloud-posture", "network-capture")]]
+    assert main.REPORT.exists()
 
 
 def test_browse_lists_folders_first_and_hides_tooling():

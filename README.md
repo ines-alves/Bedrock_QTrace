@@ -12,9 +12,10 @@ docker build -t quantumtrace .
 docker run --rm -p 8000:8000 quantumtrace
 ```
 
-Open http://localhost:8000. With no scan stored, the dashboard shows a bundled sample. Use the Scan paths field
-on the Overview page with `sample-repos cloud-posture network-capture` to scan the starter kit that ships in the
-image, or mount your own directory:
+Open http://localhost:8000. The dashboard starts empty. Use the Scan button to scan a folder, upload a repository
+.zip, paste a public GitHub link, try the starter kit that ships in the image (`sample-repos`, `cloud-posture`,
+`network-capture`), or scan the whole starter kit in one click. Clear empties the dashboard again. To scan your own
+directory, mount it:
 
 ```bash
 # Scan a directory from the command line and keep the reports in ./out
@@ -74,8 +75,12 @@ flowchart LR
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/result` | The current ScanResult (`out/report.json`, or the bundled sample) |
+| `GET /api/source` | `scan` when a result is stored, `none` while the dashboard is empty |
+| `GET /api/result` | The stored ScanResult (`out/report.json`); 404 until something is scanned |
 | `POST /api/scan` | Body `{"paths": [...]}`, scans server-side paths and stores `out/report.json` |
+| `POST /api/scan/upload`, `POST /api/scan/github` | Scan a zipped repository or a public GitHub link |
+| `POST /api/scan/starter-kit` | Scan `sample-repos`, `cloud-posture` and `network-capture` and store the result |
+| `DELETE /api/scan` | Forget the stored result; the dashboard is empty again |
 | `GET /api/cbom` | CycloneDX 1.6 CBOM built from the current result |
 | `GET /api/validate` | Strict schema validation of that CBOM |
 | `GET /api/report.md` | Markdown summary |

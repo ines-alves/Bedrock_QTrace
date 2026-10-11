@@ -2,7 +2,7 @@ import { createContext, createElement, useCallback, useContext, useEffect, useSt
 import type { components } from './schema'
 
 export type ScanResult = components['schemas']['ScanResult']
-type Source = 'sample' | 'scan'
+type Source = 'none' | 'scan'
 
 type Scan = {
   data?: ScanResult
@@ -14,6 +14,7 @@ type Scan = {
   scanGithub: (url: string) => Promise<void>
   scanZip: (file: File) => Promise<void>
   clear: () => Promise<void>
+  scanStarterKit: () => Promise<void>
 }
 
 const getJson = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
@@ -29,9 +30,10 @@ export function ScanProvider({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState<string>()
 
   useEffect(() => {
-    Promise.all([getJson('/api/result'), getJson('/api/source')])
-      .then(([result, src]) => {
-        setData(result)
+    // Nothing is shown until a scan exists: the source says so before any result is requested.
+    getJson('/api/source')
+      .then(async (src) => {
+        if (src.source !== 'none') setData(await getJson('/api/result'))
         setSource(src.source)
       })
       .catch((e: Error) => setError(e.message))
@@ -53,7 +55,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Drops the stored scan on the server; the response is the bundled sample every page then shows.
+  // Drops the stored scan on the server; every page then shows the empty state.
   const clear = async () => {
     setBusy(true)
     setMessage(undefined)
@@ -61,8 +63,8 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       const r = await fetch('/api/scan', { method: 'DELETE' })
       const body = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(body.detail ?? `HTTP ${r.status}`)
-      setData(body)
-      setSource('sample')
+      setData(undefined)
+      setSource('none')
     } catch (e) {
       setMessage(`Clear failed: ${(e as Error).message}`)
     } finally {
@@ -72,6 +74,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
 
   const json = (body: object): RequestInit => ({ headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
   const scan = (paths: string[]) => send('/api/scan', json({ paths }))
+  const scanStarterKit = () => send('/api/scan/starter-kit', {})
   const scanGithub = (url: string) => send('/api/scan/github', json({ url }))
   const scanZip = (file: File) => {
     const body = new FormData()
@@ -81,7 +84,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
 
   return createElement(
     ScanContext.Provider,
-    { value: { data, error, source, busy, message, scan, scanGithub, scanZip, clear } },
+    { value: { data, error, source, busy, message, scan, scanGithub, scanZip, clear, scanStarterKit } },
     children,
   )
 }

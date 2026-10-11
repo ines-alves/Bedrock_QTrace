@@ -21,6 +21,9 @@ from quantumtrace.output.markdown import render_markdown_summary
 
 ROOT = Path(__file__).resolve().parent.parent
 REPORT = ROOT / "out" / "report.json"
+# The starter kit that ships with the app; "scan the starter kit" runs the pipeline over these folders.
+STARTER_KIT = ("sample-repos", "cloud-posture", "network-capture")
+# A prebuilt result for the tests and the frontend types. The API never serves it.
 SAMPLE = ROOT / "tests" / "fixtures" / "scan_result_sample.json"
 DIST = ROOT / "frontend" / "dist"
 UPLOADS = ROOT / "out" / "uploads"
@@ -40,11 +43,13 @@ class Validation(BaseModel):
 
 
 def _current() -> ScanResult:
-    """Latest scan from out/report.json, or the bundled sample when no scan has run.
+    """The stored scan (out/report.json); 404 while nothing has been scanned or loaded.
 
     Every endpoint reads through here, so no served output carries more than a key file's header line.
     """
-    return redact_result(ScanResult.model_validate_json((REPORT if REPORT.exists() else SAMPLE).read_text()))
+    if not REPORT.exists():
+        raise HTTPException(status_code=404, detail="No scan yet. Scan something first.")
+    return redact_result(ScanResult.model_validate_json(REPORT.read_text()))
 
 
 class Entry(BaseModel):
@@ -97,8 +102,8 @@ def result() -> ScanResult:
 
 @app.get("/api/source")
 def source() -> dict[str, str]:
-    """Whether /api/result is a scan run here or the bundled sample."""
-    return {"source": "scan" if REPORT.exists() else "sample"}
+    """Whether a scan is stored: `scan`, or `none` while the dashboard is empty."""
+    return {"source": "scan" if REPORT.exists() else "none"}
 
 
 def _store(scanned: ScanResult) -> ScanResult:
@@ -129,12 +134,18 @@ class GithubRequest(BaseModel):
     url: str
 
 
-@app.delete("/api/scan", response_model=ScanResult)
-def clear_scan() -> ScanResult:
-    """Forget the stored scan and its unpacked uploads; every endpoint serves the bundled sample again."""
+@app.delete("/api/scan")
+def clear_scan() -> dict[str, str]:
+    """Forget the stored scan and its unpacked uploads; the dashboard is empty until the next scan."""
     REPORT.unlink(missing_ok=True)
     shutil.rmtree(UPLOADS, ignore_errors=True)
-    return _current()
+    return {"source": "none"}
+
+
+@app.post("/api/scan/starter-kit", response_model=ScanResult)
+def scan_starter_kit() -> ScanResult:
+    """Scan the whole starter kit that ships with the app, exactly like any other folders."""
+    return scan(ScanRequest(paths=list(STARTER_KIT)))
 
 
 @app.post("/api/scan/upload", response_model=ScanResult)
