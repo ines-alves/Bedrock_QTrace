@@ -11,6 +11,8 @@ type Scan = {
   busy: boolean
   message?: string
   scan: (paths: string[]) => Promise<void>
+  scanGithub: (url: string) => Promise<void>
+  scanZip: (file: File) => Promise<void>
 }
 
 const getJson = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
@@ -34,15 +36,11 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       .catch((e: Error) => setError(e.message))
   }, [])
 
-  const scan = useCallback(async (paths: string[]) => {
+  const send = useCallback(async (url: string, init: RequestInit) => {
     setBusy(true)
     setMessage(undefined)
     try {
-      const r = await fetch('/api/scan', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ paths }),
-      })
+      const r = await fetch(url, { method: 'POST', ...init })
       const body = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(body.detail ?? `HTTP ${r.status}`)
       setData(body)
@@ -54,7 +52,20 @@ export function ScanProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  return createElement(ScanContext.Provider, { value: { data, error, source, busy, message, scan } }, children)
+  const json = (body: object): RequestInit => ({ headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  const scan = (paths: string[]) => send('/api/scan', json({ paths }))
+  const scanGithub = (url: string) => send('/api/scan/github', json({ url }))
+  const scanZip = (file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    return send('/api/scan/upload', { body })
+  }
+
+  return createElement(
+    ScanContext.Provider,
+    { value: { data, error, source, busy, message, scan, scanGithub, scanZip } },
+    children,
+  )
 }
 
 export function useScan(): Scan {
