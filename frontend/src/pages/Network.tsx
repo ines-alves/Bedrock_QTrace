@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useScanResult } from '../api/useScanResult'
+import Cta from '../components/Cta'
+import PageHeader from '../components/PageHeader'
 import SortableTable, { type Column } from '../components/SortableTable'
 import TierBadge from '../components/TierBadge'
 import { HYBRID_NOTE, authentication, buildRows, keyExchange, keysOf, type Row } from './network/model'
 
 const chip = (on: boolean) =>
-  `cursor-pointer select-none border px-2 py-1 text-[10px] uppercase tracking-widest ${
+  `cursor-pointer select-none rounded-full border px-3 py-1 text-xs ${
     on ? 'border-aqua text-aqua' : 'border-paper/20 text-paper/40'
   }`
 
@@ -32,7 +34,7 @@ const columns: Column<Row>[] = [
       const k = keyExchange(r.session)
       return (
         <>
-          <span className={`px-2 py-0.5 text-[10px] uppercase tracking-widest ${k.style}`}>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${k.style}`}>
             {k.label}
           </span>
           <div className="mt-1 text-paper/60">{k.group}</div>
@@ -94,18 +96,22 @@ export default function Network() {
       if (!n.delete(k)) n.add(k)
       return n
     })
+  const only = (dimension: string, keep: string[]) =>
+    setOff(new Set(groups.flatMap((g) => (g.d === dimension ? g.values.filter((k) => !keep.includes(k)) : []))))
   const shown = rows.filter((r) => !keysOf(r).some((k) => off.has(k)))
   const tls = rows.filter((r) => r.session.transport === 'tls')
   const pq = tls.filter((r) => r.session.pq_status === 'pq_hybrid' || r.session.pq_status === 'pq_pure')
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="mb-1 font-head text-2xl">Network</h1>
-        <p className="font-sub italic text-paper/60">
-          {rows.length} sessions: {tls.length} TLS, {rows.length - tls.length} SSH, {pq.length} with post-quantum key exchange
-        </p>
-      </header>
+      <PageHeader
+        title={`${pq.length} of ${tls.length} TLS sessions use post-quantum key exchange.`}
+        lead={`${rows.length} sessions in the capture: ${tls.length} TLS, ${rows.length - tls.length} SSH. The rest can be broken by a quantum computer.`}
+      >
+        <Cta primary onClick={() => only('pq', ['pq:pq_hybrid', 'pq:pq_pure'])}>Show post-quantum sessions</Cta>
+        <Cta onClick={() => only('tier', ['tier:CRITICAL'])}>Show critical only</Cta>
+        <Cta onClick={() => setOff(new Set())}>Show all</Cta>
+      </PageHeader>
       <div className="flex flex-wrap gap-x-6 gap-y-3 text-xs">
         {groups.map(({ d, values }) => (
           <div key={d} className="flex items-center gap-2">
@@ -118,10 +124,11 @@ export default function Network() {
           </div>
         ))}
       </div>
-      <section className="bg-panel p-4">
-        <p className="mb-3 text-[10px] uppercase tracking-widest text-paper/60">{shown.length} of {rows.length} sessions shown</p>
+      <section className="glass p-5">
+        <p className="mb-3 text-paper/70">{shown.length} of {rows.length} sessions shown</p>
         <SortableTable rows={shown} columns={columns} />
       </section>
+      <Cta to="/roadmap">See what to fix</Cta>
     </div>
   )
 }

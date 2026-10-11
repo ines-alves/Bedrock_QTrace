@@ -1,5 +1,7 @@
 import { useMemo, type ReactNode } from 'react'
 import { useScanResult } from '../api/useScanResult'
+import Cta from '../components/Cta'
+import PageHeader from '../components/PageHeader'
 import SortableTable, { type Column } from '../components/SortableTable'
 import TierBadge from '../components/TierBadge'
 import { buildCloud, relative, words, type Kms, type Listener } from './cloud/model'
@@ -64,8 +66,8 @@ const listenerColumns: Column<Listener>[] = [
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="bg-panel p-4">
-      <h2 className="mb-3 text-[10px] uppercase tracking-widest text-paper/60">{title}</h2>
+    <section className="glass p-5">
+      <h2 className="mb-3 font-head text-xl font-semibold">{title}</h2>
       {children}
     </section>
   )
@@ -82,15 +84,18 @@ export default function Cloud() {
     return <p className="text-paper/50">No cloud resources in this scan.</p>
   }
 
+  const expired = certs.filter((c) => Date.parse(c.extra.not_after) < Date.parse(data.finished_at)).length
+
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="mb-1 font-head text-2xl">Cloud</h1>
-        <p className="font-sub italic text-paper/60">
-          {kms.length} KMS keys, {listeners.length} listeners, {certs.length} certificates
-        </p>
-      </header>
-      <Section title="Listener, policy and certificate">
+      <PageHeader
+        title={expired > 0 ? `${expired} certificate${expired === 1 ? ' has' : 's have'} already expired.` : 'No certificate has expired.'}
+        lead={`${kms.length} KMS keys, ${listeners.length} listeners and ${certs.length} certificates in this scan.`}
+      >
+        <Cta primary to="/roadmap">See what to fix</Cta>
+        <Cta href="/api/cbom" download="quantumtrace-cbom.json">Download the CBOM</Cta>
+      </PageHeader>
+      <Section title="Listeners and their certificates">
         <SortableTable rows={listeners} columns={listenerColumns} />
       </Section>
       <Section title="KMS keys">

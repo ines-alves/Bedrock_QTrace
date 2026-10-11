@@ -1,4 +1,6 @@
 import { useMemo } from 'react'
+import Cta from '../components/Cta'
+import PageHeader from '../components/PageHeader'
 import SortableTable, { type Column } from '../components/SortableTable'
 import { summarize, useCbom, type StandardRow } from './cbom/model'
 
@@ -24,35 +26,29 @@ export default function Cbom() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="mb-1 font-head text-2xl">CBOM</h1>
-        <p className="mb-3 font-sub italic text-paper/60">
-          CycloneDX {cbom.specVersion}, {cbom.components.length} components,{' '}
-          {validation.valid ? 'strict validation passes' : `${validation.errors.length} validation errors`}
-        </p>
-        <a href="/api/cbom" download="cbom.json" className="border border-aqua px-3 py-1 text-[10px] uppercase tracking-widest text-aqua">
-          Download cbom.json
-        </a>
-        {!validation.valid && (
-          <ul className="mt-3 space-y-1 text-xs text-paper/60">
-            {validation.errors.map((e) => <li key={e}>{e}</li>)}
-          </ul>
-        )}
-      </header>
-      <section className="bg-panel p-4">
-        <h2 className="mb-3 text-[10px] uppercase tracking-widest text-paper/60">Components by type</h2>
-        <ul className="flex flex-wrap gap-x-8 gap-y-2 text-xs">
+      <PageHeader
+        title={`${cbom.components.length} components, ${validation.valid ? 'valid CycloneDX 1.6' : `${validation.errors.length} validation errors`}.`}
+        lead="The inventory every other tool can read, with the NIST standard to migrate to."
+      >
+        <Cta primary href="/api/cbom" download="cbom.json">Download cbom.json</Cta>
+        <Cta to="/roadmap">See the migration plan</Cta>
+      </PageHeader>
+      {!validation.valid && (
+        <ul className="space-y-1 text-sm text-paper/60">
+          {validation.errors.map((e) => <li key={e}>{e}</li>)}
+        </ul>
+      )}
+      <section className="glass p-5">
+        <h2 className="mb-3 font-head text-xl font-semibold">What it contains</h2>
+        <ul className="flex flex-wrap gap-x-12 gap-y-4 text-lg">
           {summary.byType.map(([type, count]) => (
-            <li key={type}><span className="font-head text-2xl">{count}</span> <span className="text-paper/60">{type}</span></li>
+            <li key={type}><span className="font-head text-5xl font-bold">{count}</span> <span className="text-paper/60">{type}</span></li>
           ))}
         </ul>
       </section>
-      <section className="bg-panel p-4">
-        <h2 className="mb-3 text-[10px] uppercase tracking-widest text-paper/60">Standards cited by the recommendations</h2>
-        <SortableTable rows={summary.standards} columns={columns} />
-        <p className="mt-3 font-sub text-sm italic text-paper/60">
-          Each count is the components whose first migration target cites that standard, as quantumtrace:recommendedStandard.
-        </p>
+      <section className="glass p-5">
+        <h2 className="mb-3 font-head text-xl font-semibold">Standards it cites</h2>
+        <SortableTable large rows={summary.standards} columns={columns} />
       </section>
     </div>
   )
