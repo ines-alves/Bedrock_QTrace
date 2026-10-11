@@ -622,6 +622,15 @@ def decompose(
         named_row = (
             named_registry.resolve_name(finding.kind_hint, finding.raw_name) if named_registry else None
         )
+        via_codepoint = False
+        if named_row is None and named_registry is not None:
+            # M1M3-09: an OpenSSL name the registry does not list (a legacy suite in a server config)
+            # resolves through the scanner's codepoint, which the registry must confirm as a TLS_ suite.
+            observed = _code(finding.extra.get("codepoint"))
+            by_code = getattr(named_registry, "resolve", None)
+            coded = by_code(finding.kind_hint, observed) if observed and by_code else None
+            if coded is not None and coded.iana_name.upper().startswith("TLS_"):
+                named_row, via_codepoint = coded, True
         if (
             named_row
             and named_row.verified is True
@@ -655,7 +664,11 @@ def decompose(
                     base,
                     provenance=(
                         *base.provenance,
-                        ParameterEvidence("name", name, f"registry:{named_row.source}"),
+                        ParameterEvidence(
+                            "name",
+                            name,
+                            f"registry{'-codepoint' if via_codepoint else ''}:{named_row.source}",
+                        ),
                     ),
                 )
         else:
