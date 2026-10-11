@@ -21,15 +21,25 @@ The console displays grade, risk score, readiness, scored asset counts and the
 top ten risks. Protocol and certificate containers do not inflate scored counts.
 Complete scans exit 0. Partial scans retain usable reports, display coverage errors
 and exit 2. Invalid arguments, unavailable requested writers and output failures
-also exit 2. A file found while walking a folder that no scanner supports is
-reported as a coverage error only when it may hold key material or TLS/SSH
-configuration: `.pem`, `.crt`, `.cer`, `.der`, `.key`, `.csr`, `.p12`, `.pfx`,
-`.p7b`, `.p8`, `.jks`, `.keystore` and `.pub` files, `id_rsa`/`id_dsa`/`id_ecdsa`/
-`id_ed25519`, `authorized_keys`, and `nginx.conf`, `httpd.conf`, `ssl.conf`,
-`haproxy.cfg`, `openssl.cnf`, `java.security`, `sshd_config`, `ssh_config`. Other
-walked files (source in unsupported languages, web assets, documentation) are not
-cryptographic input: they are skipped and the console prints how many. A file
-named explicitly on the command line is always reported. The starter directory
+also exit 2.
+
+Key, certificate and keystore files are scanned (`.pem`, `.crt`, `.cer`, `.der`,
+`.key`, `.csr`, `.p7b`, `.p8`, `.pub`, `.p12`, `.pfx`, `.jks`, `.keystore`,
+`id_rsa`/`id_dsa`/`id_ecdsa`/`id_ed25519` and their `_sk` forms, `ssh_host_*_key`,
+`authorized_keys`, `known_hosts`): each key or certificate is reported with its
+type, size or curve, signature algorithm and validity. A private key is reported
+as present (type, size, whether it is encrypted) and never shown. Server
+configuration files are scanned for TLS and SSH settings: nginx, Apache httpd,
+HAProxy, `openssl.cnf`, `java.security`, `sshd_config`/`ssh_config`, Spring Boot
+`application*.properties`/`.yml` and Tomcat `server.xml`, plus `.conf`, `.cfg` and
+`.cnf` files and files in `sites-enabled`, `conf.d` and similar directories when
+they contain TLS or SSH directives. A key file whose content is not a key,
+certificate or keystore is a coverage error.
+
+A file found while walking a folder that no scanner supports is skipped: source
+in unsupported languages, web assets and documentation are not cryptographic
+input, and the console prints how many files were skipped. A file named
+explicitly on the command line is always reported. The starter directory
 command above is therefore complete and exits 0 (its three README files are
 skipped); the capture itself produces 97 TLS and 24 SSH
 sessions plus 14 plaintext flows. The starter capture contains no TLS Certificate messages, so
