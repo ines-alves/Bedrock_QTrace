@@ -190,10 +190,11 @@
 
 # ---- RSA ----------------------------------------------------------------------------------------
 
-# Key generation carries the size. The usage is not known from a generation call.
+# Key generation carries the size. The usage is not known from a generation call. A size that is an
+# expression (kr.Size(), *bits, c.Int("keysize")) still reports RSA, with no size.
 - id: GO_RSA_GENERATE
   language: go
-  pattern: '\brsa\.GenerateKey\(\s*[^,()]+,\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*\)'
+  pattern: '\brsa\.GenerateKey\(\s*[^,()]+,\s*(?:(?P<key_size>\d+)\s*\)|(?P<key_size_ref>[A-Za-z_]\w*)\s*\)|)'
   raw_name: RSA
   kind_hint: algorithm
   usage: unknown
@@ -270,6 +271,18 @@
   usage: signature
   curve: '{curve}'
   library: crypto/ecdsa
+
+# crypto/elliptic key generation and point encoding (ECDH in hand-rolled TLS code, cfssl): the curve is
+# reported only for an inline elliptic.PNNN() constructor; usage is not known from the call. Names
+# checked on pkg.go.dev/crypto/elliptic, 2026-10-11.
+- id: GO_ELLIPTIC
+  language: go
+  pattern: '\belliptic\.(?:GenerateKey|Marshal|MarshalCompressed|Unmarshal|UnmarshalCompressed)\(\s*(?:elliptic\.(?P<curve>P224|P256|P384|P521)\(\))?'
+  raw_name: EC
+  kind_hint: algorithm
+  usage: unknown
+  curve: '{curve}'
+  library: crypto/elliptic
 
 # Sign and verify sites carry no curve: it belongs to the key.
 - id: GO_ECDSA_SIGN_VERIFY

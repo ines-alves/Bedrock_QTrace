@@ -79,7 +79,9 @@ is decided.
 
 Exit precedence: 2 for invalid arguments, unavailable writers, scan or output
 failures and partial coverage (scan errors); otherwise 1 when the threshold is
-reached; otherwise 0. A partial scan therefore exits 2 even if the threshold is
+reached; otherwise 0. Scan errors with `severity: "info"` (report schema 1.1) are notes,
+not coverage gaps: the console lists them under "Notes", and they never change the
+exit code or fail the golden gate. A partial scan therefore exits 2 even if the threshold is
 also reached, and still emits its JSON report.
 
 ```sh

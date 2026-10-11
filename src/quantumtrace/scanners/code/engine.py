@@ -8,6 +8,7 @@ Rule fields (YAML list of mappings):
   confidence                                                 default 1.0
   key_size (int), key_size_unit (bits|bytes), key_size_from_length (bool)
   curve, mode, padding, library                              templates, "{group}" substitution
+  protocol                                                   fixed Finding.protocol (SSH wire names need "SSH")
   refine: {from: <group>, pattern: <regex>}                  split a resolved group into more groups
   lookahead_pattern, lookahead_lines                         fallback key size search after the match
   provides_key_size: <family>                                key size source: a sized generation site
@@ -140,6 +141,7 @@ ALIAS_DEPTH = 5
 
 _RULE_KEYS = {
     "id",
+    "protocol",
     "language",
     "pattern",
     "raw_name",
@@ -229,6 +231,7 @@ class Rule:
     mode: str | None = None
     padding: str | None = None
     library: str | None = None
+    protocol: str | None = None
     refine: tuple[str, re.Pattern[str]] | None = None
     lookahead_pattern: re.Pattern[str] | None = None
     lookahead_lines: int = 5
@@ -383,6 +386,7 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         mode=raw.get("mode"),
         padding=raw.get("padding"),
         library=raw.get("library"),
+        protocol=raw.get("protocol"),
         refine=refine,
         lookahead_pattern=_compile(look, where) if look else None,
         lookahead_lines=int(raw.get("lookahead_lines", 5)),
@@ -1493,6 +1497,7 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
                 mode=hit.mode,
                 padding=hit.padding,
                 library=hit.rule.library,
+                protocol=hit.rule.protocol,
                 language=language,
                 in_test_code=in_test,
                 detector=detector,

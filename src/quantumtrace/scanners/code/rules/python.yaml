@@ -888,3 +888,36 @@
   extra:
     object: embedded_private_key
     hygiene_flags: [private_key_material]
+
+# ---- OpenSSL C API through cffi (pyOpenSSL _lib bindings) --------------------------------------
+
+# pyOpenSSL calls libcrypto directly: _lib.RSA_generate_key_ex, _lib.DSA_generate_parameters_ex, the
+# EVP_PKEY_* type constants. A reference: the key size is a runtime argument. Names from the OpenSSL
+# 3.x manual pages (RSA_generate_key, DSA_generate_parameters, EVP_PKEY_assign), checked 2026-10-11.
+- id: PY_CFFI_OPENSSL_RSA
+  language: python
+  pattern: '\b_lib\.(?:RSA_generate_key_ex|RSA_new|EVP_PKEY_assign_RSA|EVP_PKEY_RSA)\b'
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: unknown
+  library: OpenSSL (cffi)
+  reference: true
+
+- id: PY_CFFI_OPENSSL_DSA
+  language: python
+  pattern: '\b_lib\.(?:DSA_generate_parameters_ex|DSA_generate_key|DSA_new|EVP_PKEY_set1_DSA|EVP_PKEY_DSA)\b'
+  raw_name: DSA
+  kind_hint: algorithm
+  usage: signature
+  library: OpenSSL (cffi)
+  reference: true
+
+- id: PY_CFFI_OPENSSL_EC
+  language: python
+  pattern: '\b_lib\.(?:EC_KEY_new_by_curve_name|EVP_PKEY_EC)\b'
+  raw_name: EC
+  kind_hint: algorithm
+  usage: unknown
+  library: OpenSSL (cffi)
+  reference: true
+

@@ -418,6 +418,7 @@ class ScanError(BaseModel):
     detector: str
     path: str | None = None
     message: str
+    severity: Literal["error", "info"] = "error"  # schema 1.1: info notes never fail a scan
 
 
 class Recommendation(BaseModel):
@@ -538,7 +539,7 @@ class ScanOptions(BaseModel):
 class ScanResult(BaseModel):
     """Versioned serialized integration boundary for reports, API, and UI."""
 
-    schema_version: str = "1.0"
+    schema_version: str = "1.1"
     tool_version: str
     scan_id: str
     started_at: str

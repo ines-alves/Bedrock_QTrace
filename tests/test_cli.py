@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 from quantumtrace import cli
 from quantumtrace.models import ScanError, ScanResult
 from quantumtrace.output.cyclonedx import validate_cbom
+from quantumtrace.pipeline import run
 
 runner = CliRunner()
 
@@ -206,6 +207,25 @@ def test_partial_scan_takes_precedence_over_threshold_and_still_emits_json(sampl
     result = runner.invoke(cli.app, ["scan", "input", "--out", "-", "--fail-on", "critical"])
     assert result.exit_code == 2 and "Threshold --fail-on critical" in result.stderr
     assert ScanResult.model_validate_json(result.stdout).errors == sample.errors
+
+
+def test_info_notes_do_not_change_the_exit_code(sample, tmp_path):
+    note = ScanError(detector="config.keyfile", path="a.pem", message="no key recognized", severity="info")
+    sample.errors = [note]
+    result = runner.invoke(cli.app, ["scan", "input", "--out", str(tmp_path)])
+    assert result.exit_code == 0 and "Coverage incomplete" not in result.output
+    assert "Notes: 1" in result.output and "no key recognized" in result.output
+    report = ScanResult.model_validate_json((tmp_path / "report.json").read_text())
+    assert report.errors == [note]
+    sample.errors = [note, ScanError(detector="pipeline", path="b", message="failed")]
+    mixed = runner.invoke(cli.app, ["scan", "input", "--out", str(tmp_path)])
+    assert mixed.exit_code == 2 and "Coverage incomplete: 1 error(s)" in mixed.output
+
+
+def test_reports_without_severity_still_load_as_errors():
+    error = ScanError.model_validate({"detector": "d", "path": None, "message": "m"})
+    assert error.severity == "error"
+    assert run([], probes=None).schema_version == "1.1"
 
 
 def test_invalid_threshold_is_an_invocation_error(sample):
