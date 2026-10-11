@@ -13,6 +13,7 @@ type Scan = {
   scan: (paths: string[]) => Promise<void>
   scanGithub: (url: string) => Promise<void>
   scanZip: (file: File) => Promise<void>
+  clear: () => Promise<void>
 }
 
 const getJson = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
@@ -52,6 +53,23 @@ export function ScanProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Drops the stored scan on the server; the response is the bundled sample every page then shows.
+  const clear = async () => {
+    setBusy(true)
+    setMessage(undefined)
+    try {
+      const r = await fetch('/api/scan', { method: 'DELETE' })
+      const body = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(body.detail ?? `HTTP ${r.status}`)
+      setData(body)
+      setSource('sample')
+    } catch (e) {
+      setMessage(`Clear failed: ${(e as Error).message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const json = (body: object): RequestInit => ({ headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
   const scan = (paths: string[]) => send('/api/scan', json({ paths }))
   const scanGithub = (url: string) => send('/api/scan/github', json({ url }))
@@ -63,7 +81,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
 
   return createElement(
     ScanContext.Provider,
-    { value: { data, error, source, busy, message, scan, scanGithub, scanZip } },
+    { value: { data, error, source, busy, message, scan, scanGithub, scanZip, clear } },
     children,
   )
 }

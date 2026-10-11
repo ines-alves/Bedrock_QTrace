@@ -45,7 +45,8 @@ function ExportMenu() {
 }
 
 export default function ScanBar() {
-  const { data, source, busy, message, scan, scanGithub, scanZip } = useScan()
+  const { data, source, busy, message, scan, scanGithub, scanZip, clear } = useScan()
+  const [confirming, setConfirming] = useState(false)
   const [link, setLink] = useState('')
   const [dragging, setDragging] = useState(false)
   const [hint, setHint] = useState<string>()
@@ -96,6 +97,25 @@ export default function ScanBar() {
             className="rounded-full bg-paper px-4 py-1 font-head font-semibold text-ink hover:bg-aqua">
             {open ? 'Close' : 'Scan'}
           </button>
+          {source === 'scan' &&
+            (confirming ? (
+              <span className="flex items-center gap-2">
+                <span>Clear this scan?</span>
+                <button type="button" disabled={busy} onClick={() => { setConfirming(false); void clear() }}
+                  className="rounded-full border border-critical px-3 py-1 text-critical hover:bg-critical hover:text-on-accent">
+                  Yes, clear
+                </button>
+                <button type="button" onClick={() => setConfirming(false)}
+                  className="rounded-full border border-paper/30 px-3 py-1 hover:border-paper/60">
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button type="button" disabled={busy} onClick={() => setConfirming(true)}
+                className="rounded-full border border-paper/30 px-4 py-1 hover:border-paper/60 disabled:opacity-40">
+                Clear
+              </button>
+            ))}
           <ExportMenu />
         </div>
       </div>

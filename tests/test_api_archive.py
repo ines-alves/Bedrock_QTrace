@@ -168,3 +168,20 @@ def test_oversized_upload_is_refused(sample: ScanResult, monkeypatch: pytest.Mon
     with pytest.raises(HTTPException) as error:
         main.scan_upload(UploadFile(file=io.BytesIO(b"x" * 100), filename="big.zip"))
     assert error.value.status_code == 413
+
+
+def test_clear_scan_forgets_the_report_and_serves_the_sample(
+    sample: ScanResult, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    uploads = tmp_path / "out" / "uploads"
+    uploads.mkdir(parents=True)
+    (uploads / "leftover").write_text("x")
+    monkeypatch.setattr(main, "UPLOADS", uploads)
+    main.REPORT.parent.mkdir(exist_ok=True)
+    main.REPORT.write_text(sample.model_copy(update={"scan_id": "live"}).model_dump_json())
+    assert main.source() == {"source": "scan"}
+    cleared = main.clear_scan()
+    assert cleared == sample
+    assert main.source() == {"source": "sample"}
+    assert not main.REPORT.exists() and not uploads.exists()
+    assert main.clear_scan() == sample  # clearing twice is harmless
