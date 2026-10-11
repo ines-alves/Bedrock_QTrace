@@ -659,6 +659,27 @@
     - hash
     - signature
     - authentication
+- id: MD2
+  family: MD2
+  primitive_by_usage:
+    default: hash
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy, as MD5; RFC 6149 moved MD2 to Historic after collision and
+    preimage attacks, so it is classically broken.
+  sources:
+  - *id001
+  - url: https://datatracker.ietf.org/doc/rfc6149/
+    checked_on: '2026-10-11'
+    note: MD2 to Historic Status (2011); not collision-free, preimage attacks shown, must
+      not be used for digital signatures.
+  replacement:
+    default: *id009
+  classically_broken_if:
+    usages:
+    - hash
+    - signature
+    - authentication
 - id: MD5
   family: MD5
   primitive_by_usage:
@@ -813,6 +834,24 @@
     default: *id002
   aliases:
   - ARC4
+- id: RIPEMD-160
+  family: RIPEMD
+  primitive_by_usage:
+    default: hash
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy by output size (160 bits, below SHA-256), as SHA-224; no
+    classical break is claimed.
+  sources:
+  - *id001
+  - url: https://www.iso.org/standard/37416.html
+    checked_on: '2026-10-11'
+    note: Specified as a dedicated hash function in ISO/IEC 10118-3:2004, which ISO lists
+      as withdrawn (2024). Not a NIST-approved hash; no OID recorded here.
+  replacement:
+    default: *id009
+  aliases:
+  - RIPEMD160
 - id: RSA
   family: RSA
   primitive_by_usage:
@@ -976,7 +1015,7 @@
     checked_on: '2026-10-10'
     note: SSH signature and fixed DH group identities.
   - url: https://www.rfc-editor.org/rfc/rfc8332
-    checked_on: '2026-10-10'
+    checked_on: '2026-10-11'
     note: Negotiated RSA SHA-2 signature algorithms reuse ssh-rsa key format.
   components:
   - algorithm_id: RSA
@@ -1488,7 +1527,7 @@
   sources:
   - *id001
   - url: https://www.rfc-editor.org/rfc/rfc5480
-    checked_on: '2026-10-10'
+    checked_on: '2026-10-11'
     note: Elliptic curve public keys (id-ecPublicKey) independent of their use.
   replacement:
     key_exchange: *id004
@@ -1508,7 +1547,7 @@
   sources:
   - *id001
   - url: https://www.rfc-editor.org/rfc/rfc8032
-    checked_on: '2026-10-10'
+    checked_on: '2026-10-11'
     note: Edwards-curve Digital Signature Algorithm (Ed25519, Ed448).
   replacement:
     default: *id005
@@ -1524,7 +1563,7 @@
   sources:
   - *id001
   - url: https://www.rfc-editor.org/rfc/rfc7748
-    checked_on: '2026-10-10'
+    checked_on: '2026-10-11'
     note: X25519 and X448 Diffie-Hellman functions.
   replacement:
     default: *id004
@@ -1540,7 +1579,7 @@
   sources:
   - *id001
   - url: https://www.rfc-editor.org/rfc/rfc9180
-    checked_on: '2026-10-10'
+    checked_on: '2026-10-11'
     note: HPKE DHKEM over P-256, P-384, P-521, X25519 and X448.
   replacement:
     default: *id004
