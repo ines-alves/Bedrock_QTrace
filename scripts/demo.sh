@@ -5,9 +5,17 @@
 #
 #   scripts/demo.sh           scan, validate the CBOM, print the summary
 #   scripts/demo.sh --serve   then start the API and dashboard on http://127.0.0.1:8000
+#   scripts/demo.sh --docker  build the image and serve the dashboard on http://127.0.0.1:8000 (needs only Docker)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+
+if [ "${1:-}" = "--docker" ]; then
+  command -v docker >/dev/null 2>&1 || { echo "Docker is not installed or not on PATH" >&2; exit 1; }
+  docker build -t quantumtrace .
+  echo "Dashboard on http://127.0.0.1:8000 (Ctrl+C to stop)"
+  exec docker run --rm -p 8000:8000 quantumtrace
+fi
 
 if [ -x .venv/bin/python ]; then
   PY=.venv/bin/python
