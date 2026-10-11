@@ -44,7 +44,10 @@ def run(kb, findings):
     [
         (SourceType.CODE, None, Usage.SIGNATURE, {}, False, 1),
         (SourceType.CODE, None, Usage.SIGNATURE, {}, True, 0.3),
-        (SourceType.CONFIG, None, Usage.SIGNATURE, {}, True, 1),
+        (SourceType.CONFIG, None, Usage.SIGNATURE, {}, True, 0.3),
+        (SourceType.KEYFILE, None, Usage.SIGNATURE, {}, True, 0.3),
+        (SourceType.KEYFILE, None, Usage.SIGNATURE, {}, False, 1),
+        (SourceType.KMS, None, Usage.SIGNATURE, {}, True, 1),
         (SourceType.PCAP, True, Usage.KEY_EXCHANGE, {}, False, 1.5),
         (SourceType.LIVE, True, Usage.SIGNATURE, {}, False, 1.2),
         (SourceType.SSH, False, Usage.KEY_EXCHANGE, {}, False, 0.4),

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import fsum, log2
 
-from quantumtrace.engine.aggregate import Aggregation
+from quantumtrace.engine.aggregate import PATH_SOURCES, Aggregation
 from quantumtrace.engine.classify import ClassifiedNode, summarize_verdict
 from quantumtrace.kb.loader import Scoring
 from quantumtrace.models import CryptoAsset, RiskSummary, SourceType, Tier, Usage
@@ -35,7 +35,7 @@ def exposure(row: ClassifiedNode, policy: Scoring) -> float:
             categories.append("kms_enabled")
         elif state in {"Disabled", "PendingDeletion"}:
             categories.append("kms_inactive")
-    if source == SourceType.CODE and finding.in_test_code:
+    if source in PATH_SOURCES and finding.in_test_code:
         categories.append("test_only")
     if not categories:
         categories.append("production")
