@@ -150,7 +150,26 @@ def _lookup(name: str, kb: KnowledgeBase) -> tuple[Algorithm | None, MatchMethod
         entry = matches[0][0]
         groups, ambiguous = _captures([groups for _, groups in matches])
         return entry, "pattern", groups, ambiguous
+    if not identifiers and _OID.fullmatch(name.strip()):
+        return _oid_lookup(name.strip(), kb)
     return None, "unknown", {}, len(identifiers) > 1
+
+
+_OID = re.compile(r"[012](?:\.(?:0|[1-9]\d*))+")
+
+
+def _oid_lookup(oid: str, kb: KnowledgeBase) -> tuple[Algorithm | None, MatchMethod, dict[str, str], bool]:
+    """A dotted OID (e.g. a certificate key with no named type) resolves only through sourced KB OIDs."""
+    hits = {
+        (entry.id, param)
+        for entry in kb.algorithms.values()
+        for param, value in ([(None, entry.oid)] + list(entry.oids.items()))
+        if value == oid
+    }
+    if len(hits) != 1:
+        return None, "unknown", {}, len(hits) > 1
+    identifier, param = next(iter(hits))
+    return kb.get(identifier), "alias", ({"param": param} if param else {}), False
 
 
 def _captures(matches: list[dict[str, str]]) -> tuple[dict[str, str], bool]:

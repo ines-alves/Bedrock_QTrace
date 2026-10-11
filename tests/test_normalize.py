@@ -503,3 +503,19 @@ def test_xdh_variant_and_nist_curve_spellings(kb):
         normalize(finding("EC", usage=Usage.SIGNATURE, curve=c), kb).identity for c in ("P-224", "SECP224R1")
     }
     assert len(curves) == 1 and next(iter(curves)).parameters.curve == "secp224r1"
+
+
+@pytest.mark.parametrize(
+    "oid,canonical,param",
+    [
+        ("2.16.840.1.101.3.4.3.17", "ML-DSA", "44"),
+        ("2.16.840.1.101.3.4.3.18", "ML-DSA", "65"),
+        ("1.3.101.112", "Ed25519", None),
+        ("1.2.3.4", None, None),
+    ],
+)
+def test_dotted_oids_resolve_only_through_sourced_kb_oids(oid, canonical, param, kb):
+    result = normalize(finding(oid, kind_hint=KindHint.CERTIFICATE), kb)
+    assert result.identity.algorithm_id == canonical
+    if param:
+        assert result.identity.parameters.parameter_set == param
