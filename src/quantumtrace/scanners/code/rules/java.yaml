@@ -656,3 +656,30 @@
   usage: signature
   library: java-jwt
   reference: true
+
+# ---- private keys embedded in source (tool comparison: cbomkit-theia, cryptosweep) ----------------
+# A PEM private-key header in a string (comments are masked first). The key itself is never read or
+# shown (redact: true); the type comes from the label, and a bare, ENCRYPTED or OPENSSH header is
+# "unresolved". The engine adds the private_key_material hygiene action.
+- id: JAVA_EMBEDDED_PRIVATE_KEY_TYPED
+  language: java
+  pattern: '-----BEGIN (?P<algo>RSA|EC|DSA) PRIVATE KEY-----'
+  raw_name: '{algo}'
+  kind_hint: key
+  usage: unknown
+  redact: true
+  extra:
+    object: embedded_private_key
+    hygiene_flags: [private_key_material]
+
+- id: JAVA_EMBEDDED_PRIVATE_KEY
+  language: java
+  pattern: '-----BEGIN (?:ENCRYPTED |OPENSSH )?PRIVATE KEY-----'
+  raw_name: unresolved
+  kind_hint: key
+  usage: unknown
+  confidence: 0.5
+  redact: true
+  extra:
+    object: embedded_private_key
+    hygiene_flags: [private_key_material]

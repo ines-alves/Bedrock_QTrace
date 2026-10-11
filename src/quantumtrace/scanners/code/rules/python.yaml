@@ -166,7 +166,7 @@
 
 - id: PY_RSA_GENERATE_POSITIONAL
   language: python
-  pattern: '\brsa\.generate_private_key\(\s*\d+\s*,\s*(?P<key_size>\d+)'
+  pattern: '\brsa\.generate_private_key\(\s*(?!public_exponent\b|key_size\b)[^,()=]+,\s*(?:(?P<key_size>\d+)|(?P<key_size_ref>[A-Za-z_]\w*))\s*[,)]'
   raw_name: RSA
   kind_hint: algorithm
   usage: unknown
@@ -802,6 +802,19 @@
   library: cryptography
   reference: true
 
+# A hashlib constructor passed as a value, not called: a parameter default, an assignment or an argument
+# (pyotp otp.py: digest: Any = hashlib.sha1, later used by hmac.new(..., self.digest)). A membership
+# test such as `digest in [hashlib.md5]` (a rejection) is not a use. The call wins.
+- id: PY_HASHLIB_REFERENCE
+  language: python
+  pattern: '(?:[=(]|,)[ \t]*hashlib\.(?P<name>md5|sha1|sha224|sha256|sha384|sha512)\b[ \t]*(?=[,)]|$)'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: hash
+  library: hashlib
+  reference: true
+  absorbed_by: [PY_HMAC]
+
 # A cipher class imported by name (paramiko: from cryptography.hazmat.decrepit.ciphers.algorithms import
 # TripleDES), then used bare. The module path is written with [.] because it is an import line, not a
 # call qualifier for python_ast.py. One name per import statement.
@@ -836,3 +849,30 @@
   usage: signature
   library: jose
   reference: true
+
+# ---- private keys embedded in source (tool comparison: cbomkit-theia, cryptosweep) ----------------
+# A PEM private-key header in a string (comments are masked first). The key itself is never read or
+# shown (redact: true); the type comes from the label, and a bare, ENCRYPTED or OPENSSH header is
+# "unresolved". The engine adds the private_key_material hygiene action.
+- id: PY_EMBEDDED_PRIVATE_KEY_TYPED
+  language: python
+  pattern: '-----BEGIN (?P<algo>RSA|EC|DSA) PRIVATE KEY-----'
+  raw_name: '{algo}'
+  kind_hint: key
+  usage: unknown
+  redact: true
+  extra:
+    object: embedded_private_key
+    hygiene_flags: [private_key_material]
+
+- id: PY_EMBEDDED_PRIVATE_KEY
+  language: python
+  pattern: '-----BEGIN (?:ENCRYPTED |OPENSSH )?PRIVATE KEY-----'
+  raw_name: unresolved
+  kind_hint: key
+  usage: unknown
+  confidence: 0.5
+  redact: true
+  extra:
+    object: embedded_private_key
+    hygiene_flags: [private_key_material]

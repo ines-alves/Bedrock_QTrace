@@ -232,3 +232,43 @@ def test_python_rsa_padding_table_is_a_reference_only_for_asymmetric_padding():
     assert not any(
         f.extra["rule"].endswith("_REFERENCE") for f in scan(called, "python") if f.raw_name == "RSA"
     )
+
+
+# ---- second tool comparison (10 more repos, cbomkit-theia) ----------------------------------------
+
+
+def test_python_hashlib_passed_as_a_value_is_a_reference_but_a_rejection_list_is_not():
+    source = (
+        "import hashlib, hmac\n"
+        "def otp(secret, digest=hashlib.sha1):\n"
+        "    if digest in [hashlib.md5, hashlib.shake_128]:\n"
+        "        raise ValueError\n"
+        "    return hmac.new(secret, b'x', hashlib.sha256)\n"
+    )
+    got = [(f.location.line, f.raw_name, f.extra["rule"]) for f in scan(source, "python")]
+    assert got == [(2, "sha1", "PY_HASHLIB_REFERENCE"), (5, "HMAC-sha256", "PY_HMAC")]
+
+
+def test_python_positional_rsa_generation_with_a_variable_size():
+    source = "from cryptography.hazmat.primitives.asymmetric import rsa\nk = rsa.generate_private_key(e, size, b)\n"
+    (finding,) = scan(source, "python")
+    assert (finding.raw_name, finding.key_size, finding.confidence) == ("RSA", None, 0.5)
+
+
+@pytest.mark.parametrize(
+    "language,source,expected",
+    [
+        ("java", 'String k = "-----BEGIN RSA PRIVATE KEY-----\\nMIIEow";\n', "RSA"),
+        ("go", "const k = `-----BEGIN EC PRIVATE KEY-----\nMHcC\n-----END EC PRIVATE KEY-----`\n", "EC"),
+        ("python", 'K = """-----BEGIN PRIVATE KEY-----\nMIIE\n-----END PRIVATE KEY-----"""\n', "unresolved"),
+    ],
+)
+def test_private_keys_embedded_in_source_are_key_material_and_never_shown(language, source, expected):
+    (finding,) = scan(source, language)
+    assert finding.raw_name == expected and finding.kind_hint.value == "key"
+    assert finding.extra["hygiene_flags"] == ["private_key_material"]
+    assert "MIIE" not in (finding.location.snippet or "") and "MHcC" not in (finding.location.snippet or "")
+
+
+def test_private_key_header_in_a_comment_is_documentation():
+    assert scan("// -----BEGIN RSA PRIVATE KEY----- example\nclass A {}\n", "java") == []

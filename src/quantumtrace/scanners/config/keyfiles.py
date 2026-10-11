@@ -718,6 +718,36 @@ def _skip_utf(reader: _Reader) -> None:
     reader.i += 2 + size
 
 
+_SNIFF_PEM = re.compile(
+    rb"-----BEGIN (?:[A-Z0-9 ]+ )?(?:PRIVATE KEY|PUBLIC KEY|CERTIFICATE|CERTIFICATE REQUEST|PARAMETERS)-----"
+)
+_SNIFF_SSH = re.compile(rb"(?m)^(?:\S+\s+)?(?:ssh-(?:rsa|dss|ed25519)|ecdsa-sha2-nistp\d+|sk-\S+) AAAA")
+_TEXT_LIMIT = 1024 * 1024
+
+
+_DOC_SUFFIXES = frozenset({".md", ".markdown", ".rst", ".adoc", ".html", ".htm", ".tex", ".ipynb"})
+
+
+def _named(path: Path) -> bool:
+    name = path.name.lower()
+    return path.suffix.lower() in SUFFIXES or name in NAMES or bool(_SSH_KEY_NAME.fullmatch(name))
+
+
+def _sniff(path: Path) -> bool:
+    """A small non-documentation file whose first 64 KiB hold a PEM key/certificate header or an OpenSSH
+    public key line (documentation often shows truncated example keys)."""
+    if path.suffix.lower() in _DOC_SUFFIXES:
+        return False
+    try:
+        if path.stat().st_size > _TEXT_LIMIT:
+            return False
+        with path.open("rb") as handle:
+            head = handle.read(64 * 1024)
+    except OSError:
+        return False
+    return bool(_SNIFF_PEM.search(head) or _SNIFF_SSH.search(head))
+
+
 # ---------------------------------------------------------------- scanner
 
 
@@ -727,8 +757,11 @@ class KeyFileScanner:
     source_type = SourceType.KEYFILE
 
     def can_handle(self, path: Path) -> bool:
-        name = path.name.lower()
-        return path.suffix.lower() in SUFFIXES or name in NAMES or bool(_SSH_KEY_NAME.fullmatch(name))
+        if _named(path):
+            return True
+        # Key material under any other name (testdata/secrets/foo.priv, a CA key without extension, a
+        # certificate embedded in YAML): claimed by content when no other scanner took the file.
+        return _sniff(path)
 
     def scan(self, path: Path, root: Path) -> Iterator[Finding | ScanError]:
         path = Path(path)
@@ -763,6 +796,10 @@ class KeyFileScanner:
             out.errors.append(f"could not be decoded: {type(exc).__name__}")
             recognized = bool(out.findings)
         yield from out.findings
+        if not _named(path):
+            # Claimed only by its content (a YAML or text file with embedded blocks): what decodes is
+            # reported; placeholder or truncated blocks are not coverage gaps of a key file.
+            return
         for message in out.errors:
             yield ScanError(detector=DETECTOR, path=str(path), message=message)
         if not recognized and not out.errors:

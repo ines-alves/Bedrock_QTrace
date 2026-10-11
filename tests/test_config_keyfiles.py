@@ -314,3 +314,25 @@ def test_nonconformant_certificate_request_is_read_from_its_der(tmp_path, keys):
     assert [(f.raw_name, f.key_size, f.extra["signature_algorithm"]) for f in findings] == [
         ("RSA", 2048, "sha256WithRSAEncryption")
     ]
+
+
+def test_key_material_under_other_names_is_claimed_by_content(tmp_path, keys):
+    pem = s.Encoding.PEM
+    key = keys["p256"].private_bytes(pem, s.PrivateFormat.TraditionalOpenSSL, s.NoEncryption())
+    (tmp_path / "secrets").mkdir()
+    (tmp_path / "secrets" / "foo.priv").write_bytes(key)
+    (tmp_path / "secrets" / "ssh_user_ca_key").write_bytes(key)
+    cert = _cert(keys["rsa"]).public_bytes(pem).decode()
+    indented = "\n".join("      " + row for row in cert.splitlines())
+    fake = "      -----BEGIN CERTIFICATE-----\n      ZmFrZQ==\n      -----END CERTIFICATE-----"
+    (tmp_path / "values.yml").write_text(f"certs:\n  ca: |\n{indented}\n  placeholder: |\n{fake}\n")
+    (tmp_path / "README.md").write_text("```\n" + key.decode() + "```\n")  # documentation is not sniffed
+    (tmp_path / "notes.txt").write_text("nothing to see\n")
+    result = pipeline.run([tmp_path])
+    found = sorted((f.location.file, f.raw_name, f.extra["object"]) for f in result.findings)
+    assert found == [
+        ("secrets/foo.priv", "EC", "private_key"),
+        ("secrets/ssh_user_ca_key", "EC", "private_key"),
+        ("values.yml", "RSA", "certificate"),
+    ]
+    assert result.errors == []  # the fake YAML block is not a coverage error of a key file
