@@ -51,7 +51,7 @@ export default function FolderBrowser({ start, selected, onToggle }: Props) {
                 <span className="min-w-0 truncate text-paper/70">{e.name}</span>
               )}
               <button type="button" aria-pressed={on} onClick={() => onToggle(e.path)}
-                className={`shrink-0 rounded-full border px-3 py-0.5 text-xs ${on ? 'border-aqua bg-aqua text-ink' : 'border-aqua text-aqua'}`}>
+                className={`shrink-0 rounded-full border px-3 py-0.5 text-xs ${on ? 'border-aqua bg-aqua text-on-accent' : 'border-aqua text-aqua'}`}>
                 {on ? 'Added' : 'Add'}
               </button>
             </li>

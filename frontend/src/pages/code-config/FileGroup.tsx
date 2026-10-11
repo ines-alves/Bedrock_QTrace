@@ -4,7 +4,7 @@ import { languageOf, provenance, type FileGroup as Group, type Row } from './mod
 const tag = 'rounded-full px-2.5 py-0.5 text-xs'
 
 function Badge({ row }: { row: Row }) {
-  if (row.kind === 'warning') return <span className={`${tag} border border-aqua text-aqua`}>Warning</span>
+  if (row.kind === 'warning') return <span className={`${tag} bg-warning text-on-accent`}>Warning</span>
   if (row.kind === 'library') return <span className={`${tag} border border-steel/60 text-steel`}>Library</span>
   return <TierBadge tier={row.tier ?? 'UNKNOWN'} />
 }
@@ -39,7 +39,7 @@ function RowView({ row }: { row: Row }) {
           {f.in_test_code && <span className={`${tag} border border-paper/30 text-paper/60`}>test code</span>}
           {f.confidence < 0.8 && <span className="text-paper/40">confidence {f.confidence.toFixed(1)}</span>}
           {row.flags.map((flag) => (
-            <span key={flag} className="text-aqua">{flag}</span>
+            <span key={flag} className="text-warning">{flag}</span>
           ))}
         </div>
         {f.location.snippet && (
