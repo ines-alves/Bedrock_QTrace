@@ -32,7 +32,7 @@ def test_help_and_complete_scan_default_native_output(sample, monkeypatch, tmp_p
     assert ScanResult.model_validate_json((tmp_path / "out" / "report.json").read_text()) == sample
 
 
-def test_real_starter_partial_scan_writes_all_requested_valid_reports(tmp_path):
+def test_real_starter_scan_writes_all_requested_valid_reports(tmp_path):
     root = Path(__file__).resolve().parents[1]
     invocation = runner.invoke(
         cli.app,
@@ -47,11 +47,12 @@ def test_real_starter_partial_scan_writes_all_requested_valid_reports(tmp_path):
             "json,cbom,md",
         ],
     )
-    assert invocation.exit_code == 2 and "Coverage incomplete: 3" in invocation.output
+    # The kit's README files are walked documentation, not unsupported coverage.
+    assert invocation.exit_code == 0 and "Coverage incomplete" not in invocation.output
     result = ScanResult.model_validate_json((tmp_path / "report.json").read_text())
     assert (len(result.findings), len(result.assets), len(result.sessions)) == (1056, 658, 121)
     assert result.roadmap and result.summary.score == 60
-    assert len(result.errors) == 3
+    assert result.errors == []
     cbom = json.loads((tmp_path / "cbom.json").read_text())
     # 658 assets less 6 hygiene/library/plaintext wrappers that the CBOM leaves out (M3M4-05).
     assert validate_cbom(cbom) == [] and len(cbom["components"]) == 663
@@ -219,9 +220,10 @@ def test_real_pipeline_stdout_threshold_and_partial_precedence():
     )
     report = ScanResult.model_validate_json(capture.stdout)
     assert capture.exit_code == 1 and len(report.sessions) == 121 and not report.errors
-    kit = runner.invoke(
-        cli.app,
-        ["scan", *(str(root / name) for name in ("sample-repos", "cloud-posture", "network-capture"))]
-        + ["--out", "-", "--fail-on", "critical"],
-    )
-    assert kit.exit_code == 2 and len(ScanResult.model_validate_json(kit.stdout).errors) == 3
+    kit = [str(root / name) for name in ("sample-repos", "cloud-posture", "network-capture")]
+    complete = runner.invoke(cli.app, ["scan", *kit, "--out", "-", "--fail-on", "critical"])
+    assert complete.exit_code == 1 and not ScanResult.model_validate_json(complete.stdout).errors
+    # A README named explicitly is unsupported coverage, which outranks the threshold.
+    named = [*kit, str(root / "sample-repos" / "README.md")]
+    partial = runner.invoke(cli.app, ["scan", *named, "--out", "-", "--fail-on", "critical"])
+    assert partial.exit_code == 2 and len(ScanResult.model_validate_json(partial.stdout).errors) == 1

@@ -82,6 +82,8 @@ def result(kb, name, *, parameters=None, conflicts=(), **updates):
         ("SHA-1", Usage.KDF, Tier.MEDIUM, False),
         ("MD5", Usage.HASH, Tier.MEDIUM, True),
         ("MD5", Usage.MAC, Tier.MEDIUM, False),
+        ("MD2", Usage.HASH, Tier.MEDIUM, True),
+        ("RIPEMD160", Usage.HASH, Tier.MEDIUM, False),
         ("HMAC-SHA1", Usage.MAC, Tier.MEDIUM, False),
         ("HMAC-MD5", Usage.MAC, Tier.MEDIUM, False),
         ("SHA-224", Usage.HASH, Tier.MEDIUM, False),
@@ -639,3 +641,41 @@ def test_obsolete_protocol_versions_from_code_are_broken_hygiene(name, kb):
     row = result(kb, name, kind_hint=KindHint.PROTOCOL_VERSION, usage=Usage.UNKNOWN)
     assert row.classically_broken and not row.scoreable
     assert any("Migrate obsolete transport" in a.action for a in row.recommendations)
+
+
+@pytest.mark.parametrize("name", ["HMAC-SHA1", "HMAC-MD5"])
+def test_weak_mac_migration_cites_the_hmac_standard(kb, name):
+    row = result(kb, name, usage=Usage.MAC)
+    advice = [a for a in row.recommendations if a.target_algorithm == "HMAC-SHA384"]
+    assert [(a.action, a.standard) for a in advice] == [
+        ("Use a maintained HMAC-SHA384 implementation.", "NIST FIPS 198-1")
+    ]
+
+
+def test_sha1_signature_hash_advice_replaces_the_digest_not_the_signature(kb):
+    row = result(kb, "SHA-1", usage=Usage.SIGNATURE)
+    assert [
+        (a.action, a.target_algorithm, a.standard) for a in row.recommendations if a.target_algorithm
+    ] == [("Use SHA-384 as the signature hash.", "SHA-384", "NIST FIPS 180-4")]
+
+
+def test_ssh_rsa_sha1_part_recommends_rfc8332_and_rsa_part_ml_dsa(kb):
+    ssh = Location(source_type=SourceType.SSH, file="capture.pcap", flow="flow")
+    root = classify(decompose(finding("ssh-rsa", usage=Usage.SIGNATURE, location=ssh), kb).root, kb)
+    advice = {
+        (row.node.normalized.identity.algorithm_id, a.target_algorithm, a.standard)
+        for row in root.walk()
+        for a in row.recommendations
+        if a.target_algorithm
+    }
+    assert ("SHA-1", "rsa-sha2-512", "IETF RFC 8332") in advice
+    assert ("RSA", "ML-DSA-65", "NIST FIPS 204") in advice
+    assert not any(target == "SHA-384" for _, target, _ in advice)
+
+
+@pytest.mark.parametrize(
+    "name,usage", [("RSA2048", Usage.SIGNATURE), ("ssh-rsa", Usage.SIGNATURE), ("SHA-1", Usage.SIGNATURE)]
+)
+def test_replacement_standard_never_becomes_the_assets_own_pqc_standard(kb, name, usage):
+    row = result(kb, name, usage=usage)
+    assert row.recommendations and all(row.pqc_standard is None for row in row.walk())

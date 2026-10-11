@@ -21,9 +21,13 @@ The console displays grade, risk score, readiness, scored asset counts and the
 top ten risks. Protocol and certificate containers do not inflate scored counts.
 Complete scans exit 0. Partial scans retain usable reports, display coverage errors
 and exit 2. Invalid arguments, unavailable requested writers and output failures
-also exit 2. The starter directory command above reports three unsupported README
-files and exits 2; the capture itself produces 97 TLS and 24 SSH sessions plus
-14 plaintext flows. The starter capture contains no TLS Certificate messages, so
+also exit 2. Documentation found while walking a folder (README, LICENSE,
+CHANGELOG and similar names; `.md`, `.rst`, `.adoc` and image files) is skipped
+without an error when no scanner supports it. A file named explicitly on the
+command line is always reported, and other unsupported files, including key and
+config files, remain coverage errors. The starter directory command above is
+therefore complete and exits 0; the capture itself produces 97 TLS and 24 SSH
+sessions plus 14 plaintext flows. The starter capture contains no TLS Certificate messages, so
 unobservable authentication is retained rather than guessed.
 
 Repeat `--probe host:port` to request explicit probes; bracket IPv6 addresses,

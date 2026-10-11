@@ -29,6 +29,19 @@ _ADAPTER_MODULES = (
     "quantumtrace.scanners.network.pcap_scanner",
 )
 
+# Documentation met while walking a folder is not cryptographic input; a file named explicitly still
+# errors, and key/config files stay reported until their scanners exist (AlltoAll, M3C-01).
+_DOC_NAMES = frozenset(
+    {"authors", "changelog", "contributing", "copying", "licence", "license", "notice", "readme"}
+)
+_DOC_SUFFIXES = frozenset(
+    {".adoc", ".gif", ".ico", ".jpeg", ".jpg", ".markdown", ".md", ".png", ".rst", ".svg", ".webp"}
+)
+
+
+def _is_documentation(path: Path) -> bool:
+    return path.suffix.lower() in _DOC_SUFFIXES or path.name.lower().split(".")[0] in _DOC_NAMES
+
 
 def _load_adapters() -> list[ScanError]:
     errors = []
@@ -133,9 +146,12 @@ def _run(
         errors.append(ScanError(detector="pipeline", message=str(exc)))
         scanners = []
     findings = []
+    named = {Path(item).absolute() for item in inputs}
     for path, root in _files(inputs, settings, errors, scan_root):
         scanner = _route(path, scanners, errors)
         if scanner is None:
+            if path not in named and _is_documentation(path):
+                continue
             errors.append(
                 ScanError(
                     detector="pipeline", path=_display(path), message="no selected scanner supports input"

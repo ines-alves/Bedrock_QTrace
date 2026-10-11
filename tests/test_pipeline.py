@@ -407,11 +407,11 @@ def test_real_cbom_certificate_validity_and_policy_dependencies():
 
 def test_reports_keep_inputs_as_given_and_no_local_path_prefix(tmp_path, monkeypatch):
     (tmp_path / "kit").mkdir()
-    (tmp_path / "kit" / "README.md").write_text("starter notes\n")
+    (tmp_path / "kit" / "server.key").write_text("not scanned yet\n")
     monkeypatch.chdir(tmp_path)
     result = pipeline.run(["kit", "./kit/"])
     assert result.inputs == ["kit"]
-    assert [error.path for error in result.errors if error.detector == "pipeline"] == ["kit/README.md"]
+    assert [error.path for error in result.errors if error.detector == "pipeline"] == ["kit/server.key"]
     assert str(tmp_path) not in result.model_dump_json()
     assert pipeline.run(["kit"]).scan_id == result.scan_id
 
@@ -419,11 +419,32 @@ def test_reports_keep_inputs_as_given_and_no_local_path_prefix(tmp_path, monkeyp
 def test_inputs_outside_working_directory_stay_absolute(tmp_path, monkeypatch):
     outside = tmp_path / "outside"
     outside.mkdir()
-    (outside / "README.md").write_text("notes\n")
+    (outside / "server.key").write_text("not scanned yet\n")
     (tmp_path / "work").mkdir()
     monkeypatch.chdir(tmp_path / "work")
     result = pipeline.run([outside])
     assert result.inputs == [outside.as_posix()]
     assert [error.path for error in result.errors if error.detector == "pipeline"] == [
-        (outside / "README.md").as_posix()
+        (outside / "server.key").as_posix()
+    ]
+
+
+def test_walked_documentation_is_skipped_but_named_and_key_files_are_reported(tmp_path, monkeypatch):
+    kit = tmp_path / "kit"
+    (kit / "docs").mkdir(parents=True)
+    for name in ("README.md", "LICENSE", "docs/guide.rst", "docs/diagram.png", "CHANGELOG.txt"):
+        (kit / name).write_text("notes\n")
+    for name in ("server.key", "nginx.conf", "id_rsa", "notes.txt"):
+        (kit / name).write_text("unsupported\n")
+    monkeypatch.chdir(tmp_path)
+    walked = pipeline.run(["kit"])
+    assert [error.path for error in walked.errors] == [
+        "kit/id_rsa",
+        "kit/nginx.conf",
+        "kit/notes.txt",
+        "kit/server.key",
+    ]
+    named = pipeline.run(["kit/README.md"])
+    assert [(error.path, error.message) for error in named.errors] == [
+        ("kit/README.md", "no selected scanner supports input")
     ]
