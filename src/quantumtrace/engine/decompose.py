@@ -373,9 +373,16 @@ def _cipher(name: str, kb: KnowledgeBase) -> ComponentSpec | None:
 
 def _tls_suite(name: str, kb: KnowledgeBase) -> _Recipe | None:
     match = re.fullmatch(r"TLS_(?:(.+)_WITH_)?(.+)_(SHA|SHA256|SHA384|SHA512)", name.upper())
+    ccm_notes: tuple[str, ...] = ()
     if not match:
-        return None
-    prefix, cipher_name, digest = match.groups()
+        # RFC 6655 / RFC 7251 AES-CCM suites name no hash; their PRF is the TLS 1.2 PRF with SHA-256.
+        ccm = re.fullmatch(r"TLS_(.+)_WITH_(AES_(?:128|256)_CCM(?:_8)?)", name.upper())
+        if not ccm:
+            return None
+        prefix, cipher_name, digest = ccm[1], ccm[2], "SHA256"
+        ccm_notes = ("AES-CCM suite: PRF hash SHA-256 per RFC 6655",)
+    else:
+        prefix, cipher_name, digest = match.groups()
     cipher = _cipher(cipher_name, kb)
     if cipher is None:
         return None
@@ -398,10 +405,12 @@ def _tls_suite(name: str, kb: KnowledgeBase) -> _Recipe | None:
         "ECDHE_ECDSA": ("ECDH", "ECDSA", True),
         "ECDH_RSA": ("ECDH", "RSA", False),
         "ECDH_ECDSA": ("ECDH", "ECDSA", False),
+        # RFC 4279 / RFC 5489: the PSK suites mix a pre-shared key with DH, ECDH or RSA key transport
+        # (RSA_PSK authenticates the server with its RSA certificate).
         "PSK": ("PSK", "PSK", None),
-        "DHE_PSK": ("DHE-PSK", "PSK", None),
-        "ECDHE_PSK": ("ECDHE-PSK", "PSK", None),
-        "RSA_PSK": ("RSA-PSK", "PSK", None),
+        "DHE_PSK": (("DH", "PSK"), "PSK", True),
+        "ECDHE_PSK": (("ECDH", "PSK"), "PSK", True),
+        "RSA_PSK": (("RSA", "PSK"), "RSA", False),
         "DH_ANON": ("DH", "anonymous-authentication", None),
         "ECDH_ANON": ("ECDH", "anonymous-authentication", None),
     }
@@ -413,8 +422,9 @@ def _tls_suite(name: str, kb: KnowledgeBase) -> _Recipe | None:
         if auth in {"PSK", "anonymous-authentication"}
         else ()
     )
+    exchanges = kex if isinstance(kex, tuple) else (kex,)
     components = (
-        ComponentSpec(kex, Usage.KEY_EXCHANGE, "key_exchange"),
+        *(ComponentSpec(name, Usage.KEY_EXCHANGE, "key_exchange") for name in exchanges),
         ComponentSpec(auth, Usage.AUTHENTICATION, "authentication"),
         cipher,
     )
@@ -422,7 +432,7 @@ def _tls_suite(name: str, kb: KnowledgeBase) -> _Recipe | None:
     tail = (
         ComponentSpec(digest, Usage.KDF, "prf") if aead else ComponentSpec(f"HMAC-{digest}", Usage.MAC, "mac")
     )
-    return _Recipe((*components, tail), fs, notes)
+    return _Recipe((*components, tail), fs, (*notes, *ccm_notes))
 
 
 def _jose(finding: Finding, name: str) -> _Recipe | None:

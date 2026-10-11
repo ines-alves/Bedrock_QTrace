@@ -572,7 +572,27 @@ def test_psk_or_anonymous_uncertainty_is_preserved(name, kb):
     result = decompose(finding(name, KindHint.CIPHER_SUITE), kb)
     assert result.root.notes
     assert any(not node.normalized.is_resolved for node in atoms(result))
-    assert result.root.forward_secrecy is None
+    # DHE_PSK keeps its ephemeral DH (RFC 4279), so forward secrecy is established; PSK-only is not.
+    assert result.root.forward_secrecy is (True if "DHE_PSK" in name else None)
+
+
+@pytest.mark.parametrize(
+    "name,exchange",
+    [
+        ("TLS_DHE_PSK_WITH_AES_256_GCM_SHA384", "DH"),
+        ("TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256", "ECDH"),
+        ("TLS_RSA_PSK_WITH_AES_128_CBC_SHA", "RSA"),
+    ],
+)
+def test_psk_suites_keep_their_public_key_exchange(name, exchange, kb):
+    result = decompose(finding(name, KindHint.CIPHER_SUITE), kb)
+    names = {node.normalized.identity.algorithm_id for node in atoms(result) if node.role == "key_exchange"}
+    assert exchange in names
+
+
+def test_aes_ccm_suite_without_hash_suffix_uses_sha256_prf(kb):
+    result = decompose(finding("TLS_PSK_WITH_AES_128_CCM", KindHint.CIPHER_SUITE), kb)
+    assert {node.normalized.identity.algorithm_id for node in atoms(result)} >= {"AES", "SHA-256"}
 
 
 def test_jose_eddsa_parent_identity_never_claims_unobserved_variant(kb):
