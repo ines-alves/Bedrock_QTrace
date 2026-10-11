@@ -411,7 +411,8 @@ def test_reports_keep_inputs_as_given_and_no_local_path_prefix(tmp_path, monkeyp
     monkeypatch.chdir(tmp_path)
     result = pipeline.run(["kit", "./kit/"])
     assert result.inputs == ["kit"]
-    assert [error.path for error in result.errors if error.detector == "pipeline"] == ["kit/server.key"]
+    # The key-file scanner owns .key files; its error path follows the same cwd-relative convention.
+    assert [error.path for error in result.errors] == ["kit/server.key"]
     assert str(tmp_path) not in result.model_dump_json()
     assert pipeline.run(["kit"]).scan_id == result.scan_id
 
@@ -424,22 +425,22 @@ def test_inputs_outside_working_directory_stay_absolute(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path / "work")
     result = pipeline.run([outside])
     assert result.inputs == [outside.as_posix()]
-    assert [error.path for error in result.errors if error.detector == "pipeline"] == [
-        (outside / "server.key").as_posix()
-    ]
+    assert [error.path for error in result.errors] == [(outside / "server.key").as_posix()]
 
 
 def test_walked_files_are_reported_only_when_they_may_hold_key_material_or_tls_config(tmp_path, monkeypatch):
+    # Key and certificate files now have a scanner: unreadable ones are its coverage errors. A server
+    # config without TLS settings (nginx.conf here) is covered and silent.
     kit = tmp_path / "kit"
     (kit / "static").mkdir(parents=True)
     skipped = ("README.md", "LICENSE", "notes.txt", "static/app.js", "setup.cfg", "data.json", "Makefile")
-    reported = ("server.key", "certs.pem", "nginx.conf", "id_rsa", "id_ed25519.pub", "keystore.p12")
-    for name in skipped + reported:
+    reported = ("server.key", "certs.pem", "id_rsa", "id_ed25519.pub", "keystore.p12")
+    for name in (*skipped, *reported, "nginx.conf"):
         (kit / name).write_text("unsupported\n")
     monkeypatch.chdir(tmp_path)
     walked = pipeline.run(["kit"])
     assert sorted(error.path for error in walked.errors) == sorted(f"kit/{name}" for name in reported)
-    assert {error.message for error in walked.errors} == {"no selected scanner supports input"}
+    assert {error.message for error in walked.errors} == {"no key, certificate or keystore recognized"}
     assert pipeline.skipped_files(["kit"]) == sorted(f"kit/{name}" for name in skipped)
     named = pipeline.run(["kit/README.md", "kit/static/app.js"])
     assert [error.path for error in named.errors] == ["kit/README.md", "kit/static/app.js"]

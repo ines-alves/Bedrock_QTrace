@@ -273,6 +273,11 @@ def _hygiene(node: EvidenceNode, scan_started_at: datetime | None) -> tuple[list
             "Observed TLS certificate verification is disabled (hygiene); quantum tier unchanged.",
             "Enable TLS certificate and hostname verification.",
         )
+    if "private_key_material" in observed_flags:
+        warn(
+            "Private key material is stored in the scanned files (hygiene); quantum tier unchanged.",
+            "Remove the private key from the repository or image, rotate it and keep it in a secret store.",
+        )
     if "hardcoded_key" in observed_flags:
         warn("Observed hard-coded key material (hygiene).", "Remove and rotate hard-coded key material.")
     iterations = extra.get("iterations")
@@ -281,7 +286,8 @@ def _hygiene(node: EvidenceNode, scan_started_at: datetime | None) -> tuple[list
             "Observed PBKDF2 iterations are below the repository hygiene threshold; quantum tier unchanged.",
             "Review PBKDF2 work factor for the deployment.",
         )
-    for flag in sorted(observed_flags - {"rotation_disabled", "multi_region_key", "tls_verify_disabled"}):
+    handled = {"rotation_disabled", "multi_region_key", "tls_verify_disabled", "private_key_material"}
+    for flag in sorted(observed_flags - handled):
         notes.append(f"Observed hygiene context: {flag}.")
     return notes, advice
 
@@ -336,6 +342,9 @@ def classify(
             "tlsv1.1",
             "sslv3",
             "ssl3.0",
+            # SSL 2.0 is prohibited by RFC 6176.
+            "sslv2",
+            "ssl2.0",
         }:
             broken = True
             notes.append("Observed obsolete protocol version is a classical hygiene weakness.")
@@ -501,6 +510,23 @@ def classify(
                         action = "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused."
                         target, advice_standard = "rsa-sha2-512", "IETF RFC 8332"
                 advice.append(Advice(action, target, advice_standard, 1 if tier == Tier.CRITICAL else 2))
+            elif identity.usage == Usage.UNKNOWN and tier == Tier.CRITICAL and entry.replacement:
+                # A key whose use is not observed (a key file, an RSA/EC generation) still needs a path: name
+                # each per-use replacement the KB states, without guessing which use applies.
+                paths = {
+                    usage.value if isinstance(usage, Usage) else str(usage): _replacement(ref)
+                    for usage, ref in entry.replacement.items()
+                }
+                signature = paths.get("signature") or paths.get("authentication")
+                exchange = paths.get("key_exchange") or paths.get("encryption")
+                if signature and exchange:
+                    advice.append(
+                        Advice(
+                            f"Identify the key's use, then migrate signatures to {signature} "
+                            f"and key establishment to {exchange}.",
+                            priority=1,
+                        )
+                    )
             elif identity.usage == Usage.MAC:
                 # HMAC is specified by FIPS 198-1 (sourced on the KB HMAC-SHA384 entry).
                 advice.append(

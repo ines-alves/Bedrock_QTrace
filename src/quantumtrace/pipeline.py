@@ -26,12 +26,15 @@ _ADAPTER_MODULES = (
     "quantumtrace.scanners.cloud.loadbalancer",
     "quantumtrace.scanners.code.engine",
     "quantumtrace.scanners.code.manifests",
+    "quantumtrace.scanners.config.keyfiles",
+    "quantumtrace.scanners.config.webserver",
     "quantumtrace.scanners.network.pcap_scanner",
 )
 
 # A walked file that no scanner claims is reported only when it may hold key material or TLS/SSH
-# configuration, whose scanners are M3's P2 (AlltoAll, M3C-01, M3D-12); other walked files are not
-# cryptographic input and are skipped. A file named explicitly is always reported.
+# configuration (AlltoAll, M3C-01, M3D-12). The config.keyfile and config.webserver scanners claim
+# these files, so the rule applies when those scanners are not selected or not loaded; other walked
+# files are not cryptographic input and are skipped. A file named explicitly is always reported.
 _MATERIAL_SUFFIXES = frozenset(
     {
         ".cer",
@@ -217,6 +220,9 @@ def _run(
                 if isinstance(item, Finding):
                     findings.append(item)
                 elif isinstance(item, ScanError):
+                    # Error paths follow the report convention: relative to the working directory.
+                    if item.path and Path(item.path).is_absolute():
+                        item = item.model_copy(update={"path": _display(Path(item.path))})
                     errors.append(item)
                 else:
                     errors.append(

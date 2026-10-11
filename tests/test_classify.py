@@ -275,7 +275,12 @@ def test_only_sourced_facts_and_legacy_caveats(name, standard, level, oid, kb):
 )
 def test_rsa_recommendation_matches_usage(usage, target, kb):
     row = result(kb, "RSA2048", usage=usage)
-    assert [a.target_algorithm for a in row.recommendations] == ([target] if target else [])
+    assert [a.target_algorithm for a in row.recommendations] == [target]
+    if usage == Usage.UNKNOWN:
+        # The use is not observed: both migration paths are named, no single target is guessed.
+        assert row.recommendations[0].action == (
+            "Identify the key's use, then migrate signatures to ML-DSA-65 and key establishment to ML-KEM-768."
+        )
     if usage == Usage.ENCRYPTION:
         assert "not bulk encryption" in row.recommendations[0].action
 

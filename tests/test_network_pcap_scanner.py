@@ -343,7 +343,9 @@ def test_unsupported_linktype_is_an_error_even_when_tshark_reads_it_cleanly(pars
     p.write_bytes(data[:20] + bytes([19]) + data[21:])
     out = scan(p)
     assert findings(out) == []
-    assert [e.message for e in errors(out)] == ["unsupported linktype 19 (only Ethernet=1)"]
+    assert [e.message for e in errors(out)] == [
+        "unsupported linktype 19 (Ethernet, Linux SLL/SLL2, raw IP and loopback only)"
+    ]
 
 
 def test_valid_capture_without_packets_is_not_an_error(parser, tmp_path):

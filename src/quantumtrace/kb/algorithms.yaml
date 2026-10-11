@@ -125,10 +125,14 @@
     audit.
   sources:
   - *id001
+  - url: https://www.rfc-editor.org/rfc/rfc4253
+    checked_on: '2026-10-11'
+    note: SSH transport cipher, MAC and public key algorithm names.
   classically_broken: true
   replacement:
     default: *id002
-  aliases: []
+  aliases:
+  - blowfish-cbc
 - id: CMAC
   family: CMAC
   primitive_by_usage:
@@ -355,10 +359,19 @@
     url: https://www.rfc-editor.org/rfc/rfc8410
     checked_on: '2026-10-10'
     note: X25519, X448, Ed25519 and Ed448 algorithm identifiers.
+  - url: https://cvsweb.openbsd.org/src/usr.bin/ssh/PROTOCOL.certkeys
+    checked_on: '2026-10-11'
+    note: OpenSSH certificate key types carry the same key and signature algorithm as the base type.
+  - url: https://cvsweb.openbsd.org/src/usr.bin/ssh/PROTOCOL.u2f
+    checked_on: '2026-10-11'
+    note: FIDO/U2F security-key types sk-ssh-ed25519 and sk-ecdsa-sha2-nistp256 (and certificates).
   replacement:
     default: *id005
   aliases:
   - ssh-ed25519
+  - ssh-ed25519-cert-v01@openssh.com
+  - sk-ssh-ed25519@openssh.com
+  - sk-ssh-ed25519-cert-v01@openssh.com
   oid: 1.3.101.112
 - id: Ed448
   family: EdDSA
@@ -457,7 +470,13 @@
     length is retained separately.
   sources:
   - *id001
-  aliases: []
+  - url: https://www.rfc-editor.org/rfc/rfc4253
+    checked_on: '2026-10-11'
+    note: SSH transport cipher, MAC and public key algorithm names.
+  aliases:
+  - hmac-md5-96
+  - hmac-md5-etm@openssh.com
+  - hmac-md5-96-etm@openssh.com
 - id: HMAC-SHA1
   family: HMAC
   primitive_by_usage:
@@ -468,7 +487,13 @@
     length is retained separately.
   sources:
   - *id001
-  aliases: []
+  - url: https://www.rfc-editor.org/rfc/rfc4253
+    checked_on: '2026-10-11'
+    note: SSH transport cipher, MAC and public key algorithm names.
+  aliases:
+  - hmac-sha1-96
+  - hmac-sha1-etm@openssh.com
+  - hmac-sha1-96-etm@openssh.com
 - id: HMAC-SHA224
   family: HMAC
   primitive_by_usage:
@@ -845,11 +870,20 @@
     audit.
   sources:
   - *id001
+  - url: https://www.rfc-editor.org/rfc/rfc4253
+    checked_on: '2026-10-11'
+    note: SSH transport cipher, MAC and public key algorithm names.
+  - url: https://www.rfc-editor.org/rfc/rfc4345
+    checked_on: '2026-10-11'
+    note: arcfour128 and arcfour256 SSH modes.
   classically_broken: true
   replacement:
     default: *id002
   aliases:
   - ARC4
+  - arcfour
+  - arcfour128
+  - arcfour256
 - id: RIPEMD-160
   family: RIPEMD
   primitive_by_usage:
@@ -1448,6 +1482,9 @@
   - url: https://www.rfc-editor.org/rfc/rfc8332
     checked_on: '2026-10-10'
     note: Negotiated RSA SHA-2 signature algorithms reuse ssh-rsa key format.
+  - url: https://cvsweb.openbsd.org/src/usr.bin/ssh/PROTOCOL.certkeys
+    checked_on: '2026-10-11'
+    note: OpenSSH certificate key types carry the same key and signature algorithm as the base type.
   components:
   - algorithm_id: RSA
     usage: signature
@@ -1456,6 +1493,8 @@
   classically_broken: false
   replacement:
     default: *id005
+  aliases:
+  - rsa-sha2-256-cert-v01@openssh.com
 - id: rsa-sha2-512
   family: RSA
   primitive_by_usage:
@@ -1470,6 +1509,9 @@
   - url: https://www.rfc-editor.org/rfc/rfc8332
     checked_on: '2026-10-10'
     note: Negotiated RSA SHA-2 signature algorithms reuse ssh-rsa key format.
+  - url: https://cvsweb.openbsd.org/src/usr.bin/ssh/PROTOCOL.certkeys
+    checked_on: '2026-10-11'
+    note: OpenSSH certificate key types carry the same key and signature algorithm as the base type.
   components:
   - algorithm_id: RSA
     usage: signature
@@ -1478,6 +1520,8 @@
   classically_broken: false
   replacement:
     default: *id005
+  aliases:
+  - rsa-sha2-512-cert-v01@openssh.com
 - id: scrypt
   family: KDF
   primitive_by_usage:
@@ -1507,6 +1551,305 @@
   - algorithm_id: X25519
   - algorithm_id: SNTRUP761
     parameter_set: '761'
+- id: diffie-hellman-group-exchange-sha1
+  family: SSH-KEX
+  primitive_by_usage:
+    default: key-agree
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit. The server chooses the MODP group, so its size is not part of the name.
+  sources:
+  - *id001
+  - url: https://www.rfc-editor.org/rfc/rfc4419
+    checked_on: '2026-10-11'
+    note: Diffie-Hellman group exchange; the server proposes the group.
+  components:
+  - algorithm_id: DH
+    usage: key_exchange
+  - algorithm_id: SHA-1
+    usage: hash
+  classically_broken: false
+  replacement:
+    default: *id004
+- id: diffie-hellman-group-exchange-sha256
+  family: SSH-KEX
+  primitive_by_usage:
+    default: key-agree
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit. The server chooses the MODP group, so its size is not part of the name.
+  sources:
+  - *id001
+  - url: https://www.rfc-editor.org/rfc/rfc4419
+    checked_on: '2026-10-11'
+    note: Diffie-Hellman group exchange; the server proposes the group.
+  components:
+  - algorithm_id: DH
+    usage: key_exchange
+  - algorithm_id: SHA-256
+    usage: hash
+  classically_broken: false
+  replacement:
+    default: *id004
+- id: diffie-hellman-group14-sha256
+  family: SSH-KEX
+  primitive_by_usage:
+    default: key-agree
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - url: https://www.rfc-editor.org/rfc/rfc8268
+    checked_on: '2026-10-11'
+    note: group14-sha256 (2048), group15-sha512 (3072), group17-sha512 (6144), group18-sha512 (8192).
+  components:
+  - algorithm_id: DH
+    key_size: 2048
+    usage: key_exchange
+  - algorithm_id: SHA-256
+    usage: hash
+  classically_broken: false
+  replacement:
+    default: *id004
+- id: diffie-hellman-group15-sha512
+  family: SSH-KEX
+  primitive_by_usage:
+    default: key-agree
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - url: https://www.rfc-editor.org/rfc/rfc8268
+    checked_on: '2026-10-11'
+    note: group14-sha256 (2048), group15-sha512 (3072), group17-sha512 (6144), group18-sha512 (8192).
+  components:
+  - algorithm_id: DH
+    key_size: 3072
+    usage: key_exchange
+  - algorithm_id: SHA-512
+    usage: hash
+  classically_broken: false
+  replacement:
+    default: *id004
+- id: diffie-hellman-group17-sha512
+  family: SSH-KEX
+  primitive_by_usage:
+    default: key-agree
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - url: https://www.rfc-editor.org/rfc/rfc8268
+    checked_on: '2026-10-11'
+    note: group14-sha256 (2048), group15-sha512 (3072), group17-sha512 (6144), group18-sha512 (8192).
+  components:
+  - algorithm_id: DH
+    key_size: 6144
+    usage: key_exchange
+  - algorithm_id: SHA-512
+    usage: hash
+  classically_broken: false
+  replacement:
+    default: *id004
+- id: diffie-hellman-group18-sha512
+  family: SSH-KEX
+  primitive_by_usage:
+    default: key-agree
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - url: https://www.rfc-editor.org/rfc/rfc8268
+    checked_on: '2026-10-11'
+    note: group14-sha256 (2048), group15-sha512 (3072), group17-sha512 (6144), group18-sha512 (8192).
+  components:
+  - algorithm_id: DH
+    key_size: 8192
+    usage: key_exchange
+  - algorithm_id: SHA-512
+    usage: hash
+  classically_broken: false
+  replacement:
+    default: *id004
+- id: ecdsa-sha2-nistp256
+  family: ECDSA
+  primitive_by_usage:
+    default: signature
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - url: https://www.rfc-editor.org/rfc/rfc5656
+    checked_on: '2026-10-11'
+    note: ecdsa-sha2-<curve> is ECDSA over the named curve with the SHA-2 hash of its size.
+  - url: https://cvsweb.openbsd.org/src/usr.bin/ssh/PROTOCOL.certkeys
+    checked_on: '2026-10-11'
+    note: OpenSSH certificate key types carry the same key and signature algorithm as the base type.
+  - url: https://cvsweb.openbsd.org/src/usr.bin/ssh/PROTOCOL.u2f
+    checked_on: '2026-10-11'
+    note: FIDO/U2F security-key types sk-ssh-ed25519 and sk-ecdsa-sha2-nistp256 (and certificates).
+  components:
+  - algorithm_id: ECDSA
+    curve: secp256r1
+    usage: signature
+  - algorithm_id: SHA-256
+    usage: signature
+  classically_broken: false
+  replacement:
+    default: *id005
+  aliases:
+  - ecdsa-sha2-nistp256-cert-v01@openssh.com
+  - sk-ecdsa-sha2-nistp256@openssh.com
+  - sk-ecdsa-sha2-nistp256-cert-v01@openssh.com
+- id: ecdsa-sha2-nistp384
+  family: ECDSA
+  primitive_by_usage:
+    default: signature
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - url: https://www.rfc-editor.org/rfc/rfc5656
+    checked_on: '2026-10-11'
+    note: ecdsa-sha2-<curve> is ECDSA over the named curve with the SHA-2 hash of its size.
+  - url: https://cvsweb.openbsd.org/src/usr.bin/ssh/PROTOCOL.certkeys
+    checked_on: '2026-10-11'
+    note: OpenSSH certificate key types carry the same key and signature algorithm as the base type.
+  components:
+  - algorithm_id: ECDSA
+    curve: secp384r1
+    usage: signature
+  - algorithm_id: SHA-384
+    usage: signature
+  classically_broken: false
+  replacement:
+    default: *id005
+  aliases:
+  - ecdsa-sha2-nistp384-cert-v01@openssh.com
+- id: ecdsa-sha2-nistp521
+  family: ECDSA
+  primitive_by_usage:
+    default: signature
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; SAFE is scoped to quantum classification, not a security
+    audit.
+  sources:
+  - *id001
+  - url: https://www.rfc-editor.org/rfc/rfc5656
+    checked_on: '2026-10-11'
+    note: ecdsa-sha2-<curve> is ECDSA over the named curve with the SHA-2 hash of its size.
+  - url: https://cvsweb.openbsd.org/src/usr.bin/ssh/PROTOCOL.certkeys
+    checked_on: '2026-10-11'
+    note: OpenSSH certificate key types carry the same key and signature algorithm as the base type.
+  components:
+  - algorithm_id: ECDSA
+    curve: secp521r1
+    usage: signature
+  - algorithm_id: SHA-512
+    usage: signature
+  classically_broken: false
+  replacement:
+    default: *id005
+  aliases:
+  - ecdsa-sha2-nistp521-cert-v01@openssh.com
+- id: ssh-dss
+  family: DSA
+  primitive_by_usage:
+    default: signature
+  tier: CRITICAL
+  threat: shor
+  note: QuantumTrace policy; DSA with SHA-1, classically deprecated.
+  sources:
+  - *id001
+  - *id011
+  - url: https://cvsweb.openbsd.org/src/usr.bin/ssh/PROTOCOL.certkeys
+    checked_on: '2026-10-11'
+    note: OpenSSH certificate key types carry the same key and signature algorithm as the base type.
+  components:
+  - algorithm_id: DSA
+    usage: signature
+  - algorithm_id: SHA-1
+    usage: signature
+  classically_broken: true
+  replacement:
+    default: *id005
+  aliases:
+  - ssh-dss-cert-v01@openssh.com
+- id: UMAC
+  family: UMAC
+  primitive_by_usage:
+    default: mac
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; UMAC is keyed with AES-128, so it follows the AES-128 tier.
+  sources:
+  - *id001
+  - url: https://www.rfc-editor.org/rfc/rfc4418
+    checked_on: '2026-10-11'
+    note: UMAC universal-hash MAC with an AES-128 derived pad.
+  - url: https://cvsweb.openbsd.org/src/usr.bin/ssh/PROTOCOL
+    checked_on: '2026-10-11'
+    note: umac-64@openssh.com, umac-128@openssh.com and their -etm variants.
+  aliases:
+  - UMAC-64
+  - UMAC-128
+  - umac-64@openssh.com
+  - umac-128@openssh.com
+  - umac-64-etm@openssh.com
+  - umac-128-etm@openssh.com
+- id: CAST5
+  family: CAST
+  primitive_by_usage:
+    default: block-cipher
+  tier: MEDIUM
+  threat: grover
+  note: QuantumTrace policy; CAST-128 has at most a 128-bit key and a 64-bit block, flagged as
+    classically weak like Blowfish.
+  sources:
+  - *id001
+  - url: https://www.rfc-editor.org/rfc/rfc2144
+    checked_on: '2026-10-11'
+    note: CAST-128 key sizes 40 to 128 bits, 64-bit block.
+  - *id011
+  classically_broken: true
+  replacement:
+    default: *id002
+  aliases:
+  - CAST-128
+  - CAST128
+  - cast128-cbc
+- id: ssh-mldsa44-ed25519
+  family: Hybrid-Signature
+  primitive_by_usage:
+    default: signature
+  tier: SAFE
+  threat: none
+  note: QuantumTrace policy. OpenSSH composite signature (draft-miller-sshm-mldsa44-ed25519-composite-sigs-00)
+    that verifies both the ML-DSA-44 (FIPS 204) and the Ed25519 signature, so forgery requires breaking
+    ML-DSA-44. The SSH wire format is a draft; SAFE is scoped to quantum classification, not a security audit.
+  sources:
+  - *id001
+  - url: https://github.com/openssh/openssh-portable/blob/master/ssh-mldsa-eddsa.c
+    checked_on: '2026-10-11'
+    note: crypto_sign_mldsa44_ed25519_verify checks the ML-DSA-44 signature, then the Ed25519 one; key
+      type ssh-mldsa44-ed25519 and its -cert form.
+  aliases:
+  - ssh-mldsa44-ed25519-cert
 - id: ssh-rsa
   family: RSA
   primitive_by_usage:
@@ -1521,6 +1864,9 @@
   - url: https://www.rfc-editor.org/rfc/rfc8332
     checked_on: '2026-10-10'
     note: Negotiated RSA SHA-2 signature algorithms reuse ssh-rsa key format.
+  - url: https://cvsweb.openbsd.org/src/usr.bin/ssh/PROTOCOL.certkeys
+    checked_on: '2026-10-11'
+    note: OpenSSH certificate key types carry the same key and signature algorithm as the base type.
   components:
   - algorithm_id: RSA
     usage: signature
@@ -1529,6 +1875,8 @@
   classically_broken: true
   replacement:
     default: *id005
+  aliases:
+  - ssh-rsa-cert-v01@openssh.com
 - id: EC
   family: EC
   primitive_by_usage:
