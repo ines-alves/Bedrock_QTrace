@@ -22,6 +22,7 @@ def test_hashlib_pbkdf2_hmac_findings():
         ("PBKDF2-HMAC-sha512", 22, "PY_HASHLIB_PBKDF2_HMAC"),
         ("PBKDF2-HMAC-sha256", 26, "PY_HASHLIB_PBKDF2_HMAC"),
         ("PBKDF2-HMAC-sha256", 30, "PY_HASHLIB_PBKDF2_HMAC"),
+        ("PBKDF2", 34, "PY_HASHLIB_PBKDF2_HMAC_UNRESOLVED"),
         ("PBKDF2-HMAC-sha256", 46, "PY_HASHLIB_PBKDF2_HMAC"),
     ]
 
@@ -40,9 +41,12 @@ def test_constant_name_carries_the_constant_line():
     assert finding.confidence == 1.0
 
 
-def test_unresolved_unknown_and_foreign_calls_emit_nothing():
-    lines = {f.location.line for f in scan_fixture()}
-    assert not lines & {34, 38, 42, 50}
+def test_unknown_and_foreign_calls_emit_nothing_and_unresolved_hash_is_pbkdf2():
+    findings = scan_fixture()
+    assert not {f.location.line for f in findings} & {38, 42, 50}
+    (unresolved,) = [f for f in findings if f.location.line == 34]
+    got = (unresolved.raw_name, unresolved.confidence, unresolved.extra["iterations"])
+    assert got == ("PBKDF2", 0.5, 600_000)
 
 
 def test_password_literal_is_not_visible_in_the_snippet():

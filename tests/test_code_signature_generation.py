@@ -21,6 +21,7 @@ def test_java_eddsa_generation_is_signature_usage():
         ("EdDSA", 16, Usage.SIGNATURE, "JAVA_KEYPAIR_EDDSA"),
         ("Ed448", 20, Usage.SIGNATURE, "JAVA_KEYPAIR_EDDSA_REF"),
         ("XDH", 24, Usage.UNKNOWN, "JAVA_KEYPAIR_OTHER"),
+        ("unresolved", 28, Usage.UNKNOWN, "JAVA_KEYPAIR_UNRESOLVED"),
     ]
 
 

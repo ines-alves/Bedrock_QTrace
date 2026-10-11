@@ -5,15 +5,15 @@
 # or a call that names a provider leaves mode None (M1M3-06). Nothing here assigns a tier.
 #
 # Constant arguments: a factory called with a file-scope String constant (MessageDigest.getInstance(ALGO))
-# has a *_REF rule. It emits only when the constant resolves to a string (values_must_match), so a
-# parameter or an imported name emits nothing. The raw name is the resolved value, at confidence 1.0
-# and resolved_from_line set.
+# has a *_REF rule. It emits only when the constant resolves to a string (values_must_match). The raw
+# name is the resolved value, at confidence 1.0 and resolved_from_line set. A parameter, a field or an
+# imported name is reported once by the *_UNRESOLVED fallback of the API (raw name "unresolved").
 #
 # Scope today: the starter-kit scenarios and their SAFE decoys, plus KeyAgreement, KEM, EC curves,
 # DH and DSA sizes and ML-KEM/ML-DSA names (task 6, Java slice). Names checked against the Java SE 24
 # standard algorithm names page, 2026-10-10. # verify
 # Not covered: KeyFactory (key loading), SecretKeySpec with a constant algorithm, provider-specific
-# names, bare Cipher/Signature wrapped in helper methods.
+# names. A factory wrapped in a helper method whose name cannot be resolved is reported "unresolved".
 
 # ---- hashes, MAC, KDF ---------------------------------------------------------------------------
 
@@ -459,3 +459,200 @@
     proto: 'SSLv3'
   extra:
     source_constant: '{proto}'
+
+# ---- unresolved algorithm names (outside validation F1) --------------------------------------------
+# A factory whose algorithm is a parameter, a field or an expression is still a cryptographic call.
+# One finding per call, raw name "unresolved" (never the identifier), confidence 0.5, the argument in
+# extra.unresolved_argument. It fires only when the *_REF rules of the same call could not resolve
+# the name, and it is absorbed by the one *_REF rule (Cipher) that already emits unresolved calls.
+
+- id: JAVA_MESSAGE_DIGEST_UNRESOLVED
+  language: java
+  pattern: '\bMessageDigest\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  raw_name: unresolved
+  kind_hint: algorithm
+  usage: hash
+  library: java.security
+  only_unresolved: true
+  absorbed_by: [JAVA_MESSAGE_DIGEST_REF]
+
+- id: JAVA_MAC_UNRESOLVED
+  language: java
+  pattern: '\bMac\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  raw_name: unresolved
+  kind_hint: algorithm
+  usage: mac
+  library: javax.crypto
+  only_unresolved: true
+  absorbed_by: [JAVA_MAC_REF]
+
+- id: JAVA_SIGNATURE_UNRESOLVED
+  language: java
+  pattern: '\bSignature\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  raw_name: unresolved
+  kind_hint: algorithm
+  usage: signature
+  library: java.security
+  only_unresolved: true
+  absorbed_by: [JAVA_SIGNATURE_RSA_REF, JAVA_SIGNATURE_OTHER_REF]
+
+- id: JAVA_CIPHER_UNRESOLVED
+  language: java
+  pattern: '\bCipher\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  raw_name: unresolved
+  kind_hint: algorithm
+  usage: encryption
+  library: javax.crypto
+  only_unresolved: true
+  absorbed_by: [JAVA_CIPHER_REF]
+
+- id: JAVA_KEYPAIR_UNRESOLVED
+  language: java
+  pattern: '\bKeyPairGenerator\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  raw_name: unresolved
+  kind_hint: algorithm
+  usage: unknown
+  library: java.security
+  only_unresolved: true
+  absorbed_by: [JAVA_KEYPAIR_RSA_REF, JAVA_KEYPAIR_EDDSA_REF, JAVA_KEYPAIR_OTHER_REF]
+
+- id: JAVA_KEY_AGREEMENT_UNRESOLVED
+  language: java
+  pattern: '\bKeyAgreement\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  raw_name: unresolved
+  kind_hint: algorithm
+  usage: key_exchange
+  library: javax.crypto
+  only_unresolved: true
+  absorbed_by: [JAVA_KEY_AGREEMENT_REF]
+
+- id: JAVA_KEYGEN_UNRESOLVED
+  language: java
+  pattern: '\bKeyGenerator\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  raw_name: unresolved
+  kind_hint: algorithm
+  usage: unknown
+  library: javax.crypto
+  only_unresolved: true
+  absorbed_by: [JAVA_KEYGEN_AES_REF]
+
+- id: JAVA_SECRET_KEY_FACTORY_UNRESOLVED
+  language: java
+  pattern: '\bSecretKeyFactory\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  raw_name: unresolved
+  kind_hint: algorithm
+  usage: unknown
+  library: javax.crypto
+  only_unresolved: true
+  absorbed_by: [JAVA_PBKDF2_REF]
+
+- id: JAVA_KEM_UNRESOLVED
+  language: java
+  pattern: '\bKEM\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  raw_name: unresolved
+  kind_hint: algorithm
+  usage: key_exchange
+  library: javax.crypto
+  only_unresolved: true
+  absorbed_by: [JAVA_KEM_REF]
+
+# ---- references: names used, not called (outside validation F2, F5) ------------------------------
+# A standard JCA name held in a constant, an enum or a table (commons-codec MessageDigestAlgorithms,
+# HmacAlgorithms, jjwt SignatureAlgorithm, spring PasswordEncoderFactories). reference: true caps
+# confidence at 0.6 and drops the hit when a call of the same file reports the same name, so a literal
+# inside getInstance("...") or a constant passed to one stays a single call finding. Names from the Java
+# SE standard algorithm names (MessageDigest, Mac, Signature sections). # verify
+- id: JAVA_JCA_DIGEST_NAME
+  language: java
+  pattern: '"(?P<name>MD2|MD5|SHA-1|SHA-224|SHA-256|SHA-384|SHA-512|SHA-512/224|SHA-512/256|SHA3-224|SHA3-256|SHA3-384|SHA3-512)"'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: hash
+  library: java.security
+  reference: true
+
+- id: JAVA_JCA_HMAC_NAME
+  language: java
+  pattern: '"(?P<name>Hmac(?:MD5|SHA1|SHA224|SHA256|SHA384|SHA512|SHA512/224|SHA512/256|SHA3-224|SHA3-256|SHA3-384|SHA3-512))"'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: mac
+  library: javax.crypto
+  reference: true
+
+- id: JAVA_JCA_SIGNATURE_NAME
+  language: java
+  pattern: '"(?P<name>(?:MD2|MD5|SHA1|SHA224|SHA256|SHA384|SHA512|SHA3-224|SHA3-256|SHA3-384|SHA3-512)with(?:RSA|ECDSA|DSA|RSA/PSS|RSAandMGF1)|RSASSA-PSS|Ed25519|Ed448|EdDSA)"'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: signature
+  library: java.security
+  reference: true
+
+# JOSE names (RFC 7518): jjwt SignatureAlgorithm.RS256 / Jwts.SIG.RS256, Nimbus JWSAlgorithm.RS256, and
+# string literals in a JWT/JOSE file; auth0 java-jwt Algorithm.RSA256(...) maps to the JOSE name.
+- id: JAVA_JOSE_CONSTANT_HMAC
+  language: java
+  pattern: '\b(?:SignatureAlgorithm|Jwts\.SIG|JWSAlgorithm|MacAlgorithm)\.(?P<name>HS(?:256|384|512))\b'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: mac
+  library: jose
+  reference: true
+
+- id: JAVA_JOSE_LITERAL_HMAC
+  language: java
+  pattern: '"(?P<name>HS(?:256|384|512))"'
+  requires: ['\b(?:jwt|Jwt|JWT|jose|Jose|JWS|Jws)\w*']
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: mac
+  library: jose
+  reference: true
+
+- id: JAVA_JOSE_CONSTANT_SIGNATURE
+  language: java
+  pattern: '\b(?:SignatureAlgorithm|Jwts\.SIG|JWSAlgorithm|MacAlgorithm)\.(?P<name>(?:RS|ES|PS)(?:256|384|512)|EdDSA)\b'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: signature
+  library: jose
+  reference: true
+
+- id: JAVA_JOSE_LITERAL_SIGNATURE
+  language: java
+  pattern: '"(?P<name>(?:RS|ES|PS)(?:256|384|512)|EdDSA)"'
+  requires: ['\b(?:jwt|Jwt|JWT|jose|Jose|JWS|Jws)\w*']
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: signature
+  library: jose
+  reference: true
+
+
+- id: JAVA_AUTH0_ALGORITHM_HMAC
+  language: java
+  pattern: '\bAlgorithm\.HMAC(?P<bits>256|384|512)\s*\('
+  raw_name: 'HS{bits}'
+  kind_hint: algorithm
+  usage: mac
+  library: java-jwt
+  reference: true
+
+- id: JAVA_AUTH0_ALGORITHM_RSA
+  language: java
+  pattern: '\bAlgorithm\.RSA(?P<bits>256|384|512)\s*\('
+  raw_name: 'RS{bits}'
+  kind_hint: algorithm
+  usage: signature
+  library: java-jwt
+  reference: true
+
+- id: JAVA_AUTH0_ALGORITHM_ECDSA
+  language: java
+  pattern: '\bAlgorithm\.ECDSA(?P<bits>256|384|512)\s*\('
+  raw_name: 'ES{bits}'
+  kind_hint: algorithm
+  usage: signature
+  library: java-jwt
+  reference: true

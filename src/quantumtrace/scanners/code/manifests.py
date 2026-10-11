@@ -10,8 +10,9 @@ python, java or go, detector `code.<language>.manifest`, confidence 1.0, snippet
 written, so a range or a property stays visible. Maven names are `groupId:artifactId`, Go names are
 module paths and `// indirect` is kept in the snippet.
 
-Constructs that hide a dependency from this scanner (requirements includes, editable and URL
-requirements, Maven coordinates built from unresolved properties, Go replace directives that touch an
+Constructs that hide a dependency from this scanner (requirements includes, remote editable and URL
+requirements (a local editable such as `-e .` is the repository's own source), Maven coordinates
+built from unresolved properties, Go replace directives that touch an
 allowlisted module) are yielded as ScanError so the coverage is never reported as complete. Their
 messages carry the line number and the kind of construct, never the text of the line.
 """
@@ -119,7 +120,19 @@ def _parse_requirements(text: str, allowed: frozenset[str]) -> tuple[list[_Decla
             if option in ("-r", "--requirement", "-c", "--constraint"):
                 problems.append(_Unsupported(start, "included requirements file not followed"))
             elif option in ("-e", "--editable"):
-                problems.append(_Unsupported(start, "editable requirement not scanned"))
+                # A local editable install (-e ., -e ./pkg[extra]) is the repository's own source, which
+                # the code scanner reads. External paths and remote/VCS targets still hide dependencies.
+                target = (
+                    re.split(r"[\s=]", stripped, maxsplit=1)[1].strip()
+                    if re.search(r"[\s=]", stripped)
+                    else ""
+                )
+                local_path = target.split("[", 1)[0].replace("\\", "/")
+                in_repo = (local_path == "." or local_path.startswith("./")) and ".." not in local_path.split(
+                    "/"
+                )
+                if not in_repo:
+                    problems.append(_Unsupported(start, "editable requirement not scanned"))
             continue
         if _PY_URL.match(stripped):
             problems.append(_Unsupported(start, "URL or path requirement not scanned"))

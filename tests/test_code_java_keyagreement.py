@@ -76,10 +76,12 @@ def test_constant_arguments_resolve_through_file_constants() -> None:
         ("SHA256withRSA", 25, Usage.SIGNATURE, None, 14),
         ("Ed25519", 26, Usage.SIGNATURE, None, 15),
         ("ECDH", 27, Usage.KEY_EXCHANGE, None, 16),
+        ("unresolved", 30, Usage.HASH, None, None),
+        ("unresolved", 31, Usage.KEY_EXCHANGE, None, None),
     ]
 
 
-def test_unresolved_constants_emit_nothing() -> None:
+def test_unresolved_names_emit_one_unresolved_finding_per_call() -> None:
     src = (
         "class A {\n"
         "    void f(String name) throws Exception {\n"
@@ -92,7 +94,15 @@ def test_unresolved_constants_emit_nothing() -> None:
         "    }\n"
         "}\n"
     )
-    assert scan(src) == []
+    got = [(f.raw_name, f.location.line, f.usage, f.confidence) for f in scan(src)]
+    assert got == [
+        ("unresolved", 3, Usage.HASH, 0.5),
+        ("unresolved", 4, Usage.MAC, 0.5),
+        ("unresolved", 5, Usage.KEY_EXCHANGE, 0.5),
+        ("unresolved", 6, Usage.KEY_EXCHANGE, 0.5),
+        ("unresolved", 7, Usage.UNKNOWN, 0.5),
+        ("unresolved", 8, Usage.SIGNATURE, 0.5),
+    ]
 
 
 def test_aes_key_generator_constant_gives_a_key_size_source_only() -> None:
@@ -112,7 +122,8 @@ def test_comments_emit_nothing() -> None:
 
 
 def test_unresolved_name_never_satisfies_values_must_match() -> None:
-    # session 21 engine change: an identifier that does not resolve is dropped even when its spelling
-    # would match the regex (PY_HASHLIB_NEW lists md5).
+    # An identifier that does not resolve never becomes the name, even when its spelling would match
+    # the regex (PY_HASHLIB_NEW lists md5): the call is reported once as "unresolved".
     src = "import hashlib\n\n\ndef f(md5):\n    return hashlib.new(md5)\n"
-    assert scan_source(src, "a.py", "python", load_rules("python")) == []
+    found = scan_source(src, "a.py", "python", load_rules("python"))
+    assert [(f.raw_name, f.extra["unresolved_argument"]) for f in found] == [("unresolved", "md5")]

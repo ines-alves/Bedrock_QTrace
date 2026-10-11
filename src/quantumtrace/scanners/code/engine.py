@@ -33,6 +33,22 @@ Rule fields (YAML list of mappings):
   parameter_source: library_default                          the emitted parameter (hash in raw_name) is the
                                                              documented library default: see below
   emit: false                                                record only, produce no finding
+  only_unresolved: true                                      fallback: emit only when the call names no
+                                                             resolvable algorithm: see below
+  reference: true                                            a name used, not called: see below
+
+Unresolved names: a name group (X_ref) whose identifier does not resolve never puts the identifier
+text in raw_name. A raw_name that would contain it is "unresolved" instead, the identifier goes to
+extra["unresolved_argument"] and confidence is at most UNRESOLVED_CONFIDENCE_CAP. A rule with
+`only_unresolved: true` is the per-API fallback for such calls: it emits only when every X_ref group
+it matched failed to resolve, or when it matched none (the argument is an expression, captured in an
+optional group `argument`). Its raw_name is fixed ("unresolved", or the construction such as PBKDF2
+when only the hash is unknown). Pair it with `absorbed_by` the literal/constant rules of the same call.
+
+References (`reference: true`): an algorithm name that a file uses without calling it (a constant, an
+enum value, a mapping to a cipher class, a JOSE algorithm name). Confidence is at most
+REFERENCE_CONFIDENCE_CAP, and the hit is dropped when a call finding of the same file has the same
+raw_name (the call wins, as for import-only findings).
 
 Pattern groups: a group named X holds a literal; a group named X_ref holds an identifier that is
 resolved through file-scope constants and Python parameter defaults. key_size and key_size_ref are
@@ -118,6 +134,8 @@ MAX_FILE_BYTES = 5 * 1024 * 1024
 SNIPPET_MAX = 200
 HEURISTIC_CONFIDENCE_CAP = 0.8
 UNRESOLVED_CONFIDENCE_CAP = 0.5
+REFERENCE_CONFIDENCE_CAP = 0.6
+ARGUMENT_MAX = 80
 ALIAS_DEPTH = 5
 
 _RULE_KEYS = {
@@ -154,6 +172,8 @@ _RULE_KEYS = {
     "absorbed_by",
     "iterations",
     "parameter_source",
+    "only_unresolved",
+    "reference",
 }
 _ITERATIONS_KEYS = {"arg", "keyword", "callee", "loop_param", "default"}
 _CASE_KEYS = {"mode", "mode_source", "requires", "forbids"}
@@ -166,6 +186,7 @@ _RESERVED_EXTRA = {
     "usage_source",
     "iterations",
     "parameter_source",
+    "unresolved_argument",
 }
 FLOW_DEPTH = 3
 
@@ -227,6 +248,8 @@ class Rule:
     absorbed_by: tuple[str, ...] = ()
     iterations: IterationsSpec | None = None
     parameter_source: str | None = None
+    only_unresolved: bool = False
+    reference: bool = False
 
     @property
     def expects_key_size(self) -> bool:
@@ -379,6 +402,8 @@ def _parse_rule(raw: dict[str, Any], source: str) -> Rule:
         absorbed_by=tuple(absorbed_by),
         iterations=iterations,
         parameter_source=parameter_source,
+        only_unresolved=bool(raw.get("only_unresolved", False)),
+        reference=bool(raw.get("reference", False)),
     )
 
 
@@ -700,6 +725,7 @@ class _Hit:
     iterations: int | None = None
     parameter_source: str | None = None
     extra: dict[str, Any] | None = None
+    unresolved_argument: str | None = None
 
 
 def _literal_length(value: str | bytes) -> int:
@@ -782,6 +808,8 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
 
         values: dict[str, str] = {}
         unresolved: list[str] = []
+        identifiers: list[str] = []
+        matched_refs = 0
         for name, value in groups.items():
             if value is None or name == "key_size_ref":
                 continue
@@ -789,6 +817,7 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
                 base = name[: -len("_ref")]
                 if groups.get(base):
                     continue
+                matched_refs += 1
                 resolved = consts.resolve_full(value, line)
                 if resolved is not None and from_line is None:
                     from_line = resolved[2]
@@ -800,8 +829,13 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
                 else:
                     values[base] = value
                     unresolved.append(base)
+                    identifiers.append(value)
             else:
                 values[name] = value
+
+        if rule.only_unresolved and matched_refs and len(unresolved) < matched_refs:
+            continue
+        argument = identifiers[0] if identifiers else groups.get("argument")
 
         if any(
             group in unresolved or not (value := values.get(group)) or not pattern.fullmatch(value)
@@ -818,8 +852,14 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
                         values.setdefault(name, value)
 
         confidence = rule.confidence
-        if unresolved:
+        if unresolved or rule.only_unresolved:
             confidence = min(confidence, UNRESOLVED_CONFIDENCE_CAP)
+        if rule.reference:
+            confidence = min(confidence, REFERENCE_CONFIDENCE_CAP)
+        raw_name = _render(rule.raw_name, values) or ""
+        # An identifier that did not resolve is not an algorithm name.
+        if any("{" + base + "}" in rule.raw_name for base in unresolved):
+            raw_name = "unresolved"
         if size_source == "lookahead" or rule.parameter_source:
             confidence = min(confidence, HEURISTIC_CONFIDENCE_CAP)
 
@@ -827,7 +867,7 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
             rule=rule,
             usage=rule.usage,
             line=line,
-            raw_name=_render(rule.raw_name, values) or "",
+            raw_name=raw_name,
             key_size=size,
             key_size_source=size_source,
             curve=_render(rule.curve, values),
@@ -843,6 +883,7 @@ def _match_hits(rule: Rule, masked: str, lines: list[str], consts: Constants) ->
             call_paren=m.start("call") - 1 if "call" in groups else None,
             parameter_source=rule.parameter_source,
             extra=_render_extra(rule.extra, values),
+            unresolved_argument=argument.strip()[:ARGUMENT_MAX] if argument else None,
         )
 
 
@@ -1400,6 +1441,9 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
         flow.apply_iterations()
         hits = flow.apply_literal_keys(language)
 
+    called = {h.raw_name.casefold() for h in hits if h.rule.emit and not h.rule.reference}
+    hits = [h for h in hits if not (h.rule.reference and h.raw_name.casefold() in called)]
+
     for hit in hits:
         if hit.rule.expects_key_size and hit.key_size is None and hit.key_size_source is None:
             hit.key_size_source = "unresolved"
@@ -1434,6 +1478,8 @@ def scan_source(text: str, file: str, language: str, rules: tuple[Rule, ...] | l
             extra["key_size_source"] = hit.key_size_source
         if hit.unresolved:
             extra["unresolved"] = sorted(hit.unresolved)
+        if hit.unresolved_argument and (hit.unresolved or hit.rule.only_unresolved):
+            extra["unresolved_argument"] = hit.unresolved_argument
         fid = finding_id(detector, hit.raw_name, location)
         findings.setdefault(
             fid,

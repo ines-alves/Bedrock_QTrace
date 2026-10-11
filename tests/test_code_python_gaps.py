@@ -21,6 +21,7 @@ def test_gaps_fixture_findings():
     assert got == [
         ("md5", 13, None, "PY_HASHLIB_NEW"),
         ("SHA256", 17, None, "PY_HASHLIB_NEW"),
+        ("unresolved", 21, None, "PY_HASHLIB_NEW_UNRESOLVED"),
         ("HMAC-sha1", 33, None, "PY_HMAC_STRING"),
         ("HMAC-sha256", 37, None, "PY_HMAC_STRING"),
         ("HMAC-sha512", 41, None, "PY_HMAC"),
@@ -37,9 +38,11 @@ def test_hashlib_new_constant_carries_the_constant_line():
     assert finding.confidence == 1.0
 
 
-def test_hashlib_new_unresolved_or_unknown_name_emits_nothing():
-    lines = {f.location.line for f in scan_gaps()}
-    assert not lines & {21, 25, 29}
+def test_hashlib_new_unknown_name_emits_nothing_and_unresolved_is_reported_unnamed():
+    findings = scan_gaps()
+    assert not {f.location.line for f in findings} & {25, 29}
+    (unresolved,) = [f for f in findings if f.location.line == 21]
+    assert (unresolved.raw_name, unresolved.confidence) == ("unresolved", 0.5)
 
 
 def test_hmac_string_message_is_not_taken_as_the_digest():
@@ -143,7 +146,9 @@ def test_values_must_match_keeps_only_matching_resolved_values():
 
 def test_without_values_must_match_an_unresolved_name_is_kept_at_half_confidence():
     findings = scan_source("new(UNKNOWN)\n", "t.py", "python", [rule()])
-    assert [(f.raw_name, f.confidence) for f in findings] == [("UNKNOWN", 0.5)]
+    assert [(f.raw_name, f.confidence, f.extra["unresolved_argument"]) for f in findings] == [
+        ("unresolved", 0.5, "UNKNOWN")
+    ]
 
 
 def test_values_must_match_is_validated():

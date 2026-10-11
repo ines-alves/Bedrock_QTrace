@@ -640,3 +640,100 @@
   extra:
     hygiene_only: true
     hygiene_flags: [insecure_rng]
+
+# ---- SHA-3, password hashing and KDFs, ChaCha20-Poly1305 (outside validation F7) -----------------
+# golang.org/x/crypto and the standard library use different SHAKE constructor casing. Checked on
+# pkg.go.dev (x/crypto/sha3, bcrypt, argon2, scrypt, hkdf, chacha20poly1305; crypto/sha3,
+# crypto/hkdf), 2026-10-11. # verify
+- id: GO_SHA3
+  language: go
+  pattern: '\bsha3\.(?:New|Sum)(?P<bits>224|256|384|512)\('
+  requires: ['"(?:golang\.org/x/crypto|crypto)/sha3"']
+  raw_name: 'SHA3-{bits}'
+  kind_hint: algorithm
+  usage: hash
+  library: sha3
+
+- id: GO_SHAKE
+  language: go
+  pattern: '\bsha3\.(?:NewShake|NewSHAKE|ShakeSum|SumSHAKE)(?P<bits>128|256)\('
+  requires: ['"(?:golang\.org/x/crypto|crypto)/sha3"']
+  raw_name: 'SHAKE{bits}'
+  kind_hint: algorithm
+  usage: hash
+  library: sha3
+
+- id: GO_BCRYPT
+  language: go
+  pattern: '\bbcrypt\.(?:GenerateFromPassword|CompareHashAndPassword)\('
+  requires: ['"golang\.org/x/crypto/bcrypt"']
+  raw_name: bcrypt
+  kind_hint: algorithm
+  usage: kdf
+  library: bcrypt
+
+- id: GO_ARGON2ID
+  language: go
+  pattern: '\bargon2\.IDKey\('
+  requires: ['"golang\.org/x/crypto/argon2"']
+  raw_name: Argon2id
+  kind_hint: algorithm
+  usage: kdf
+  library: argon2
+
+- id: GO_ARGON2I
+  language: go
+  pattern: '\bargon2\.Key\('
+  requires: ['"golang\.org/x/crypto/argon2"']
+  raw_name: Argon2i
+  kind_hint: algorithm
+  usage: kdf
+  library: argon2
+
+- id: GO_SCRYPT
+  language: go
+  pattern: '\bscrypt\.Key\('
+  requires: ['"golang\.org/x/crypto/scrypt"']
+  raw_name: scrypt
+  kind_hint: algorithm
+  usage: kdf
+  library: scrypt
+
+- id: GO_HKDF
+  language: go
+  pattern: '\bhkdf\.(?:New|Extract|Expand|Key)\('
+  requires: ['"(?:golang\.org/x/crypto|crypto)/hkdf"']
+  raw_name: HKDF
+  kind_hint: algorithm
+  usage: kdf
+  library: hkdf
+
+- id: GO_CHACHA20POLY1305
+  language: go
+  pattern: '\bchacha20poly1305\.New(?P<x>X?)\('
+  requires: ['"golang\.org/x/crypto/chacha20poly1305"']
+  raw_name: '{x}ChaCha20-Poly1305'
+  kind_hint: algorithm
+  usage: encryption
+  library: chacha20poly1305
+
+# ---- JOSE names (outside validation F5) ---------------------------------------------------------
+# golang-jwt SigningMethodRS256 and go-jose constants (jose.RS256). HS* are MACs. reference: true
+# caps confidence at 0.6 and drops the hit when a call of the same file reports the same name.
+- id: GO_JOSE_HMAC
+  language: go
+  pattern: '\b(?:jwt\.SigningMethod|jose\.)(?P<name>HS(?:256|384|512))\b'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: mac
+  library: jose
+  reference: true
+
+- id: GO_JOSE_SIGNATURE
+  language: go
+  pattern: '\b(?:jwt\.SigningMethod|jose\.)(?P<name>(?:RS|PS|ES)(?:256|384|512)|EdDSA)\b'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: signature
+  library: jose
+  reference: true

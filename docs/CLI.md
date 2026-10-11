@@ -21,12 +21,17 @@ The console displays grade, risk score, readiness, scored asset counts and the
 top ten risks. Protocol and certificate containers do not inflate scored counts.
 Complete scans exit 0. Partial scans retain usable reports, display coverage errors
 and exit 2. Invalid arguments, unavailable requested writers and output failures
-also exit 2. Documentation found while walking a folder (README, LICENSE,
-CHANGELOG and similar names; `.md`, `.rst`, `.adoc` and image files) is skipped
-without an error when no scanner supports it. A file named explicitly on the
-command line is always reported, and other unsupported files, including key and
-config files, remain coverage errors. The starter directory command above is
-therefore complete and exits 0; the capture itself produces 97 TLS and 24 SSH
+also exit 2. A file found while walking a folder that no scanner supports is
+reported as a coverage error only when it may hold key material or TLS/SSH
+configuration: `.pem`, `.crt`, `.cer`, `.der`, `.key`, `.csr`, `.p12`, `.pfx`,
+`.p7b`, `.p8`, `.jks`, `.keystore` and `.pub` files, `id_rsa`/`id_dsa`/`id_ecdsa`/
+`id_ed25519`, `authorized_keys`, and `nginx.conf`, `httpd.conf`, `ssl.conf`,
+`haproxy.cfg`, `openssl.cnf`, `java.security`, `sshd_config`, `ssh_config`. Other
+walked files (source in unsupported languages, web assets, documentation) are not
+cryptographic input: they are skipped and the console prints how many. A file
+named explicitly on the command line is always reported. The starter directory
+command above is therefore complete and exits 0 (its three README files are
+skipped); the capture itself produces 97 TLS and 24 SSH
 sessions plus 14 plaintext flows. The starter capture contains no TLS Certificate messages, so
 unobservable authentication is retained rather than guessed.
 

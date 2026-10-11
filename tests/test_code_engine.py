@@ -779,12 +779,12 @@ def test_transformation_constant_is_resolved_and_split(tmp_path):
     assert f.location.line == 4
 
 
-def test_unresolved_reference_keeps_identifier_and_lowers_confidence(tmp_path):
+def test_unresolved_reference_is_not_named_after_the_identifier(tmp_path):
     findings = scan(tmp_path, "java", JAVA_CIPHER, "Cipher c = Cipher.getInstance(cfg);\n")
     (f,) = findings
-    assert f.raw_name == "cfg"
+    assert f.raw_name == "unresolved"
     assert f.confidence == 0.5
-    assert f.extra["unresolved"] == ["transform"]
+    assert f.extra["unresolved"] == ["transform"] and f.extra["unresolved_argument"] == "cfg"
 
 
 # ---------------------------------------------------------------- finding shape
