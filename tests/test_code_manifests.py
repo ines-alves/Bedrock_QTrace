@@ -225,3 +225,22 @@ def test_output_is_deterministic():
 def test_findings_sorted_by_line(rel):
     lines = [f.location.line for f in scan(rel)[0]]
     assert lines == sorted(lines)
+
+
+def test_local_editable_is_the_repository_source_but_remote_editable_is_reported(tmp_path):
+    path = tmp_path / "requirements-dev.txt"
+    path.write_text(
+        "-e .[socks]\n--editable=./pkg\n-e git+https://example.invalid/org/repo.git#egg=cryptography\n",
+        encoding="utf-8",
+    )
+    _, errors = scan("requirements-dev.txt", tmp_path)
+    assert [e.message for e in errors] == ["line 3: editable requirement not scanned"]
+
+
+@pytest.mark.parametrize(
+    "target", ["../pkg", "./../pkg", "/opt/pkg", "file:///opt/pkg", "git+https://example.invalid/r.git"]
+)
+def test_external_editable_keeps_coverage_error(tmp_path, target):
+    (tmp_path / "requirements.txt").write_text(f"-e {target}\n", encoding="utf-8")
+    _, errors = scan("requirements.txt", tmp_path)
+    assert [e.message for e in errors] == ["line 1: editable requirement not scanned"]

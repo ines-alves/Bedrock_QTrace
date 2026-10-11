@@ -199,6 +199,22 @@
   - chacha20-poly1305@openssh.com
   key_sizes:
   - 256
+- id: XChaCha20-Poly1305
+  family: ChaCha20
+  primitive_by_usage:
+    default: ae
+  tier: SAFE
+  threat: none
+  note: QuantumTrace policy, as ChaCha20-Poly1305 (same 256-bit key, longer nonce); SAFE is
+    scoped to quantum classification, not a security audit.
+  sources:
+  - *id001
+  - url: https://pkg.go.dev/golang.org/x/crypto/chacha20poly1305
+    checked_on: '2026-10-11'
+    note: NewX returns an XChaCha20-Poly1305 AEAD with a 256-bit key and 24-byte nonce
+      (draft-irtf-cfrg-xchacha, not an RFC).
+  key_sizes:
+  - 256
 - id: DES
   family: DES
   primitive_by_usage:

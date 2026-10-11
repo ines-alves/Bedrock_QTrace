@@ -147,6 +147,15 @@ def test_detector_and_raw_name_participate_but_metadata_does_not() -> None:
         "TESTS/a.py",
         "src/test-data/a.py",
         r"C:\repo\tests\a.py",
+        "itest/misc/src/main/java/A.java",
+        "web/src/integration-test/java/A.java",
+        "test-support/a.py",
+        "lib/testdata/key.go",
+        "core/src/testFixtures/java/A.java",
+        "pkg/conftest.py",
+        "core/src/main/java/FooTests.java",
+        "core/src/main/java/FooIT.java",
+        "core/src/main/kotlin/FooTest.kt",
     ],
 )
 def test_test_paths_detect_conventional_segments(path: str) -> None:
@@ -162,6 +171,11 @@ def test_test_paths_detect_conventional_segments(path: str) -> None:
         "src/examplecorp/a.py",
         "src/production.py",
         "src/testing/a.py",
+        "src/main/java/Latest.java",
+        "src/main/java/Contest.java",
+        "src/main/java/TestUtils.java",
+        "attestation/a.go",
+        "src/main/python/FooTest.py",
     ],
 )
 def test_test_paths_do_not_match_unrelated_substrings(path: str) -> None:

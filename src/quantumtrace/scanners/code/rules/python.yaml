@@ -88,6 +88,55 @@
   usage: mac
   library: hmac
 
+# String constants used as digestmod retain the observed digest, like literal strings.
+- id: PY_HMAC_STRING_REF
+  language: python
+  pattern: >-
+    \bhmac\.new\((?:(?:\s*(?:[^,()]|\([^()]*\))+,){2}|(?:\s*(?:[^,()]|\([^()]*\))+,){1,2}\s*digestmod\s*=)\s*(?P<name_ref>[A-Za-z_]\w*)\s*[,)]
+  raw_name: 'HMAC-{name}'
+  kind_hint: algorithm
+  usage: mac
+  library: hmac
+  values_must_match:
+    name: '(?i:md5|sha1|sha224|sha256|sha384|sha512)'
+
+# ---- unresolved digests (outside validation F3) -------------------------------------------------
+# The call is the evidence even when the hash is a parameter or an expression (django
+# utils/crypto.py pbkdf2_hmac(digest().name, ...)). hashlib.new reports "unresolved"; pbkdf2_hmac
+# reports PBKDF2 with the iteration count when resolvable; hmac.new with a non-literal digest
+# reports HMAC. Confidence 0.5 and the argument in extra.unresolved_argument. They fire only when the
+# name did not resolve, so a constant still gives the named rule above.
+- id: PY_HASHLIB_NEW_UNRESOLVED
+  language: python
+  pattern: >-
+    \bhashlib\.new\(\s*(?:name\s*=\s*)?(?:(?P<name_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![bB]?[\"'\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])
+  raw_name: unresolved
+  kind_hint: algorithm
+  usage: hash
+  library: hashlib
+  only_unresolved: true
+
+- id: PY_HASHLIB_PBKDF2_HMAC_UNRESOLVED
+  language: python
+  pattern: >-
+    \bhashlib\.pbkdf2_hmac\((?P<call>)\s*(?:hash_name\s*=\s*)?(?:(?P<name_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![bB]?[\"'\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])
+  raw_name: PBKDF2
+  kind_hint: algorithm
+  usage: kdf
+  library: hashlib
+  iterations: {arg: 3, keyword: iterations}
+  only_unresolved: true
+
+- id: PY_HMAC_UNRESOLVED
+  language: python
+  pattern: >-
+    \bhmac\.new\((?:(?:\s*(?:[^,()]|\([^()]*\))+,){2}|(?:\s*(?:[^,()]|\([^()]*\))+,){1,2}\s*digestmod\s*=)\s*(?!hashlib\.|[bB]?["'])(?:(?P<name_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>[A-Za-z_][\w.]*(?:\([^()]*\))?)\s*[,)])
+  raw_name: HMAC
+  kind_hint: algorithm
+  usage: mac
+  library: hmac
+  only_unresolved: true
+
 # A positional first argument (PBKDF2HMAC(hashes.SHA1(), ...)) is given the algorithm= keyword in the
 # masked text by python_ast.py before this rule runs.
 - id: PY_PBKDF2
@@ -659,3 +708,53 @@
   library: ssl
   extra:
     source_constant: 'ssl.{const}'
+
+# ---- references: names used, not called (outside validation F4, F5) ------------------------------
+# reference: true caps confidence at 0.6 and drops the hit when a call finding of the same file has the
+# same raw name (the call wins, as for import-only findings).
+
+# A cipher class named without being instantiated, for example a negotiation table such as paramiko
+# transport.py {"class": algorithms.AES, ...}. The key size is not known, so AES stays unsized.
+- id: PY_CIPHER_CLASS_REFERENCE
+  language: python
+  pattern: '\balgorithms\.(?P<name>AES|AES128|AES256|TripleDES|ARC4|Blowfish|Camellia|ChaCha20|IDEA|SEED|SM4|CAST5)\b(?!\s*\()'
+  requires: ['\bcryptography\b']
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: encryption
+  library: cryptography
+  reference: true
+
+# A cipher class imported by name (paramiko: from cryptography.hazmat.decrepit.ciphers.algorithms import
+# TripleDES), then used bare. The module path is written with [.] because it is an import line, not a
+# call qualifier for python_ast.py. One name per import statement.
+- id: PY_CIPHER_CLASS_IMPORT
+  language: python
+  pattern: '\bfrom\s+cryptography[.]hazmat[.](?:primitives|decrepit)[.]ciphers[.]algorithms\s+import\s+\(?[^\n]*?\b(?P<name>AES|AES128|AES256|TripleDES|ARC4|Blowfish|Camellia|ChaCha20|IDEA|SEED|SM4|CAST5)\b'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: encryption
+  library: cryptography
+  reference: true
+
+# JOSE algorithm names (RFC 7518) as string literals in a file that uses a JWT/JOSE library. HS* are
+# MACs; RS*, PS*, ES* and EdDSA are signatures. The engine decomposes the names.
+- id: PY_JOSE_HMAC
+  language: python
+  pattern: '(?P<q>["''])(?P<name>HS(?:256|384|512))(?P=q)'
+  requires: ['\b(?:jwt|jose|jws|jwk|authlib|jwcrypto)\b']
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: mac
+  library: jose
+  reference: true
+
+- id: PY_JOSE_SIGNATURE
+  language: python
+  pattern: '(?P<q>["''])(?P<name>(?:RS|PS|ES)(?:256|384|512)|ES256K|EdDSA)(?P=q)'
+  requires: ['\b(?:jwt|jose|jws|jwk|authlib|jwcrypto)\b']
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: signature
+  library: jose
+  reference: true

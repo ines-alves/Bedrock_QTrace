@@ -66,16 +66,26 @@ def finding_id(detector: str, raw_name: str, loc: Location) -> str:
     return hashlib.sha1(content.encode("utf-8"), usedforsecurity=False).hexdigest()[:12]
 
 
+# Test layouts beyond test/tests: integration-test source sets (Gradle/Maven), itest modules, Go
+# testdata, Gradle testFixtures and pytest conftest.py (outside validation F9).
+_TEST_SEGMENTS = re.compile(
+    r"(?:tests?|examples?|mocks?)(?:[_-].+)?|itests?|integration[_-]?tests?|testdata|test[_-]?fixtures|conftest"
+)
+# JUnit/TestNG class files: FooTest, FooTests, FooIT, FooTestCase (case-sensitive, so "latest" or
+# "Contest" never match).
+_JVM_TEST_CLASS = re.compile(r"[A-Za-z0-9_]+(?:Test|Tests|IT|TestCase)\.(?:java|kt|groovy|scala)")
+
+
 def is_test_path(path: str | Path) -> bool:
-    """Identify test/example/mock segments and conventional Python test filenames."""
+    """Identify test/example/mock segments and conventional Python, Go and JVM test filenames."""
     for segment in str(path).replace("\\", "/").split("/"):
         stem = (
             segment.lower().rsplit(".", 1)[0]
             if "." in segment and not segment.startswith(".")
             else segment.lower()
         )
-        if re.fullmatch(r"(?:tests?|examples?|mocks?)(?:[_-].+)?", stem):
+        if _TEST_SEGMENTS.fullmatch(stem):
             return True
-        if stem.endswith("_test"):
+        if stem.endswith("_test") or _JVM_TEST_CLASS.fullmatch(segment):
             return True
     return False
