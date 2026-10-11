@@ -30,24 +30,24 @@ export default function ScanBar() {
           const whole = selected.includes(p.path)
           const state = whole ? 'whole' : parts.length > 0 ? 'partial' : 'off'
           return (
-            <button key={p.path} type="button" aria-pressed={state !== 'off'}
+            <button key={p.path} type="button" title={p.note} aria-pressed={state !== 'off'}
               onClick={() => setSelected((s) => (whole ? s.filter((x) => x !== p.path) : [...s.filter((x) => !parts.includes(x)), p.path]))}
-              className={`min-w-44 flex-1 rounded-2xl border px-4 py-3 text-left ${
+              className={`min-w-44 flex-1 rounded-2xl border px-4 py-2 text-center leading-tight ${
                 state === 'whole'
-                  ? 'border-aqua bg-aqua text-ink'
+                  ? 'border-aqua bg-aqua text-on-accent'
                   : state === 'partial'
                     ? 'border-aqua text-aqua'
                     : 'border-paper/25 text-paper/70 hover:border-paper/60'
               }`}>
-              <span className="block font-head text-base font-semibold">{p.title}</span>
-              <span className="block text-sm">
-                {state === 'partial' ? `${parts.length} selected part${parts.length === 1 ? '' : 's'}, click for all` : p.note}
-              </span>
+              <span className="block font-head text-xl font-semibold">{p.title}</span>
+              {state === 'partial' && (
+                <span className="block text-base">{`${parts.length} selected part${parts.length === 1 ? '' : 's'}, click for all`}</span>
+              )}
             </button>
           )
         })}
         <button type="button" disabled={busy || selected.length === 0} onClick={() => void scan(selected)}
-          className="min-w-44 rounded-2xl bg-paper px-6 py-3 font-head text-base font-bold text-ink hover:bg-aqua disabled:opacity-40">
+          className="min-w-44 rounded-2xl bg-paper px-6 py-2 font-head text-xl font-bold text-ink hover:bg-aqua disabled:opacity-40">
           {busy ? 'Scanning' : selected.length === 0 ? 'Pick something to scan' : `Scan ${selected.length} selected`}
         </button>
       </div>
@@ -87,7 +87,7 @@ export default function ScanBar() {
         <div className="flex items-center gap-3">
           <span>Export</span>
           {exports.map((e) => (
-            <a key={e.href} href={e.href} download={e.file} className="rounded-full border border-steel px-3 py-1 hover:bg-steel hover:text-ink">
+            <a key={e.href} href={e.href} download={e.file} className="rounded-full border border-steel px-3 py-1 hover:bg-steel hover:text-on-accent">
               {e.label}
             </a>
           ))}
