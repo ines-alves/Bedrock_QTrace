@@ -6,7 +6,7 @@ type Grade = components['schemas']['RiskSummary']['grade']
 // Severity colours are used inside the Overview charts only. TierBadge keeps its fill and outline style.
 const TIER_COLOR: Record<Tier, string> = {
   CRITICAL: '#ee6368',
-  MEDIUM: '#e8a33d',
+  MEDIUM: '#f28c28',
   UNKNOWN: '#aabbcc',
   SAFE: '#4caf82',
 }
@@ -24,8 +24,8 @@ const GRADE_COLOR: Record<Grade, string> = {
 
 export function ScoreGauge({ score, grade }: { score: number; grade: Grade }) {
   return (
-    <svg viewBox="0 0 100 60" role="img" aria-label={`Risk score ${score} of 100, grade ${grade}`} className="w-full max-w-xs">
-      <path d="M10 50 A40 40 0 0 1 90 50" pathLength={100} fill="none" stroke="#f0f4f8" strokeOpacity={0.12} strokeWidth={8} />
+    <svg viewBox="0 0 100 60" role="img" aria-label={`Risk score ${score} of 100, grade ${grade}`} className="w-full max-w-xs text-paper">
+      <path d="M10 50 A40 40 0 0 1 90 50" pathLength={100} fill="none" stroke="currentColor" strokeOpacity={0.12} strokeWidth={8} />
       <path d="M10 50 A40 40 0 0 1 90 50" pathLength={100} fill="none" stroke={GRADE_COLOR[grade]} strokeWidth={8}
         strokeDasharray={`${score} 100`} />
       <text x="50" y="44" textAnchor="middle" fontSize="20" className="fill-paper font-head">{score}</text>
@@ -92,7 +92,7 @@ export function SourceBars({ bySource, scores }: { bySource: Record<string, Reco
           <span className="w-24 shrink-0 text-paper/70">{r.source}</span>
           <div className="flex h-5 gap-px overflow-hidden rounded-full" style={{ width: `${(100 * r.total) / widest}%` }}>
             {TIERS.filter((t) => (r.counts[t] ?? 0) > 0).map((t) => (
-              <div key={t} title={`${t}: ${r.counts[t]}`} className="overflow-hidden text-center text-[10px] leading-5 text-ink"
+              <div key={t} title={`${t}: ${r.counts[t]}`} className="overflow-hidden text-center text-[10px] leading-5 text-on-accent"
                 style={{ flexGrow: r.counts[t], background: TIER_COLOR[t] }}>
                 {r.counts[t]}
               </div>
