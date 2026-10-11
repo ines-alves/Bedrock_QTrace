@@ -101,7 +101,7 @@ def _present(**items: Any) -> dict[str, Any]:
 
 
 def _occurrences(locations: list[Location], resolved: dict[tuple[str | None, int | None], int]) -> list[dict]:
-    """Evidence occurrences; the schema requires a location string, so file, flow or resource id."""
+    """Evidence occurrences; the schema requires a location string: file, flow, resource id or probe target."""
     rows = []
     for loc in locations:
         note = resolved.get((loc.file, loc.line))
@@ -115,7 +115,7 @@ def _occurrences(locations: list[Location], resolved: dict[tuple[str | None, int
         ]
         rows.append(
             _present(
-                location=loc.file or loc.flow or loc.resource_id,
+                location=loc.file or loc.flow or loc.resource_id or loc.target,
                 line=loc.line,
                 additionalContext="; ".join(context) or None,
             )
