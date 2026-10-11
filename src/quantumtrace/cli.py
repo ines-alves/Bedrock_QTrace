@@ -77,9 +77,15 @@ def _summary(result: ScanResult, console: Console) -> None:
             risks.add_row(escape(label), asset.usage.value, asset.tier.value, f"{asset.risk_points:.2f}")
     if risks.row_count:
         console.print(risks)
-    if result.errors:
-        errors.print(f"[yellow]Coverage incomplete: {len(result.errors)} error(s).[/yellow]")
-        for error in result.errors:
+    failures = [error for error in result.errors if error.severity == "error"]
+    notes = [error for error in result.errors if error.severity == "info"]
+    if failures:
+        errors.print(f"[yellow]Coverage incomplete: {len(failures)} error(s).[/yellow]")
+        for error in failures:
+            errors.print(escape(f"{error.detector}: {error.path or '<scan>'}: {error.message}"))
+    if notes:
+        errors.print(f"Notes: {len(notes)} (not coverage errors).")
+        for error in notes:
             errors.print(escape(f"{error.detector}: {error.path or '<scan>'}: {error.message}"))
 
 
@@ -150,7 +156,7 @@ def scan(
     if not stdout:
         console.print("Reports: " + escape(str(out)))
     breached = _threshold(result, fail_on)
-    if result.errors:
+    if any(error.severity == "error" for error in result.errors):
         raise typer.Exit(2)
     if breached:
         raise typer.Exit(1)

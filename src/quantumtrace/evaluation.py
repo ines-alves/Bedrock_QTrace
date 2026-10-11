@@ -315,7 +315,7 @@ def evaluate(rows: list[Row], result: ScanResult, *, required: set[str] | None =
             report.failures.append(f"wrong count: {row}; observed={count}")
     if len({s.session_id for s in result.sessions}) != len(result.sessions):
         report.failures.append("duplicate session IDs in produced session views")
-    for error in result.errors:
+    for error in (item for item in result.errors if item.severity == "error"):
         report.failures.append(f"scan error: {error.detector} {error.path}: {error.message}")
     overall = Metrics()
     for m in report.metrics.values():

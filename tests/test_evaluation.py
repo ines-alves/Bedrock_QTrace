@@ -138,6 +138,13 @@ def test_scan_errors_are_failures():
     assert any("scan error" in s for s in r.failures)
 
 
+def test_info_notes_are_not_coverage_failures():
+    data = result(finding())
+    data.errors = [ScanError(detector="code.java.manifest", path="pom.xml", message="note", severity="info")]
+    r = evaluate([row()], data, required={"code"})
+    assert r.passed and not any("scan error" in s for s in r.failures)
+
+
 def test_threshold_allows_small_detection_loss_but_safe_misses_fail():
     wants = [row(i * 10, "SHA-1", "MEDIUM") for i in range(20)]
     got = result(*(finding(i * 10, "SHA-1") for i in range(19)))

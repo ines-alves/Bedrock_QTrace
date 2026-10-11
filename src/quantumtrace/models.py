@@ -108,11 +108,15 @@ class Finding(BaseModel):
 
 
 class ScanError(BaseModel):
-    """A recoverable scanner failure retained alongside usable evidence."""
+    """A recoverable scanner failure retained alongside usable evidence.
+
+    ``info`` marks a note that is not a coverage gap (agreed by M1-M4, F-3); it never fails a scan.
+    """
 
     detector: str
     path: str | None = None
     message: str
+    severity: Literal["error", "info"] = "error"
 
 
 class Recommendation(BaseModel):
@@ -233,7 +237,7 @@ class ScanOptions(BaseModel):
 class ScanResult(BaseModel):
     """Versioned serialized integration boundary for reports, API, and UI."""
 
-    schema_version: str = "1.0"
+    schema_version: str = "1.1"
     tool_version: str
     scan_id: str
     started_at: str
