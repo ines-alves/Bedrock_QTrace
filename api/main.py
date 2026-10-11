@@ -1,16 +1,18 @@
 """Thin HTTP layer: serves a ScanResult and its CBOM, report and scoring views, no business logic."""
 
 import os
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from api import archive
 from quantumtrace.kb.loader import KnowledgeBaseError, load_scoring
 from quantumtrace.models import ScanResult
 from quantumtrace.output.cyclonedx import build_cbom, redact_result, validate_cbom
@@ -20,6 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 REPORT = ROOT / "out" / "report.json"
 SAMPLE = ROOT / "tests" / "fixtures" / "scan_result_sample.json"
 DIST = ROOT / "frontend" / "dist"
+UPLOADS = ROOT / "out" / "uploads"
 
 app = FastAPI(title="QuantumTrace")
 
@@ -97,6 +100,14 @@ def source() -> dict[str, str]:
     return {"source": "scan" if REPORT.exists() else "sample"}
 
 
+def _store(scanned: ScanResult) -> ScanResult:
+    """Redact a fresh scan, keep it as out/report.json and return it."""
+    scanned = redact_result(scanned)
+    REPORT.parent.mkdir(exist_ok=True)
+    REPORT.write_text(scanned.model_dump_json())
+    return scanned
+
+
 @app.post("/api/scan", response_model=ScanResult)
 def scan(request: ScanRequest) -> ScanResult:
     """Scan server-side paths, store the result as out/report.json and return it."""
@@ -110,10 +121,39 @@ def scan(request: ScanRequest) -> ScanResult:
     missing = [item for item, path in zip(request.paths, paths, strict=True) if not path.exists()]
     if missing:
         raise HTTPException(status_code=400, detail=f"paths not found: {', '.join(missing)}")
-    scanned = redact_result(run(paths))
-    REPORT.parent.mkdir(exist_ok=True)
-    REPORT.write_text(scanned.model_dump_json())
-    return scanned
+    return _store(run(paths))
+
+
+class GithubRequest(BaseModel):
+    url: str
+
+
+@app.post("/api/scan/upload", response_model=ScanResult)
+def scan_upload(file: UploadFile) -> ScanResult:
+    """Scan a zipped repository sent from the browser."""
+    run = _pipeline_run()
+    with tempfile.TemporaryDirectory() as folder:
+        zipped = Path(folder) / "upload.zip"
+        written = 0
+        with zipped.open("wb") as out:
+            while chunk := file.file.read(1024 * 1024):
+                written += len(chunk)
+                if written > archive.MAX_ARCHIVE_BYTES:
+                    raise HTTPException(status_code=413, detail="The archive is larger than the 50 MB limit.")
+                out.write(chunk)
+        label = f"{Path(file.filename or 'archive.zip').name} (uploaded)"
+        return _store(archive.scan_zip(zipped, label, UPLOADS, run))
+
+
+@app.post("/api/scan/github", response_model=ScanResult)
+def scan_github(request: GithubRequest) -> ScanResult:
+    """Download a public GitHub repository as a zip and scan it."""
+    run = _pipeline_run()
+    url, label = archive.github_zip_url(request.url)
+    with tempfile.TemporaryDirectory() as folder:
+        zipped = Path(folder) / "repository.zip"
+        archive.download(url, zipped)
+        return _store(archive.scan_zip(zipped, label, UPLOADS, run))
 
 
 @app.get("/api/browse", response_model=Listing)
