@@ -336,6 +336,8 @@ def parse_rows(text: str) -> PureResult:
             cells += [""] * (width - len(cells))
         stream = _first_num(cells[_COL["tcp.stream"]])
         frame = _first_num(cells[_COL["frame.number"]])
+        if frame is not None and stream is None:
+            continue  # a non-TCP packet (UDP HTTP such as SSDP M-SEARCH): not TLS, SSH or TCP plaintext input
         if stream is None or frame is None:
             res.errors.append(f"tshark output line {line_no} is not a packet row")
             continue
@@ -408,7 +410,9 @@ def _flow(stream_id: int, acc: _Acc) -> Flow | None:
         flow.ssh_client, flow.ssh_server = acc.ssh.get("client"), acc.ssh.get("server")
         flow.warnings.extend(acc.ssh_warnings)
         return flow
-    if acc.http is not None:
+    # A stream that carried a TLS handshake is TLS: HTTP rows in it are payload that tshark decrypted
+    # (embedded or keylog secrets) or reassembled, never cleartext on the wire.
+    if acc.http is not None and not acc.client_hellos and not acc.server_hellos:
         if acc.client is None or acc.server is None:
             return None
         flow = Flow(stream_id, acc.client, acc.server, acc.first_ts or 0.0)

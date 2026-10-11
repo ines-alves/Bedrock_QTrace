@@ -25,6 +25,8 @@ HRR_RANDOM = bytes.fromhex("cf21ad74e59a6111be1d8c021e65b891c2a211167abb8c5e079e
 
 EXT_SNI, EXT_GROUPS, EXT_SIGALGS, EXT_ALPN = 0, 10, 13, 16
 EXT_SUPPORTED_VERSIONS, EXT_KEY_SHARE = 43, 51
+# TLS 1.3 drafts up to -22 carried key_share as extension 40 (IANA now lists 40 as reserved for it).
+EXT_KEY_SHARE_DRAFT = 40
 
 _PCAP_MAGICS = {
     b"\xd4\xc3\xb2\xa1": ("<", 1_000_000),
@@ -144,6 +146,7 @@ class PureResult:
     packets: int = 0
     skipped_non_tcp: int = 0
     skipped_fragments: int = 0
+    linktype: int = 1
 
 
 # --- pcap / L2-L4 ----------------------------------------------------------------------
@@ -178,19 +181,78 @@ def _ip(b: bytes) -> str:
     return str(ipaddress.ip_address(b))
 
 
+_PCAPNG_MAGIC = b"\x0a\x0d\x0d\x0a"  # Section Header Block
+
+
+def _iter_pcapng(data: bytes, res: PureResult):
+    """Packets of a pcapng file (Section Header, Interface Description, Enhanced and Simple Packet blocks;
+    other blocks are skipped). Yields (timestamp, frame, linktype). Never raises."""
+    off, endian = 0, "<"
+    interfaces: list[tuple[int, float]] = []  # (linktype, seconds per timestamp unit)
+    reported: set[int] = set()
+    while off + 12 <= len(data):
+        if data[off : off + 4] == _PCAPNG_MAGIC:
+            order = data[off + 8 : off + 12]
+            if order not in (b"\x4d\x3c\x2b\x1a", b"\x1a\x2b\x3c\x4d"):
+                res.errors.append("pcapng section header has an unknown byte-order magic")
+                return
+            endian = "<" if order == b"\x4d\x3c\x2b\x1a" else ">"
+            interfaces = []  # interface ids are per section
+        btype, blen = struct.unpack_from(endian + "II", data, off)
+        if blen < 12 or blen % 4 or off + blen > len(data):
+            res.errors.append("truncated or malformed pcapng block")
+            return
+        body = data[off + 8 : off + blen - 4]
+        if btype == 1 and len(body) >= 8:  # Interface Description Block
+            linktype = struct.unpack_from(endian + "H", body, 0)[0]
+            unit = 1e-6
+            i = 8
+            while i + 4 <= len(body):
+                code, length = struct.unpack_from(endian + "HH", body, i)
+                if code == 0:
+                    break
+                if code == 9 and length >= 1:  # if_tsresol: 10^-n, or 2^-n with the high bit set
+                    value = body[i + 4]
+                    unit = 2.0 ** -(value & 0x7F) if value & 0x80 else 10.0**-value
+                i += 4 + (length + 3) // 4 * 4
+            interfaces.append((linktype, unit))
+            if linktype not in _LINKTYPES and linktype not in reported:
+                reported.add(linktype)
+                res.errors.append(
+                    f"unsupported linktype {linktype} (Ethernet, Linux SLL/SLL2, raw IP and loopback only)"
+                )
+        elif btype == 6 and len(body) >= 20:  # Enhanced Packet Block
+            iface, high, low, caplen = struct.unpack_from(endian + "IIII", body, 0)
+            if iface < len(interfaces) and interfaces[iface][0] in _LINKTYPES:
+                linktype, unit = interfaces[iface]
+                yield ((high << 32) | low) * unit, body[20 : 20 + caplen], linktype
+        elif btype == 3 and len(body) >= 4 and interfaces:  # Simple Packet Block, interface 0
+            original = struct.unpack_from(endian + "I", body, 0)[0]
+            if interfaces[0][0] in _LINKTYPES:
+                yield 0.0, body[4 : 4 + min(original, len(body) - 4)], interfaces[0][0]
+        off += blen
+
+
 def _iter_packets(data: bytes, res: PureResult):
+    """(timestamp, frame, linktype) for every packet of a classic pcap or a pcapng file."""
     magic = data[:4]
+    if magic == _PCAPNG_MAGIC:
+        yield from _iter_pcapng(data, res)
+        return
     if magic not in _PCAP_MAGICS:
-        res.errors.append("not a classic pcap (pcapng is only supported through tshark)")
+        res.errors.append("not a pcap or pcapng capture")
         return
     endian, tick = _PCAP_MAGICS[magic]
     if len(data) < 24:
         res.errors.append("truncated pcap global header")
         return
-    linktype = struct.unpack_from(endian + "I", data, 20)[0]
-    if linktype != 1:
-        res.errors.append(f"unsupported linktype {linktype} (only Ethernet=1)")
+    linktype = struct.unpack_from(endian + "I", data, 20)[0] & 0x0FFFFFFF  # low 28 bits: link type
+    if linktype not in _LINKTYPES:
+        res.errors.append(
+            f"unsupported linktype {linktype} (Ethernet, Linux SLL/SLL2, raw IP and loopback only)"
+        )
         return
+    res.linktype = linktype
     off = 24
     while off + 16 <= len(data):
         sec, frac, caplen, _ = struct.unpack_from(endian + "IIII", data, off)
@@ -198,7 +260,7 @@ def _iter_packets(data: bytes, res: PureResult):
         if off + caplen > len(data):
             res.errors.append("truncated packet at end of file")
             return
-        yield sec + frac / tick, data[off : off + caplen]
+        yield sec + frac / tick, data[off : off + caplen], linktype
         off += caplen
     if off < len(data):
         res.errors.append("truncated packet header at end of file")
@@ -244,8 +306,38 @@ def _parse_l3(frame: bytes, off: int, ethertype: int):
     return None
 
 
-def _parse_tcp(frame: bytes):
+# Link-layer types (tcpdump.org/linktypes.html): Ethernet, BSD loopback, raw IP (101 and the
+# OS-specific DLT_RAW values 12 and 14), raw IPv4, raw IPv6, Linux cooked v1 and v2.
+_LINKTYPES = frozenset({1, 0, 101, 12, 14, 228, 229, 113, 276})
+_AF_INET6 = frozenset({10, 24, 28, 30})  # Linux, NetBSD/OpenBSD, FreeBSD, macOS
+
+
+def _link_layer(frame: bytes, linktype: int) -> tuple[int, int] | None:
+    """-> (ethertype, network-layer offset) for a non-Ethernet link type, None when unreadable."""
+    if linktype in {101, 12, 14, 228, 229}:
+        if not frame:
+            return None
+        return (0x0800 if frame[0] >> 4 == 4 else 0x86DD if frame[0] >> 4 == 6 else 0), 0
+    if linktype == 0 and len(frame) >= 4:
+        family = struct.unpack_from("<I", frame, 0)[0]
+        if family > 0xFFFF:  # written in big-endian host order
+            family = struct.unpack_from(">I", frame, 0)[0]
+        return (0x0800 if family == 2 else 0x86DD if family in _AF_INET6 else 0), 4
+    if linktype == 113 and len(frame) >= 16:
+        return struct.unpack_from(">H", frame, 14)[0], 16
+    if linktype == 276 and len(frame) >= 20:
+        return struct.unpack_from(">H", frame, 0)[0], 20
+    return None
+
+
+def _parse_tcp(frame: bytes, linktype: int = 1):
     """-> (src_ip, dst_ip, sport, dport, seq, flags, payload), None, or _FRAGMENT."""
+    if linktype != 1:
+        link = _link_layer(frame, linktype)
+        if link is None:
+            return None
+        l3 = _parse_l3(frame, link[1], link[0])
+        return _tcp_from(frame, l3)
     if len(frame) < 14:
         return None
     ethertype = struct.unpack_from(">H", frame, 12)[0]
@@ -255,7 +347,10 @@ def _parse_tcp(frame: bytes):
             return None
         ethertype = struct.unpack_from(">H", frame, off + 2)[0]
         off += 4
-    l3 = _parse_l3(frame, off, ethertype)
+    return _tcp_from(frame, _parse_l3(frame, off, ethertype))
+
+
+def _tcp_from(frame: bytes, l3):
     if l3 is None or l3 is _FRAGMENT:
         return l3
     src, dst, tcp, end = l3
@@ -321,7 +416,7 @@ def _parse_extensions(h: TlsHello, blob: bytes) -> None:
         elif etype == EXT_SUPPORTED_VERSIONS and body:
             vs = _u16s(body[1:]) if client else _u16s(body[:2])
             h.supported_versions = [v for v in vs if not is_grease(v)]
-        elif etype == EXT_KEY_SHARE and len(body) >= 2:
+        elif etype in (EXT_KEY_SHARE, EXT_KEY_SHARE_DRAFT) and len(body) >= 2:
             if client:
                 j, end = 2, 2 + struct.unpack_from(">H", body, 0)[0]
                 while j + 4 <= min(end, len(body)):
@@ -344,6 +439,13 @@ def _parse_hello(msg_type: int, record_version: int, body: bytes) -> TlsHello | 
         legacy = struct.unpack_from(">H", body, 0)[0]
         h = TlsHello(msg_type, record_version, legacy, body[2:34])
         i = 34
+        if msg_type == 2 and 0x7F00 <= legacy <= 0x7F15:
+            # TLS 1.3 drafts before -22: ServerHello { version, random, cipher_suite, extensions },
+            # without legacy_session_id_echo or compression_method.
+            h.cipher_suites = [struct.unpack_from(">H", body, i)[0]]
+            elen = struct.unpack_from(">H", body, i + 2)[0]
+            _parse_extensions(h, body[i + 4 : i + 4 + elen])
+            return h
         i += 1 + body[i]  # session id
         if msg_type == 1:
             n = struct.unpack_from(">H", body, i)[0]
@@ -548,7 +650,7 @@ def _classify(c: _Conn) -> Flow:
 
 
 def read_flows(path: str | Path) -> PureResult:
-    """Parse a classic pcap into per-TCP-stream Flow records. Never raises."""
+    """Parse a classic pcap or a pcapng file into per-TCP-stream Flow records. Never raises."""
     res = PureResult()
     try:
         data = Path(path).read_bytes()
@@ -557,9 +659,9 @@ def read_flows(path: str | Path) -> PureResult:
         return res
     conns: dict[frozenset, _Conn] = {}  # the current connection per 4-tuple
     ordered: list[_Conn] = []  # every connection, in order of its first packet
-    for ts, frame in _iter_packets(data, res):
+    for ts, frame, linktype in _iter_packets(data, res):
         res.packets += 1
-        seg = _parse_tcp(frame)
+        seg = _parse_tcp(frame, linktype)
         if seg is _FRAGMENT:
             res.skipped_fragments += 1
             continue
