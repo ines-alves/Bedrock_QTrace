@@ -488,9 +488,19 @@ def classify(
                 # Unobserved use is not a use to name; the text stays a roadmap grouping key.
                 usage_text = "" if identity.usage == Usage.UNKNOWN else f"{identity.usage.value} "
                 action = f"Migrate {usage_text}to {target}."
+                advice_standard = ref.standard
                 if ref.algorithm_id == "ML-KEM" and identity.usage == Usage.ENCRYPTION:
                     action = f"Use {target} for key establishment with authenticated data encryption; a KEM is not bulk encryption."
-                advice.append(Advice(action, target, ref.standard, 1 if tier == Tier.CRITICAL else 2))
+                if identity.usage in {Usage.SIGNATURE, Usage.AUTHENTICATION} and entry.primitive_by_usage.get(
+                    "default"
+                ) in {"hash", "xof"}:
+                    # A hash replaces the digest inside a signature scheme, not the signature itself.
+                    action = f"Use {target} as the signature hash."
+                    if finding.raw_name.lower() == "ssh-rsa":
+                        # RFC 8332 (sourced on the KB ssh-rsa entry) keeps the RSA key; ML-DSA stays separate.
+                        action = "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused."
+                        target, advice_standard = "rsa-sha2-512", "IETF RFC 8332"
+                advice.append(Advice(action, target, advice_standard, 1 if tier == Tier.CRITICAL else 2))
             elif identity.usage == Usage.MAC:
                 # HMAC is specified by FIPS 198-1 (sourced on the KB HMAC-SHA384 entry).
                 advice.append(
