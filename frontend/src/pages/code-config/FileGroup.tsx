@@ -1,3 +1,4 @@
+import { algorithmName } from '../../components/algorithmName'
 import TierBadge from '../../components/TierBadge'
 import { languageOf, provenance, type FileGroup as Group, type Row } from './model'
 
@@ -30,9 +31,9 @@ function RowView({ row }: { row: Row }) {
       <span><Badge row={row} /></span>
       <div className="min-w-0">
         <div className="flex flex-wrap items-baseline gap-x-3">
-          <span className="font-medium">{f.raw_name}</span>
+          <span className="font-medium">{algorithmName(f.raw_name)}</span>
           {row.asset && row.asset.canonical_name.toLowerCase() !== f.raw_name.toLowerCase() && (
-            <span className="text-paper/50">{row.asset.canonical_name}</span>
+            <span className="text-paper/50">{algorithmName(row.asset.canonical_name)}</span>
           )}
           {details(row) && <span className="text-paper/50">{details(row)}</span>}
           <span className="text-paper/40">{languageOf(f)}</span>

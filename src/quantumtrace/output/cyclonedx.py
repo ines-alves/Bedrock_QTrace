@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from collections import Counter
 from typing import Any
@@ -11,13 +12,76 @@ from cyclonedx.schema import SchemaVersion
 from cyclonedx.validation.json import JsonStrictValidator
 
 from quantumtrace.engine.registries import TLSRegistry
-from quantumtrace.models import CryptoAsset, Finding, KindHint, Location, ScanResult, TLSSession
+from quantumtrace.models import (
+    CryptoAsset,
+    Finding,
+    KindHint,
+    Location,
+    ScanResult,
+    SourceType,
+    TLSSession,
+)
 
 SPEC_VERSION = "1.6"
 _PURL_TYPES = {"python": "pypi", "go": "golang", "java": "maven"}
 _REF_KEYS = {"ref", "algorithmRef", "signatureAlgorithmRef", "subjectPublicKeyRef"}
 _REF_LISTS = {"dependsOn", "algorithms"}
 _VALIDATOR = JsonStrictValidator(SchemaVersion.V1_6)
+# Canonical name the engine gives evidence whose algorithm could not be determined (an encrypted key file).
+UNRESOLVED = "unresolved"
+# A PEM private key block: the header line is kept, the body and the END line are dropped. An unterminated
+# block (a truncated file) loses everything after its header.
+_PEM_PRIVATE = re.compile(
+    r"(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----).*?(?:-----END [A-Z0-9 ]*PRIVATE KEY-----|\Z)", re.S
+)
+
+
+def redact_snippet(snippet: str | None, source_type: SourceType) -> str | None:
+    """A snippet that is safe to serve: never more than the PEM header line of a private key.
+
+    Key file findings keep their first line only (the header line or the key type). Any other source
+    loses the body of a PEM private key block should one ever reach a snippet.
+    """
+    if snippet is None:
+        return None
+    snippet = _PEM_PRIVATE.sub(r"\1", snippet)
+    if source_type == SourceType.KEYFILE:
+        lines = snippet.splitlines()
+        return lines[0] if lines else snippet
+    return snippet
+
+
+def _scrub(value: Any) -> Any:
+    if isinstance(value, str):
+        return _PEM_PRIVATE.sub(r"\1", value)
+    if isinstance(value, list):
+        return [_scrub(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _scrub(item) for key, item in value.items()}
+    return value
+
+
+def _redact_location(location: Location) -> Location:
+    snippet = redact_snippet(location.snippet, location.source_type)
+    return location if snippet == location.snippet else location.model_copy(update={"snippet": snippet})
+
+
+def redact_result(result: ScanResult) -> ScanResult:
+    """Copy of a result in which no snippet or extra value carries private key body text (M4 promise).
+
+    Scanners already emit header lines only. This is the second guard every served output goes through.
+    """
+    findings = [
+        finding.model_copy(
+            update={"location": _redact_location(finding.location), "extra": _scrub(finding.extra)}
+        )
+        for finding in result.findings
+    ]
+    assets = [
+        asset.model_copy(update={"occurrences": [_redact_location(loc) for loc in asset.occurrences]})
+        for asset in result.assets
+    ]
+    return result.model_copy(update={"findings": findings, "assets": assets})
 
 
 def _properties(**items: object) -> list[dict[str, str]]:
@@ -42,7 +106,12 @@ def _occurrences(locations: list[Location], resolved: dict[tuple[str | None, int
     for loc in locations:
         note = resolved.get((loc.file, loc.line))
         context = [
-            part for part in (loc.snippet, None if note is None else f"resolved_from_line={note}") if part
+            part
+            for part in (
+                redact_snippet(loc.snippet, loc.source_type),
+                None if note is None else f"resolved_from_line={note}",
+            )
+            if part
         ]
         rows.append(
             _present(
@@ -64,7 +133,9 @@ def _session(
     return None
 
 
-def _protocol(asset: CryptoAsset, session: TLSSession | None, suite_codes: dict[str, str]) -> dict[str, Any]:
+def _protocol(
+    asset: CryptoAsset, session: TLSSession | None, suite_codes: dict[str, str], kept: set[str]
+) -> dict[str, Any]:
     if session is None:
         return {"type": "tls" if asset.family == "TLS" else "unknown"}
     props = _present(type=session.transport, version=session.version)
@@ -72,7 +143,7 @@ def _protocol(asset: CryptoAsset, session: TLSSession | None, suite_codes: dict[
         code = suite_codes.get(session.negotiated_cipher_suite)
         suite = _present(
             name=session.negotiated_cipher_suite,
-            algorithms=list(asset.components),
+            algorithms=[ref for ref in asset.components if ref in kept],
             identifiers=None if code is None else [f"0x{code[2:4]}", f"0x{code[4:6]}"],
         )
         props["cipherSuites"] = [suite]
@@ -84,6 +155,7 @@ def _crypto_properties(
     extra: dict[str, Any],
     session: TLSSession | None,
     suite_codes: dict[str, str],
+    kept: set[str],
 ) -> dict[str, Any]:
     props: dict[str, Any] = {"assetType": asset.asset_type}
     if asset.asset_type == "algorithm":
@@ -103,7 +175,7 @@ def _crypto_properties(
             notValidAfter=extra.get("not_after"),
         )
     elif asset.asset_type == "protocol":
-        props["protocolProperties"] = _protocol(asset, session, suite_codes)
+        props["protocolProperties"] = _protocol(asset, session, suite_codes, kept)
     return _present(**props, oid=asset.oid)
 
 
@@ -112,6 +184,7 @@ def _asset_component(
     findings: dict[str, Finding],
     sessions: dict[str, TLSSession],
     suite_codes: dict[str, str],
+    kept: set[str],
 ) -> dict[str, Any]:
     extra = {key: value for fid in asset.finding_ids for key, value in findings[fid].extra.items()}
     resolved = {
@@ -127,7 +200,7 @@ def _asset_component(
         "bom-ref": asset.asset_id,
         "name": asset.canonical_name,
         "description": asset.rationale,
-        "cryptoProperties": _crypto_properties(asset, extra, session, suite_codes),
+        "cryptoProperties": _crypto_properties(asset, extra, session, suite_codes, kept),
         "evidence": {"occurrences": _occurrences(asset.occurrences, resolved)},
         "properties": _properties(
             tier=asset.tier.value,
@@ -195,6 +268,11 @@ def _library(finding: Finding) -> dict[str, Any]:
     )
 
 
+def _is_unresolved(asset: CryptoAsset) -> bool:
+    """An asset whose algorithm could not be determined: evidence to review, not an inventory entry."""
+    return asset.canonical_name == UNRESOLVED
+
+
 def _is_wrapper(asset: CryptoAsset, findings: dict[str, Finding]) -> bool:
     """An asset made only of hygiene warnings or library declarations: not a cryptographic primitive (M3M4-05)."""
     return all(
@@ -208,9 +286,13 @@ def build_cbom(result: ScanResult) -> dict[str, Any]:
     findings = {finding.id: finding for finding in result.findings}
     sessions = {session.session_id: session for session in result.sessions}
     suite_codes = {row["iana"]: code for code, row in TLSRegistry().data["cipher_suites"].items()}
-    owner = {fid: asset.asset_id for asset in result.assets for fid in asset.finding_ids}
-    assets = [asset for asset in result.assets if not _is_wrapper(asset, findings)]
-    components = [_asset_component(asset, findings, sessions, suite_codes) for asset in assets]
+    # Hygiene-only, library-only and unresolved assets are not CBOM components (M3M4-05), so nothing refers to them.
+    assets = [
+        asset for asset in result.assets if not _is_wrapper(asset, findings) and not _is_unresolved(asset)
+    ]
+    kept = {asset.asset_id for asset in assets}
+    owner = {fid: asset.asset_id for asset in assets for fid in asset.finding_ids}
+    components = [_asset_component(asset, findings, sessions, suite_codes, kept) for asset in assets]
     components += [
         _key_material(finding, owner)
         for finding in result.findings
@@ -232,9 +314,9 @@ def build_cbom(result: ScanResult) -> dict[str, Any]:
         },
         "components": components,
         "dependencies": [
-            {"ref": asset.asset_id, "dependsOn": list(asset.components)}
+            {"ref": asset.asset_id, "dependsOn": [ref for ref in asset.components if ref in kept]}
             for asset in assets
-            if asset.components
+            if any(ref in kept for ref in asset.components)
         ],
     }
 

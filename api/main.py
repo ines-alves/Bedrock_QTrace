@@ -13,7 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from quantumtrace.kb.loader import KnowledgeBaseError, load_scoring
 from quantumtrace.models import ScanResult
-from quantumtrace.output.cyclonedx import build_cbom, validate_cbom
+from quantumtrace.output.cyclonedx import build_cbom, redact_result, validate_cbom
 from quantumtrace.output.markdown import render_markdown_summary
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -36,8 +36,11 @@ class Validation(BaseModel):
 
 
 def _current() -> ScanResult:
-    """Latest scan from out/report.json, or the bundled sample when no scan has run."""
-    return ScanResult.model_validate_json((REPORT if REPORT.exists() else SAMPLE).read_text())
+    """Latest scan from out/report.json, or the bundled sample when no scan has run.
+
+    Every endpoint reads through here, so no served output carries more than a key file's header line.
+    """
+    return redact_result(ScanResult.model_validate_json((REPORT if REPORT.exists() else SAMPLE).read_text()))
 
 
 class Entry(BaseModel):
@@ -107,7 +110,7 @@ def scan(request: ScanRequest) -> ScanResult:
     missing = [item for item, path in zip(request.paths, paths, strict=True) if not path.exists()]
     if missing:
         raise HTTPException(status_code=400, detail=f"paths not found: {', '.join(missing)}")
-    scanned = run(paths)
+    scanned = redact_result(run(paths))
     REPORT.parent.mkdir(exist_ok=True)
     REPORT.write_text(scanned.model_dump_json())
     return scanned

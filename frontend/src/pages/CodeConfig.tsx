@@ -18,7 +18,7 @@ export default function CodeConfig() {
   const { data, error } = useScanResult()
   const rows = useMemo(() => (data ? buildRows(data) : []), [data])
   const languages = useMemo(() => allLanguages(rows), [rows])
-  // undefined until the user touches a filter: everything is shown by default, whatever the data holds.
+  // undefined until the user touches a filter: everything but test code is shown by default.
   const [override, setOverride] = useState<Filters>()
 
   if (error) return <p>Failed to load scan: {error}</p>
@@ -30,12 +30,13 @@ export default function CodeConfig() {
   const filters: Filters = override ?? {
     languages: new Set(languages),
     tiers: new Set(TIERS),
-    includeTestCode: true,
+    includeTestCode: false,
     includeNonCrypto: true,
   }
   const visible = applyFilters(rows, filters)
   const groups = groupByFile(visible)
   const s = summarize(visible)
+  const testTotal = rows.filter((r) => r.finding.in_test_code).length
 
   return (
     <>
@@ -43,7 +44,7 @@ export default function CodeConfig() {
       <p className="mb-8 max-w-3xl text-xl leading-relaxed text-paper/75">
         {plural(s.findings, 'finding', 'findings')} in {plural(s.files, 'file', 'files')}
         {` · ${s.byTier.CRITICAL} critical, ${s.byTier.MEDIUM} medium, ${s.byTier.UNKNOWN} unknown, ${s.byTier.SAFE} safe`}
-        {` · ${plural(s.warnings, 'warning', 'warnings')}, ${plural(s.libraries, 'library', 'libraries')}, ${s.testCode} in test code`}
+        {` · ${plural(s.warnings, 'warning', 'warnings')}, ${plural(s.libraries, 'library', 'libraries')}, ${filters.includeTestCode ? `${s.testCode} in test code` : `${testTotal} test-code findings hidden`}`}
       </p>
       <FilterBar languages={languages} filters={filters} onChange={setOverride} />
       {groups.length === 0 ? (

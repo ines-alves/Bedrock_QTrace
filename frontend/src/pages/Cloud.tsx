@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import { useScanResult } from '../api/useScanResult'
+import { algorithmName } from '../components/algorithmName'
 import Cta from '../components/Cta'
 import PageHeader from '../components/PageHeader'
 import SortableTable, { type Column } from '../components/SortableTable'
@@ -10,7 +11,7 @@ const day = (iso: string) => iso.slice(0, 10)
 
 const kmsColumns: Column<Kms>[] = [
   { header: 'Alias', sort: (k) => k.extra.alias, cell: (k) => k.extra.alias },
-  { header: 'Key spec', sort: (k) => k.finding.raw_name, cell: (k) => k.finding.raw_name },
+  { header: 'Key spec', sort: (k) => algorithmName(k.finding.raw_name), cell: (k) => algorithmName(k.finding.raw_name) },
   { header: 'Usage', sort: (k) => k.extra.key_usage, cell: (k) => k.extra.key_usage },
   { header: 'Origin', sort: (k) => k.extra.origin, cell: (k) => k.extra.origin },
   { header: 'State', sort: (k) => k.extra.state, cell: (k) => k.extra.state },

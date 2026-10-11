@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useScanResult } from '../api/useScanResult'
+import { algorithmName } from '../components/algorithmName'
 import Cta from '../components/Cta'
 import PageHeader from '../components/PageHeader'
 import { PHASES, buildRoadmap, plural } from './roadmap/model'
@@ -40,7 +41,7 @@ export default function Roadmap() {
                 <details className="mt-1">
                   <summary className="cursor-pointer text-base text-paper/60">Affected assets</summary>
                   <ul className="mt-2 space-y-1 text-base text-paper/70">
-                    {assets.map((a) => <li key={a.asset_id}>{a.canonical_name}</li>)}
+                    {assets.map((a) => <li key={a.asset_id}>{algorithmName(a.canonical_name)}</li>)}
                   </ul>
                 </details>
               </li>
