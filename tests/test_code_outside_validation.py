@@ -155,3 +155,25 @@ def test_python_hmac_resolved_digest_is_not_an_unresolved_fallback(argument):
     found = scan(f'import hmac\nDIGEST = "sha256"\nhmac.new(key, msg, {argument})\n', "python")
     assert [(f.raw_name, f.confidence) for f in found] == [("HMAC-sha256", 1.0)]
     assert "unresolved_argument" not in found[0].extra
+
+
+def test_python_jose_name_table_is_reported_without_a_library_import():
+    # python-jose jose/constants.py names the algorithms in a class table and never says jwt or jose.
+    source = 'import hashlib\n\nclass Algorithms:\n    HS256 = "HS256"\n    RS512 = "RS512"\n'
+    got = {(f.raw_name, f.usage) for f in scan(source, "python")}
+    assert got == {("HS256", Usage.MAC), ("RS512", Usage.SIGNATURE)}
+    assert scan('label = "RS256"\n', "python") == []
+
+
+def test_python_cipher_attribute_read_is_not_a_use_and_variable_mode_call_is():
+    # python-jose cryptography_backend.py: algorithms.AES.block_size next to Cipher(algorithms.AES(k), mode).
+    source = (
+        "from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes\n"
+        "IV = {'CBC': algorithms.AES.block_size // 8}\n"
+        "def f(key, mode):\n"
+        "    return Cipher(algorithms.AES(key), mode)\n"
+    )
+    got = [(f.location.line, f.raw_name, f.mode, f.extra["rule"]) for f in scan(source, "python")]
+    assert got == [(4, "AES", None, "PY_AES_CIPHER_MODE_UNRESOLVED")]
+    literal = "from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes\nc = Cipher(algorithms.AES(k), modes.GCM(iv))\n"
+    assert [(f.mode, f.extra["rule"]) for f in scan(literal, "python")] == [("GCM", "PY_AES_CIPHER")]

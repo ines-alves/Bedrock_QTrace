@@ -16,8 +16,9 @@
   usage: hash
   library: hashlib
 
-# hashlib.new(name): the name is a literal or a file-scope constant or parameter default. Anything else
-# (an unresolved identifier, an algorithm outside the list) emits nothing, see values_must_match.
+# hashlib.new(name): the name is a literal or a file-scope constant or parameter default. An algorithm
+# outside the list emits nothing (values_must_match); an unresolved identifier or expression is
+# reported by PY_HASHLIB_NEW_UNRESOLVED.
 - id: PY_HASHLIB_NEW
   language: python
   pattern: >-
@@ -31,7 +32,8 @@
 
 # hashlib.pbkdf2_hmac(hash_name, password, salt, iterations, dklen=None): the hash is the first
 # argument, positional or hash_name=. Same value rules as hashlib.new (literal, constant or default,
-# six names; anything else emits nothing). The raw name is the composite as seen. # verify
+# six names; an unresolved hash is PY_HASHLIB_PBKDF2_HMAC_UNRESOLVED). The raw name is the composite as
+# seen. # verify
 - id: PY_HASHLIB_PBKDF2_HMAC
   language: python
   pattern: >-
@@ -333,6 +335,21 @@
   library: cryptography
   key_size_from_length: true
   inherit_key_size: AES
+
+# Cipher(algorithms.AES(key), mode) where the mode is not a modes.X(...) literal (a variable or an
+# expression): the AES use is reported with mode None, and its key size from the same key flow as
+# PY_AES_CIPHER. Absorbed by PY_AES_CIPHER when the mode is a literal. (outside validation, python-jose)
+- id: PY_AES_CIPHER_MODE_UNRESOLVED
+  language: python
+  pattern: >-
+    \bCipher\(\s*(?:algorithm\s*=\s*)?algorithms\.AES\(\s*(?:key\s*=\s*)?(?:(?P<key_literal>[bB]?"(?:[^"\\]|\\.)*"|[bB]?'(?:[^'\\]|\\.)*')|(?P<key_arg>(?P<key_size_ref>[A-Za-z_][\w.]*)))\s*\)
+  raw_name: AES
+  kind_hint: algorithm
+  usage: encryption
+  library: cryptography
+  key_size_from_length: true
+  inherit_key_size: AES
+  absorbed_by: [PY_AES_CIPHER]
 
 - id: PY_AESGCM
   language: python
@@ -714,10 +731,11 @@
 # same raw name (the call wins, as for import-only findings).
 
 # A cipher class named without being instantiated, for example a negotiation table such as paramiko
-# transport.py {"class": algorithms.AES, ...}. The key size is not known, so AES stays unsized.
+# transport.py {"class": algorithms.AES, ...}. The key size is not known, so AES stays unsized. An
+# attribute read (algorithms.AES.block_size) is not a use and is not reported.
 - id: PY_CIPHER_CLASS_REFERENCE
   language: python
-  pattern: '\balgorithms\.(?P<name>AES|AES128|AES256|TripleDES|ARC4|Blowfish|Camellia|ChaCha20|IDEA|SEED|SM4|CAST5)\b(?!\s*\()'
+  pattern: '\balgorithms\.(?P<name>AES|AES128|AES256|TripleDES|ARC4|Blowfish|Camellia|ChaCha20|IDEA|SEED|SM4|CAST5)\b(?!\s*[(.])'
   requires: ['\bcryptography\b']
   raw_name: '{name}'
   kind_hint: algorithm
@@ -737,12 +755,13 @@
   library: cryptography
   reference: true
 
-# JOSE algorithm names (RFC 7518) as string literals in a file that uses a JWT/JOSE library. HS* are
+# JOSE algorithm names (RFC 7518) as string literals in a file that uses a JWT/JOSE library or defines a
+# JOSE name table (python-jose constants.py: HS256 = "HS256"). HS* are
 # MACs; RS*, PS*, ES* and EdDSA are signatures. The engine decomposes the names.
 - id: PY_JOSE_HMAC
   language: python
   pattern: '(?P<q>["''])(?P<name>HS(?:256|384|512))(?P=q)'
-  requires: ['\b(?:jwt|jose|jws|jwk|authlib|jwcrypto)\b']
+  requires: ['\b(?:jwt|jose|jws|jwk|authlib|jwcrypto)\b|\b(?:HS|RS|ES|PS)(?:256|384|512)\s*=\s*["''](?:HS|RS|ES|PS)(?:256|384|512)["'']']
   raw_name: '{name}'
   kind_hint: algorithm
   usage: mac
@@ -752,7 +771,7 @@
 - id: PY_JOSE_SIGNATURE
   language: python
   pattern: '(?P<q>["''])(?P<name>(?:RS|PS|ES)(?:256|384|512)|ES256K|EdDSA)(?P=q)'
-  requires: ['\b(?:jwt|jose|jws|jwk|authlib|jwcrypto)\b']
+  requires: ['\b(?:jwt|jose|jws|jwk|authlib|jwcrypto)\b|\b(?:HS|RS|ES|PS)(?:256|384|512)\s*=\s*["''](?:HS|RS|ES|PS)(?:256|384|512)["'']']
   raw_name: '{name}'
   kind_hint: algorithm
   usage: signature

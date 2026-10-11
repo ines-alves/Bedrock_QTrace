@@ -5,15 +5,15 @@
 # or a call that names a provider leaves mode None (M1M3-06). Nothing here assigns a tier.
 #
 # Constant arguments: a factory called with a file-scope String constant (MessageDigest.getInstance(ALGO))
-# has a *_REF rule. It emits only when the constant resolves to a string (values_must_match), so a
-# parameter or an imported name emits nothing. The raw name is the resolved value, at confidence 1.0
-# and resolved_from_line set.
+# has a *_REF rule. It emits only when the constant resolves to a string (values_must_match). The raw
+# name is the resolved value, at confidence 1.0 and resolved_from_line set. A parameter, a field or an
+# imported name is reported once by the *_UNRESOLVED fallback of the API (raw name "unresolved").
 #
 # Scope today: the starter-kit scenarios and their SAFE decoys, plus KeyAgreement, KEM, EC curves,
 # DH and DSA sizes and ML-KEM/ML-DSA names (task 6, Java slice). Names checked against the Java SE 24
 # standard algorithm names page, 2026-10-10. # verify
 # Not covered: KeyFactory (key loading), SecretKeySpec with a constant algorithm, provider-specific
-# names, bare Cipher/Signature wrapped in helper methods.
+# names. A factory wrapped in a helper method whose name cannot be resolved is reported "unresolved".
 
 # ---- hashes, MAC, KDF ---------------------------------------------------------------------------
 
