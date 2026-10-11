@@ -61,6 +61,7 @@ QUALIFIERS = frozenset(
         "SHA3_512",
         "SHA512",
         "TLSVersion",
+        "_lib",  # pyOpenSSL cffi bindings (OpenSSL._util lib)
         "algorithms",
         "dh",
         "dsa",

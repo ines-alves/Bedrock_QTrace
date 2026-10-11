@@ -468,7 +468,7 @@
 
 - id: JAVA_MESSAGE_DIGEST_UNRESOLVED
   language: java
-  pattern: '\bMessageDigest\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  pattern: '\bMessageDigest\.getInstance\s*\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*|\((?:[^()]|\([^()]*\))*\)(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
   raw_name: unresolved
   kind_hint: algorithm
   usage: hash
@@ -478,7 +478,7 @@
 
 - id: JAVA_MAC_UNRESOLVED
   language: java
-  pattern: '\bMac\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  pattern: '\bMac\.getInstance\s*\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*|\((?:[^()]|\([^()]*\))*\)(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
   raw_name: unresolved
   kind_hint: algorithm
   usage: mac
@@ -488,7 +488,7 @@
 
 - id: JAVA_SIGNATURE_UNRESOLVED
   language: java
-  pattern: '\bSignature\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  pattern: '\bSignature\.getInstance\s*\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*|\((?:[^()]|\([^()]*\))*\)(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
   raw_name: unresolved
   kind_hint: algorithm
   usage: signature
@@ -498,7 +498,7 @@
 
 - id: JAVA_CIPHER_UNRESOLVED
   language: java
-  pattern: '\bCipher\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  pattern: '\bCipher\.getInstance\s*\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*|\((?:[^()]|\([^()]*\))*\)(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
   raw_name: unresolved
   kind_hint: algorithm
   usage: encryption
@@ -508,7 +508,7 @@
 
 - id: JAVA_KEYPAIR_UNRESOLVED
   language: java
-  pattern: '\bKeyPairGenerator\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  pattern: '\bKeyPairGenerator\.getInstance\s*\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*|\((?:[^()]|\([^()]*\))*\)(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
   raw_name: unresolved
   kind_hint: algorithm
   usage: unknown
@@ -518,7 +518,7 @@
 
 - id: JAVA_KEY_AGREEMENT_UNRESOLVED
   language: java
-  pattern: '\bKeyAgreement\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  pattern: '\bKeyAgreement\.getInstance\s*\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*|\((?:[^()]|\([^()]*\))*\)(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
   raw_name: unresolved
   kind_hint: algorithm
   usage: key_exchange
@@ -528,7 +528,7 @@
 
 - id: JAVA_KEYGEN_UNRESOLVED
   language: java
-  pattern: '\bKeyGenerator\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  pattern: '\bKeyGenerator\.getInstance\s*\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*|\((?:[^()]|\([^()]*\))*\)(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
   raw_name: unresolved
   kind_hint: algorithm
   usage: unknown
@@ -538,7 +538,7 @@
 
 - id: JAVA_SECRET_KEY_FACTORY_UNRESOLVED
   language: java
-  pattern: '\bSecretKeyFactory\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  pattern: '\bSecretKeyFactory\.getInstance\s*\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*|\((?:[^()]|\([^()]*\))*\)(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
   raw_name: unresolved
   kind_hint: algorithm
   usage: unknown
@@ -548,7 +548,7 @@
 
 - id: JAVA_KEM_UNRESOLVED
   language: java
-  pattern: '\bKEM\.getInstance\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
+  pattern: '\bKEM\.getInstance\s*\(\s*(?:(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]|(?P<argument>(?![\"\s])[A-Za-z_][\w.]*(?:\([^()]*\))?(?:\.\w+(?:\([^()]*\))?)*|\((?:[^()]|\([^()]*\))*\)(?:\.\w+(?:\([^()]*\))?)*)\s*[,)])'
   raw_name: unresolved
   kind_hint: algorithm
   usage: key_exchange
@@ -735,3 +735,62 @@
   extra:
     object: embedded_private_key
     hygiene_flags: [private_key_material]
+
+# ---- names held in tables (SSH libraries, cipher wrappers) -------------------------------------
+
+# A JCA transformation string outside Cipher.getInstance (an enum table or a wrapper such as
+# SecurityUtils.getCipher, mina-sshd BuiltinCiphers). Paddings from the Java SE standard names page
+# (Cipher Algorithm Paddings), checked 2026-10-11.
+- id: JAVA_TRANSFORMATION_LITERAL
+  language: java
+  pattern: '"(?P<name>(?:AES|DESede|DES|Blowfish|RC2|Camellia)/(?:ECB|CBC|CTR|GCM|CFB\d*|OFB\d*|CTS|PCBC)/(?:NoPadding|PKCS5Padding|ISO10126Padding))"'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: encryption
+  reference: true
+  absorbed_by: [JAVA_CIPHER_AES, JAVA_CIPHER_REF, JAVA_CIPHER_OTHER]
+
+# SSH algorithm wire names held as string constants (SSH libraries: mina-sshd BuiltinDHFactories,
+# BuiltinSignatures, BuiltinCiphers, BuiltinMacs). Names from RFC 4253, 4419, 5656, 8268, 8308, 8332,
+# 8709, 8731, 9142 and the OpenSSH PROTOCOL files; the KB maps each one. # verify
+# XML Security URIs reuse some names (xmlenc#aes192-cbc, xmldsig#hmac-sha1): a string appended to a
+# namespace ("NS + \"aes192-cbc\"") or a file that names XML security is not SSH evidence.
+- id: JAVA_SSH_KEX_NAME
+  language: java
+  pattern: '(?<!\+ )(?<!\+)"(?P<name>diffie-hellman-group(?:1|14|15|16|17|18)-sha(?:1|256|512)|diffie-hellman-group-exchange-sha(?:1|256)|ecdh-sha2-nistp(?:256|384|521)|curve25519-sha256(?:@libssh\.org)?|curve448-sha512|sntrup761x25519-sha512(?:@openssh\.com)?|mlkem768x25519-sha256)"'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: key_exchange
+  protocol: SSH
+  reference: true
+  forbids: ['(?i)xmlenc|xmldsig|xmlsec|w3\.org/']
+
+- id: JAVA_SSH_HOSTKEY_NAME
+  language: java
+  pattern: '(?<!\+ )(?<!\+)"(?P<name>ssh-rsa|ssh-dss|ssh-ed25519|ssh-ed448|rsa-sha2-(?:256|512)|ecdsa-sha2-nistp(?:256|384|521))"'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: signature
+  protocol: SSH
+  reference: true
+  forbids: ['(?i)xmlenc|xmldsig|xmlsec|w3\.org/']
+
+- id: JAVA_SSH_CIPHER_NAME
+  language: java
+  pattern: '(?<!\+ )(?<!\+)"(?P<name>aes(?:128|192|256)-(?:ctr|cbc)|aes(?:128|256)-gcm@openssh\.com|chacha20-poly1305@openssh\.com|3des-cbc|blowfish-cbc|arcfour(?:128|256)?|cast128-cbc)"'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: encryption
+  protocol: SSH
+  reference: true
+  forbids: ['(?i)xmlenc|xmldsig|xmlsec|w3\.org/']
+
+- id: JAVA_SSH_MAC_NAME
+  language: java
+  pattern: '(?<!\+ )(?<!\+)"(?P<name>hmac-(?:sha1|sha1-96|md5|md5-96|sha2-256|sha2-512)(?:-etm@openssh\.com)?|umac-(?:64|128)(?:-etm)?@openssh\.com)"'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: mac
+  protocol: SSH
+  reference: true
+  forbids: ['(?i)xmlenc|xmldsig|xmlsec|w3\.org/']
