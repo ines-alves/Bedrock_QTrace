@@ -11,6 +11,8 @@ from typing import Iterable, Mapping
 from quantumtrace.engine.classify import ClassifiedNode
 from quantumtrace.models import CryptoAsset, Finding, KindHint, Location, SourceType, Threat, Tier
 
+# Path-based sources whose scanners mark files under test/example/mock paths (in_test_code).
+PATH_SOURCES = frozenset({SourceType.CODE, SourceType.CONFIG, SourceType.KEYFILE, SourceType.BINARY})
 _PRECEDENCE = {Tier.SAFE: 0, Tier.UNKNOWN: 1, Tier.MEDIUM: 2, Tier.CRITICAL: 3}
 
 
@@ -149,12 +151,12 @@ def _project(asset_id: str, rows: tuple[ClassifiedNode, ...]) -> CryptoAsset:
     asset.finding_ids = sorted({row.node.normalized.finding.id for row in rows})
     states = {row.node.normalized.finding.negotiated for row in rows}
     asset.negotiated = True if True in states else (False if states == {False} else None)
-    code = [
+    located = [
         row.node.normalized.finding
         for row in rows
-        if row.node.normalized.finding.location.source_type == SourceType.CODE
+        if row.node.normalized.finding.location.source_type in PATH_SOURCES
     ]
-    asset.in_test_code_only = bool(code) and all(finding.in_test_code for finding in code)
+    asset.in_test_code_only = bool(located) and all(finding.in_test_code for finding in located)
     asset.component_of = []
     asset.components = []
     return asset

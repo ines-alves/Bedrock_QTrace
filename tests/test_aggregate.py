@@ -197,6 +197,13 @@ def test_mixed_evidence_preserves_source_state_and_confidence(kb):
     production = code.model_copy(update={"id": "prod", "in_test_code": False})
     assert aggregate([classified(kb, code), classified(kb, production)]).assets[0].in_test_code_only is False
     assert aggregate([classified(kb, offered)]).assets[0].in_test_code_only is False
+    keyfile = code.model_copy(
+        update={"id": "key", "location": Location(source_type=SourceType.KEYFILE, file="tests/certs/a.pem")}
+    )
+    assert aggregate([classified(kb, keyfile)]).assets[0].in_test_code_only is True
+    assert (
+        aggregate([classified(kb, keyfile), classified(kb, production)]).assets[0].in_test_code_only is False
+    )
 
 
 @pytest.mark.parametrize(

@@ -316,8 +316,9 @@ come from validated scoring.yaml. The maximum uses the configured CRITICAL weigh
 and broken multiplier. Transit includes PCAP/live/SSH; explicit `False` gets the
 offered weight, while missing negotiation gets production weight. Missing or
 unrecognized KMS state likewise gets production weight; only Enabled, Disabled
-and PendingDeletion select their stated categories. Test exposure applies only
-to code observations. Public listener exposure applies to its component evidence
+and PendingDeletion select their stated categories. Test exposure applies to
+path-based observations (code, config, key files, binaries) marked in_test_code, and
+`in_test_code_only` is computed over the same sources. Public listener exposure applies to its component evidence
 as well as the unscored policy container; public policy configuration cannot
 activate a negotiated floor. These categories replace the fallback production
 weight; production is not always included in a maximum that would erase discounts.

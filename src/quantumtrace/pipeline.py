@@ -16,7 +16,7 @@ from quantumtrace.engine.roadmap import build_roadmap
 from quantumtrace.engine.score import score
 from quantumtrace.engine.sessions import build_sessions
 from quantumtrace.kb.loader import load_kb
-from quantumtrace.models import Finding, ScanError, ScanOptions, ScanResult
+from quantumtrace.models import Finding, ScanError, ScanOptions, ScanResult, SourceType
 from quantumtrace.scanners.base import Scanner, select_scanners
 
 # Owner detection modules self-register; absent deliveries are not replaced by M1 scanners.
@@ -190,6 +190,33 @@ def skipped_files(inputs: list[str | Path], options: ScanOptions | None = None) 
     return [_display(path) for path in _plan(inputs, settings, scanners, [])[1]]
 
 
+def _probe(targets: list[str], findings: list[Finding], errors: list[ScanError]) -> None:
+    """Call the optional live probe adapter (M1M2-05) only for explicit targets; keep partial results."""
+    try:
+        adapter = importlib.import_module("quantumtrace.scanners.network.probe")
+        probe_endpoints = adapter.probe_endpoints
+    except (ImportError, AttributeError) as exc:
+        errors.extend(
+            ScanError(
+                detector="pipeline.probe",
+                path=target,
+                message=f"requested probe adapter is unavailable: {exc}",
+            )
+            for target in targets
+        )
+        return
+    try:
+        for item in probe_endpoints(targets):
+            if isinstance(item, Finding) and item.location.source_type == SourceType.LIVE:
+                findings.append(item)
+            elif isinstance(item, ScanError):
+                errors.append(item)
+            else:
+                errors.append(ScanError(detector="pipeline.probe", message="invalid probe result"))
+    except Exception as exc:
+        errors.append(ScanError(detector="pipeline.probe", message=f"probe: {type(exc).__name__}: {exc}"))
+
+
 def run(
     inputs: list[str | Path], probes: list[str] | None = None, options: ScanOptions | None = None
 ) -> ScanResult:
@@ -236,12 +263,8 @@ def _run(
                     detector=scanner.name, path=_display(path), message=f"scan: {type(exc).__name__}: {exc}"
                 )
             )
-    for target in sorted(set(probes or [])):
-        errors.append(
-            ScanError(
-                detector="pipeline.probe", path=target, message="requested probe adapter is unavailable"
-            )
-        )
+    if probes:
+        _probe(sorted(set(probes)), findings, errors)
     # Keep distinct metadata emissions even when scanner IDs coincide; repeated identical rows are idempotent.
     findings = sorted(
         {_dump(item.model_dump(mode="json")): item for item in findings}.values(),

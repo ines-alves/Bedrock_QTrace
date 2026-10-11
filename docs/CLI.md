@@ -45,10 +45,25 @@ skipped); the capture itself produces 97 TLS and 24 SSH
 sessions plus 14 plaintext flows. The starter capture contains no TLS Certificate messages, so
 unobservable authentication is retained rather than guessed.
 
-Repeat `--probe host:port` to request explicit probes; bracket IPv6 addresses,
-for example `--probe '[::1]:443'`. The optional M2 probe adapter is not delivered:
-requests appear as coverage errors and exit 2. Ordinary scans initiate no probes.
-SARIF output is not provided by this CLI.
+Repeat `--probe host:port` to probe live TLS endpoints; bracket IPv6 addresses,
+for example `--probe '[::1]:443'`. Paths are optional with `--probe`
+(`qtrace scan --probe example.org:443`); a scan with neither paths nor probes
+exits 2. Targets are a DNS name, IPv4 address or bracketed IPv6 address with a
+port; URLs and address ranges are rejected. Ordinary scans open no connection.
+
+Each endpoint gets up to two handshakes through the local `openssl s_client`
+(10 seconds each): the OpenSSL default offer, then a TLS 1.3 offer of only
+X25519MLKEM768 unless the default handshake already selected a hybrid group. The
+report keeps what the server selected (version, cipher suite, group, handshake
+signature scheme) and the leaf certificate key and signature; the probe's own
+client offer is not reported. Each handshake is its own session. A server that
+refuses the hybrid-only offer is recorded on the default session
+(`extra.hybrid_attempt`), not as an error; the forced offer says nothing about
+the server's default preference. Certificate trust is recorded separately
+(`extra.verify_result`); the sent chain is not treated as verified. Unreachable
+endpoints, timeouts and a missing `openssl` executable or hybrid group are
+coverage errors (exit 2); other endpoints are still reported. Hybrid probing
+needs OpenSSL 3.5 or later. SARIF output is not provided by this CLI.
 
 ## CI use
 
