@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import { useScanResult } from '../api/useScanResult'
+import Cta from '../components/Cta'
+import PageHeader from '../components/PageHeader'
 import { PHASES, buildRoadmap, plural } from './roadmap/model'
 
 export default function Roadmap() {
@@ -12,31 +14,32 @@ export default function Roadmap() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="mb-1 font-head text-2xl">Roadmap</h1>
-        <p className="font-sub italic text-paper/60">
-          {data.roadmap.length} actions in four phases. Phases order the work; they are not regulatory deadlines.
-        </p>
-      </header>
+      <PageHeader
+        title={`${data.roadmap.length} actions, ${phases[0].length} to fix first.`}
+        lead="Ordered by urgency. The dates are planning targets, not deadlines."
+      >
+        <Cta primary href="/api/report.md" download="quantumtrace-report.md">Download the report</Cta>
+        <Cta href="/api/cbom" download="quantumtrace-cbom.json">Download the CBOM</Cta>
+      </PageHeader>
       {phases.map((entries, phase) => (
-        <section key={phase} className="bg-panel p-4">
-          <h2 className="mb-3 text-[10px] uppercase tracking-widest text-paper/60">
-            Phase {phase}: {PHASES[phase]} ({entries.length} actions)
+        <section key={phase} className="glass p-5">
+          <h2 className="mb-3 font-head text-xl font-semibold">
+            {PHASES[phase]} ({entries.length})
           </h2>
-          {entries.length === 0 && <p className="text-xs text-paper/40">No actions in this phase.</p>}
-          <ul className="space-y-3 text-xs">
+          {entries.length === 0 && <p className="text-base text-paper/50">No actions in this phase.</p>}
+          <ul className="space-y-1 text-lg">
             {entries.map(({ item, assets, standards }) => (
-              <li key={item.action} className="border-b border-paper/5 pb-3">
+              <li key={item.action} className="border-b border-paper/10 py-4">
                 <div className="flex flex-wrap items-baseline gap-x-3">
                   <span className="font-medium">{item.action}</span>
                   {standards.map((s) => (
-                    <span key={s} className="border border-aqua px-2 py-0.5 text-[10px] uppercase tracking-widest text-aqua">{s}</span>
+                    <span key={s} className="rounded-full border border-aqua px-3 py-1 text-sm font-medium text-aqua">{s}</span>
                   ))}
-                  <span className="text-paper/50">{plural(item.occurrence_count, 'occurrence')}, {plural(assets.length, 'asset')}</span>
+                  <span className="text-base text-paper/60">{plural(item.occurrence_count, 'occurrence')}, {plural(assets.length, 'asset')}</span>
                 </div>
                 <details className="mt-1">
-                  <summary className="cursor-pointer text-paper/50">Affected assets</summary>
-                  <ul className="mt-1 space-y-0.5 text-paper/70">
+                  <summary className="cursor-pointer text-base text-paper/60">Affected assets</summary>
+                  <ul className="mt-2 space-y-1 text-base text-paper/70">
                     {assets.map((a) => <li key={a.asset_id}>{a.canonical_name}</li>)}
                   </ul>
                 </details>

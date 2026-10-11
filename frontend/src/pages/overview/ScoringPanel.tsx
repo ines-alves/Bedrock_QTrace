@@ -1,37 +1,17 @@
 import { useEffect, useState } from 'react'
 
-// /api/scoring returns an untyped dict, so the shape of kb/scoring.yaml is typed here.
+// /api/scoring returns an untyped dict, so the part of kb/scoring.yaml used here is typed in this file.
 type Policy = {
   tier_weights: Record<string, number>
-  exposure: Record<string, number>
+  exposure: { negotiated_key_exchange: number; test_only: number }
   broken_multiplier: number
-  occurrence: { cap: number; log_divisor: number }
   grade_bands: { grade: string; minimum: number; maximum: number }[]
-  hndl_floor: { score: number; condition: string }
-  aes_192_tier: string
+  hndl_floor: { score: number }
 }
 
-const words = (key: string) => key.replace(/_/g, ' ')
+const pill = 'rounded-full border px-3 py-1 text-sm'
 
-function Table({ title, rows }: { title: string; rows: [string, string | number][] }) {
-  return (
-    <div>
-      <h3 className="mb-1 text-[10px] uppercase tracking-widest text-paper/60">{title}</h3>
-      <table className="w-full text-xs">
-        <tbody>
-          {rows.map(([k, v]) => (
-            <tr key={k} className="border-b border-paper/5">
-              <td className="py-1 pr-4">{words(k)}</td>
-              <td className="py-1 text-right font-head">{v}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-export default function ScoringPanel() {
+export default function ScoringPanel({ grade }: { grade: string }) {
   const [policy, setPolicy] = useState<Policy>()
   const [error, setError] = useState<string>()
 
@@ -46,32 +26,39 @@ export default function ScoringPanel() {
   }, [])
 
   return (
-    <details className="bg-panel p-4">
-      <summary className="cursor-pointer font-head text-lg">How is the score calculated?</summary>
-      {error && <p className="mt-3 text-xs text-paper/60">Scoring data is unavailable: {error}</p>}
-      {!error && !policy && <p className="mt-3 text-xs text-paper/60">Loading scoring data</p>}
+    <details className="glass p-6">
+      <summary className="cursor-pointer font-head text-xl font-semibold">How is the score calculated?</summary>
+      {error && <p className="mt-4 text-paper/60">Scoring data is unavailable: {error}</p>}
+      {!error && !policy && <p className="mt-4 text-paper/60">Loading</p>}
       {policy && (
-        <div className="mt-3 space-y-4 text-xs text-paper/80">
-          <p className="font-sub text-sm italic">
-            Each scored asset earns risk points: tier weight, times the broken multiplier if it is classically broken,
-            times its highest exposure factor, times an occurrence factor of 1 + log2(1 + min(occurrences, cap)) / divisor,
-            times the evidence confidence. The score is 100 times the sum of risk points over the sum of the maximum
-            possible points, from 0 (best) to 100 (worst). If a harvest-now-decrypt-later exposed asset was negotiated,
-            the score is at least {policy.hndl_floor.score}.
-          </p>
-          <div className="grid gap-6 md:grid-cols-3">
-            <Table title="Tier weights" rows={Object.entries(policy.tier_weights)} />
-            <Table title="Exposure factors" rows={Object.entries(policy.exposure)} />
-            <Table title="Grade bands" rows={policy.grade_bands.map((b) => [b.grade, `${b.minimum} to ${b.maximum}`])} />
-            <Table title="Other" rows={[
-              ['broken multiplier', policy.broken_multiplier],
-              ['occurrence cap', policy.occurrence.cap],
-              ['occurrence divisor', policy.occurrence.log_divisor],
-              ['AES-192 tier', policy.aes_192_tier],
-              ['HNDL floor condition', words(policy.hndl_floor.condition)],
-            ]} />
-          </div>
-        </div>
+        <ol className="mt-5 space-y-6 text-lg">
+          <li>
+            <p className="font-head font-semibold">1. Every asset earns points by tier</p>
+            <p className="mt-2 flex flex-wrap gap-2">
+              {Object.entries(policy.tier_weights).map(([tier, points]) => (
+                <span key={tier} className={`${pill} border-paper/25`}>{tier.toLowerCase()} {points}</span>
+              ))}
+            </p>
+          </li>
+          <li>
+            <p className="font-head font-semibold">2. Danger multiplies the points</p>
+            <p className="mt-2 text-paper/70">
+              x{policy.broken_multiplier} if it is already broken today. Up to x{policy.exposure.negotiated_key_exchange} if it
+              protects a live key exchange or a public load balancer. x{policy.exposure.test_only} if it only appears in tests.
+            </p>
+          </li>
+          <li>
+            <p className="font-head font-semibold">3. The score is the share of the worst case</p>
+            <p className="mt-2 text-paper/70">From 0 (best) to 100 (worst). A live key exchange exposed to harvest now, decrypt later never scores below {policy.hndl_floor.score}.</p>
+            <p className="mt-3 flex flex-wrap gap-2">
+              {policy.grade_bands.map((b) => (
+                <span key={b.grade} className={`${pill} ${b.grade === grade ? 'border-aqua bg-aqua text-ink' : 'border-paper/25'}`}>
+                  {b.grade} {b.minimum} to {b.maximum}
+                </span>
+              ))}
+            </p>
+          </li>
+        </ol>
       )}
     </details>
   )

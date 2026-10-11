@@ -1,7 +1,7 @@
 import TierBadge from '../../components/TierBadge'
 import { languageOf, provenance, type FileGroup as Group, type Row } from './model'
 
-const tag = 'px-2 py-0.5 text-[10px] uppercase tracking-widest'
+const tag = 'rounded-full px-2.5 py-0.5 text-xs'
 
 function Badge({ row }: { row: Row }) {
   if (row.kind === 'warning') return <span className={`${tag} border border-aqua text-aqua`}>Warning</span>
@@ -25,7 +25,7 @@ function RowView({ row }: { row: Row }) {
   const notes = provenance(f)
   const rec = row.recommendation
   return (
-    <li className="grid grid-cols-[3.5rem_7rem_1fr] gap-x-3 border-b border-paper/5 px-3 py-3 text-xs">
+    <li className="grid grid-cols-[3.5rem_7rem_1fr] gap-x-3 border-b border-paper/10 px-4 py-4 text-sm">
       <span className="text-paper/50">L{f.location.line ?? '?'}</span>
       <span><Badge row={row} /></span>
       <div className="min-w-0">
@@ -43,7 +43,7 @@ function RowView({ row }: { row: Row }) {
           ))}
         </div>
         {f.location.snippet && (
-          <pre className="mt-2 overflow-x-auto bg-panel px-3 py-2 text-paper/80">{f.location.snippet}</pre>
+          <pre className="mt-2 overflow-x-auto rounded-xl bg-ink/60 px-3 py-2 text-paper/80">{f.location.snippet}</pre>
         )}
         {notes.length > 0 && <p className="mt-1 text-paper/40">{notes.join(' · ')}</p>}
         {rec && (
@@ -60,8 +60,8 @@ function RowView({ row }: { row: Row }) {
 
 export default function FileGroup({ group }: { group: Group }) {
   return (
-    <details open className="mb-4 border border-paper/10">
-      <summary className="flex cursor-pointer items-center gap-3 bg-panel px-3 py-2 text-xs">
+    <details open className="glass mb-4 overflow-hidden">
+      <summary className="flex cursor-pointer items-center gap-3 bg-paper/5 px-4 py-3 text-sm">
         {group.worstTier && <TierBadge tier={group.worstTier} />}
         <span className="font-medium">{group.file}</span>
         <span className="text-paper/40">{group.rows.length} rows</span>

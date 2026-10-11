@@ -40,6 +40,32 @@ def _current() -> ScanResult:
     return ScanResult.model_validate_json((REPORT if REPORT.exists() else SAMPLE).read_text())
 
 
+class Entry(BaseModel):
+    name: str
+    path: str
+    is_dir: bool
+
+
+class Listing(BaseModel):
+    """One folder for the scan picker; path and parent are usable as /api/scan inputs."""
+
+    path: str
+    parent: str | None
+    entries: list[Entry]
+    truncated: bool
+
+
+MAX_ENTRIES = 300
+_NOT_SCANNABLE = {"node_modules", "__pycache__", "out", "dist"}
+
+
+def _shown(path: Path) -> str:
+    """Repo-relative spelling ('' for the repo root) so the same string works as a scan input."""
+    if not path.is_relative_to(ROOT):
+        return path.as_posix()
+    return "" if path == ROOT else path.relative_to(ROOT).as_posix()
+
+
 def _outside_scan_roots(path: Path) -> bool:
     """True when QTRACE_SCAN_ROOTS (os.pathsep separated, set in the Docker image) does not cover path."""
     roots = os.environ.get("QTRACE_SCAN_ROOTS")
@@ -62,6 +88,12 @@ def result() -> ScanResult:
     return _current()
 
 
+@app.get("/api/source")
+def source() -> dict[str, str]:
+    """Whether /api/result is a scan run here or the bundled sample."""
+    return {"source": "scan" if REPORT.exists() else "sample"}
+
+
 @app.post("/api/scan", response_model=ScanResult)
 def scan(request: ScanRequest) -> ScanResult:
     """Scan server-side paths, store the result as out/report.json and return it."""
@@ -79,6 +111,43 @@ def scan(request: ScanRequest) -> ScanResult:
     REPORT.parent.mkdir(exist_ok=True)
     REPORT.write_text(scanned.model_dump_json())
     return scanned
+
+
+@app.get("/api/browse", response_model=Listing)
+def browse(path: str = "") -> Listing:
+    """List a folder so the UI can offer buttons instead of typed paths; follows the scan roots of /api/scan."""
+    target = (ROOT / path).resolve()
+    roots = os.environ.get("QTRACE_SCAN_ROOTS")
+    if roots and not path:
+        children = [Path(root) for root in roots.split(os.pathsep) if Path(root).is_dir()]
+        parent = None
+    else:
+        if _outside_scan_roots(target):
+            raise HTTPException(status_code=400, detail=f"path outside the allowed scan roots: {path}")
+        if not target.is_dir():
+            raise HTTPException(status_code=400, detail=f"not a folder: {path}")
+        children = [
+            child
+            for child in target.iterdir()
+            if not child.name.startswith(".")
+            and child.name not in _NOT_SCANNABLE
+            and not child.name.lower().startswith("readme")
+        ]
+        parent = (
+            None
+            if target == ROOT
+            else ""
+            if roots and _outside_scan_roots(target.parent)
+            else _shown(target.parent)
+        )
+    children.sort(key=lambda child: (not child.is_dir(), child.name.lower()))
+    entries = [Entry(name=child.name, path=_shown(child), is_dir=child.is_dir()) for child in children]
+    return Listing(
+        path=_shown(target) if path else "",
+        parent=parent,
+        entries=entries[:MAX_ENTRIES],
+        truncated=len(entries) > MAX_ENTRIES,
+    )
 
 
 @app.get("/api/cbom")

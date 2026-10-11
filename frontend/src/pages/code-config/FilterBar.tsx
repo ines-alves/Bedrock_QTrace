@@ -14,13 +14,13 @@ function toggle<T>(set: Set<T>, value: T): Set<T> {
 }
 
 const chip = (on: boolean) =>
-  `cursor-pointer select-none border px-2 py-1 text-[10px] uppercase tracking-widest ${
+  `cursor-pointer select-none rounded-full border px-3 py-1 text-xs ${
     on ? 'border-aqua text-aqua' : 'border-paper/20 text-paper/40'
   }`
 
 export default function FilterBar({ languages, filters, onChange }: Props) {
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-xs">
+    <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
       <div className="flex items-center gap-2">
         <span className="text-paper/50">Language</span>
         {languages.map((l) => (

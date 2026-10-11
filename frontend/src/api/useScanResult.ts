@@ -1,18 +1,69 @@
-import { useEffect, useState } from 'react'
+import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { components } from './schema'
 
 export type ScanResult = components['schemas']['ScanResult']
+type Source = 'sample' | 'scan'
 
-export function useScanResult() {
+type Scan = {
+  data?: ScanResult
+  error?: string
+  source?: Source
+  busy: boolean
+  message?: string
+  scan: (paths: string[]) => Promise<void>
+}
+
+const getJson = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+
+const ScanContext = createContext<Scan | undefined>(undefined)
+
+// One shared result for every page: a scan started anywhere updates all of them at once.
+export function ScanProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<ScanResult>()
+  const [source, setSource] = useState<Source>()
   const [error, setError] = useState<string>()
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<string>()
 
   useEffect(() => {
-    fetch('/api/result')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then(setData)
+    Promise.all([getJson('/api/result'), getJson('/api/source')])
+      .then(([result, src]) => {
+        setData(result)
+        setSource(src.source)
+      })
       .catch((e: Error) => setError(e.message))
   }, [])
 
+  const scan = useCallback(async (paths: string[]) => {
+    setBusy(true)
+    setMessage(undefined)
+    try {
+      const r = await fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ paths }),
+      })
+      const body = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(body.detail ?? `HTTP ${r.status}`)
+      setData(body)
+      setSource('scan')
+    } catch (e) {
+      setMessage(`Scan failed: ${(e as Error).message}`)
+    } finally {
+      setBusy(false)
+    }
+  }, [])
+
+  return createElement(ScanContext.Provider, { value: { data, error, source, busy, message, scan } }, children)
+}
+
+export function useScan(): Scan {
+  const value = useContext(ScanContext)
+  if (!value) throw new Error('useScan needs a ScanProvider')
+  return value
+}
+
+export function useScanResult() {
+  const { data, error } = useScan()
   return { data, error }
 }

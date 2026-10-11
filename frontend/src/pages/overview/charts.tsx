@@ -68,7 +68,7 @@ export function TierDonut({ counts }: { counts: Record<string, number> }) {
         {TIERS.map((t) => (
           <li key={t} className="flex items-center gap-2">
             <span className="inline-block h-2.5 w-2.5" style={{ background: TIER_COLOR[t] }} />
-            <span className="w-20 uppercase tracking-widest text-paper/60">{t}</span>
+            <span className="w-20 text-paper/70">{t}</span>
             <span className="font-head text-base">{counts[t] ?? 0}</span>
           </li>
         ))}
@@ -89,8 +89,8 @@ export function SourceBars({ bySource, scores }: { bySource: Record<string, Reco
     <div className="space-y-2 text-xs">
       {rows.map((r) => (
         <div key={r.source} className="flex items-center gap-3">
-          <span className="w-24 shrink-0 uppercase tracking-widest text-paper/60">{r.source}</span>
-          <div className="flex h-5 gap-px" style={{ width: `${(100 * r.total) / widest}%` }}>
+          <span className="w-24 shrink-0 text-paper/70">{r.source}</span>
+          <div className="flex h-5 gap-px overflow-hidden rounded-full" style={{ width: `${(100 * r.total) / widest}%` }}>
             {TIERS.filter((t) => (r.counts[t] ?? 0) > 0).map((t) => (
               <div key={t} title={`${t}: ${r.counts[t]}`} className="overflow-hidden text-center text-[10px] leading-5 text-ink"
                 style={{ flexGrow: r.counts[t], background: TIER_COLOR[t] }}>
