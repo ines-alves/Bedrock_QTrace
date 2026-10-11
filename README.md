@@ -7,6 +7,14 @@ CycloneDX CBOM, a JSON report and a Markdown summary. A React dashboard shows th
 
 ## Quick start (Docker)
 
+One command builds the image and serves the dashboard (needs only Docker):
+
+```bash
+scripts/demo.sh --docker
+```
+
+Or step by step:
+
 ```bash
 docker build -t quantumtrace .
 docker run --rm -p 8000:8000 quantumtrace
@@ -42,6 +50,25 @@ make ui                           # Vite on :5173, proxies /api to :8000
 ```
 
 `tshark` improves network capture parsing. Without it the scanner falls back to a pure Python parser.
+
+`scripts/demo.sh` is the deterministic demo run on the starter kit. It scans the three folders, validates the CBOM
+and writes `out/report.json`, `out/cbom.json` and `out/summary.md`:
+
+```bash
+scripts/demo.sh            # scan, validate the CBOM, print the summary (local .venv)
+scripts/demo.sh --serve    # then start the API and dashboard on http://127.0.0.1:8000
+scripts/demo.sh --docker   # build the image and serve the dashboard from Docker
+```
+
+`qtrace scan --probe host:port` (repeatable) also checks a live TLS endpoint for hybrid post-quantum key exchange.
+
+## Known limits
+
+- The code scanner covers Python, Java and Go. JavaScript and TypeScript, compiled binaries and lock files are not scanned.
+- Algorithms chosen in another method or file are reported as unresolved, not guessed.
+- The starter kit is synthetic. Accuracy is measured against its labelled answer key; outside it only coverage is measured.
+- Repository scans have size and file caps but no timeout, and private GitHub repositories are not supported.
+- The Docker image runs as root, installs from `pyproject.toml` (not `uv.lock`) and writes report files with mode 0600.
 
 ## How it fits together
 
