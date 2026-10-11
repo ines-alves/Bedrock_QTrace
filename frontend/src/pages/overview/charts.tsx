@@ -48,8 +48,8 @@ export function TierDonut({ counts }: { counts: Record<string, number> }) {
   }))
 
   return (
-    <div className="flex items-center gap-6">
-      <svg viewBox="0 0 42 42" role="img" aria-label="Scored assets by tier" className="w-40 shrink-0">
+    <div className="flex items-center justify-center gap-8">
+      <svg viewBox="0 0 42 42" role="img" aria-label="Scored assets by tier" className="w-56 shrink-0">
         <defs>
           <pattern id="unknown-hatch" width="2" height="2" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <line x1="0" y1="0" x2="0" y2="2" stroke={TIER_COLOR.UNKNOWN} strokeWidth="1" />

@@ -4,18 +4,25 @@ import os
 import shutil
 import tempfile
 from collections.abc import Callable
+from datetime import datetime
+from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api import archive
-from quantumtrace.kb.loader import KnowledgeBaseError, load_scoring
-from quantumtrace.models import ScanResult
+from quantumtrace.engine import classify_findings
+from quantumtrace.engine.aggregate import aggregate
+from quantumtrace.engine.roadmap import build_roadmap
+from quantumtrace.engine.score import score
+from quantumtrace.engine.sessions import build_sessions
+from quantumtrace.kb.loader import KnowledgeBaseError, load_kb, load_scoring
+from quantumtrace.models import ScanOptions, ScanResult
 from quantumtrace.output.cyclonedx import build_cbom, redact_result, validate_cbom
 from quantumtrace.output.markdown import render_markdown_summary
 
@@ -28,6 +35,13 @@ SAMPLE = ROOT / "tests" / "fixtures" / "scan_result_sample.json"
 DIST = ROOT / "frontend" / "dist"
 UPLOADS = ROOT / "out" / "uploads"
 
+# What the Code, Cloud and Network boxes stand for: the scanners that look for that kind of evidence.
+SCAN_TYPES: dict[str, tuple[str, ...]] = {
+    "code": ("code.regex", "code.manifest", "config.keyfile", "config.webserver"),
+    "cloud": ("cloud.kms", "cloud.loadbalancer", "cloud.acm"),
+    "network": ("pcap",),
+}
+
 app = FastAPI(title="QuantumTrace")
 
 
@@ -35,6 +49,30 @@ class ScanRequest(BaseModel):
     """Inputs to scan, relative to the repository root or absolute."""
 
     paths: list[str] = Field(min_length=1)
+    types: list[str] | None = None
+
+
+def _options(types: list[str] | None) -> ScanOptions | None:
+    """Scanner selection for the chosen types; None (every scanner) when no type was named or all were."""
+    if types is None:
+        return None
+    unknown = sorted(set(types) - set(SCAN_TYPES))
+    if unknown:
+        raise HTTPException(
+            status_code=400,
+            detail=f"unknown scan type: {', '.join(unknown)}. Choose from code, cloud, network.",
+        )
+    if not types:
+        raise HTTPException(status_code=400, detail="Pick at least one of code, cloud and network.")
+    if set(types) == set(SCAN_TYPES):
+        return None
+    return ScanOptions(scanner_names=sorted({name for kind in set(types) for name in SCAN_TYPES[kind]}))
+
+
+def _runner(run: Callable[..., ScanResult], types: list[str] | None) -> Callable[..., ScanResult]:
+    """The pipeline entry point with the chosen scanner selection applied."""
+    options = _options(types)
+    return run if options is None else partial(run, options=options)
 
 
 class Validation(BaseModel):
@@ -95,9 +133,36 @@ def _pipeline_run() -> Callable[..., ScanResult]:
     return run
 
 
+def _without_test_code(full: ScanResult) -> ScanResult:
+    """The same scan with every test-code finding left out and the engine run again on what remains.
+
+    Assets, score, tier counts, roadmap and sessions all come from the engine's own functions, so the
+    numbers are exactly what a scan of the non-test evidence would give. Nothing is scored here.
+    """
+    findings = [finding for finding in full.findings if not finding.in_test_code]
+    if len(findings) == len(full.findings):
+        return full
+    knowledge = load_kb()
+    roots = classify_findings(findings, knowledge, datetime.fromisoformat(full.started_at))
+    evidence = aggregate(roots)
+    assets, summary = score(evidence, knowledge.scoring)
+    sessions, _ = build_sessions(findings, roots)
+    return full.model_copy(
+        update={
+            "findings": findings,
+            "assets": assets,
+            "sessions": sessions,
+            "summary": summary,
+            "roadmap": build_roadmap(evidence),
+        }
+    )
+
+
 @app.get("/api/result", response_model=ScanResult)
-def result() -> ScanResult:
-    return _current()
+def result(include_tests: bool = True) -> ScanResult:
+    """The stored scan. `include_tests=false` drops test-code findings and scores what remains."""
+    current = _current()
+    return current if include_tests else _without_test_code(current)
 
 
 @app.get("/api/source")
@@ -127,11 +192,16 @@ def scan(request: ScanRequest) -> ScanResult:
     missing = [item for item, path in zip(request.paths, paths, strict=True) if not path.exists()]
     if missing:
         raise HTTPException(status_code=400, detail=f"paths not found: {', '.join(missing)}")
-    return _store(run(paths))
+    return _store(_runner(run, request.types)(paths))
 
 
 class GithubRequest(BaseModel):
     url: str
+    types: list[str] | None = None
+
+
+class StarterKitRequest(BaseModel):
+    types: list[str] | None = None
 
 
 @app.delete("/api/scan")
@@ -143,15 +213,15 @@ def clear_scan() -> dict[str, str]:
 
 
 @app.post("/api/scan/starter-kit", response_model=ScanResult)
-def scan_starter_kit() -> ScanResult:
+def scan_starter_kit(request: StarterKitRequest | None = None) -> ScanResult:
     """Scan the whole starter kit that ships with the app, exactly like any other folders."""
-    return scan(ScanRequest(paths=list(STARTER_KIT)))
+    return scan(ScanRequest(paths=list(STARTER_KIT), types=request.types if request else None))
 
 
 @app.post("/api/scan/upload", response_model=ScanResult)
-def scan_upload(file: UploadFile) -> ScanResult:
-    """Scan a zipped repository sent from the browser."""
-    run = _pipeline_run()
+def scan_upload(file: UploadFile, types: Annotated[str | None, Form()] = None) -> ScanResult:
+    """Scan a zipped repository sent from the browser; `types` is a comma separated list such as code,cloud."""
+    run = _runner(_pipeline_run(), None if types is None else [t for t in types.split(",") if t])
     with tempfile.TemporaryDirectory() as folder:
         zipped = Path(folder) / "upload.zip"
         written = 0
@@ -168,7 +238,7 @@ def scan_upload(file: UploadFile) -> ScanResult:
 @app.post("/api/scan/github", response_model=ScanResult)
 def scan_github(request: GithubRequest) -> ScanResult:
     """Download a public GitHub repository as a zip and scan it."""
-    run = _pipeline_run()
+    run = _runner(_pipeline_run(), request.types)
     url, label = archive.github_zip_url(request.url)
     with tempfile.TemporaryDirectory() as folder:
         zipped = Path(folder) / "repository.zip"

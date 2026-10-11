@@ -187,3 +187,38 @@ def test_clear_scan_forgets_the_report_and_leaves_the_dashboard_empty(
         main.result()
     assert error.value.status_code == 404
     assert main.clear_scan() == {"source": "none"}  # clearing twice is harmless
+
+
+def test_upload_takes_the_same_types(sample: ScanResult, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    seen: list[object] = []
+    module = types.ModuleType("quantumtrace.pipeline")
+
+    def run(inputs, probes=None, options=None):
+        seen.append(None if options is None else options.scanner_names)
+        return sample
+
+    module.run = run  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "quantumtrace.pipeline", module)
+    data = tmp_path / "r.zip"
+    _zip(data, {"repo-main/app.py": "import hashlib"})
+    main.scan_upload(UploadFile(file=io.BytesIO(data.read_bytes()), filename="r.zip"), "code")
+    main.scan_upload(UploadFile(file=io.BytesIO(data.read_bytes()), filename="r.zip"))
+    assert seen == [["code.manifest", "code.regex", "config.keyfile", "config.webserver"], None]
+    with pytest.raises(HTTPException) as error:
+        main.scan_upload(UploadFile(file=io.BytesIO(data.read_bytes()), filename="r.zip"), "cloud,nope")
+    assert error.value.status_code == 400
+
+
+def test_github_scan_takes_types(sample: ScanResult, monkeypatch: pytest.MonkeyPatch):
+    seen: list[object] = []
+    module = types.ModuleType("quantumtrace.pipeline")
+
+    def run(inputs, probes=None, options=None):
+        seen.append(None if options is None else options.scanner_names)
+        return sample
+
+    module.run = run  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "quantumtrace.pipeline", module)
+    monkeypatch.setattr(archive, "download", lambda url, path: _zip(path, {"r-main/app.py": "x"}))
+    main.scan_github(main.GithubRequest(url="https://github.com/owner/repo", types=["network"]))
+    assert seen == [["pcap"]]

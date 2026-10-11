@@ -1,13 +1,13 @@
-import { useState } from 'react'
 import type { components } from '../api/schema'
 import { useScanResult } from '../api/useScanResult'
 import { algorithmName } from '../components/algorithmName'
 import Cta from '../components/Cta'
 import PageHeader from '../components/PageHeader'
 import SortableTable, { type Column } from '../components/SortableTable'
+import TestCodeSwitch from '../components/TestCodeSwitch'
 import TierBadge from '../components/TierBadge'
 import { ScoreGauge, SourceBars, TierDonut } from './overview/charts'
-import { testCodeShare, testOnlyIds, topRisks, type Row } from './overview/model'
+import { testCodeShare, testOnlyIds, type Row } from './overview/model'
 import ScoringPanel from './overview/ScoringPanel'
 
 type Asset = components['schemas']['CryptoAsset']
@@ -39,18 +39,16 @@ const columns: Column<Row>[] = [
 const heading = 'mb-3 font-head text-xl font-semibold'
 
 export default function Overview() {
-  const { data: result, error } = useScanResult()
-  // Test code is hidden from the ranked list until asked for.
-  const [includeTests, setIncludeTests] = useState(false)
+  const { data: result, error, includeTests, testCode } = useScanResult()
 
   if (error) return <p>Failed to load scan: {error}</p>
   if (!result) return <p className="text-paper/50">Loading</p>
 
   const { summary, assets } = result
   const errors = result.errors ?? []
-  const testOnly = testOnlyIds(assets, result.findings)
-  const top = topRisks(summary.top_risks, assets, testOnly, includeTests, TOP)
-  const tests = testCodeShare(assets, testOnly)
+  const byId = new Map(assets.map((a) => [a.asset_id, a]))
+  const top: Row[] = summary.top_risks.slice(0, TOP).map((id, i) => ({ rank: i + 1, id, asset: byId.get(id) }))
+  const tests = testCodeShare(assets, testOnlyIds(assets, result.findings))
 
   return (
     <div className="space-y-8">
@@ -60,15 +58,8 @@ export default function Overview() {
       >
         <Cta primary to="/roadmap">See the migration plan</Cta>
         <Cta href="/api/cbom" download="quantumtrace-cbom.json">Download the CBOM</Cta>
+        <TestCodeSwitch />
       </PageHeader>
-      {tests.count > 0 && (
-        <p className="text-sm text-paper/60">
-          The score, tier counts and readiness are the engine's totals over every scored asset. They include
-          {` ${tests.count} test-code-only ${tests.count === 1 ? 'asset' : 'assets'}`}
-          {` (${(['CRITICAL', 'MEDIUM', 'UNKNOWN', 'SAFE'] as const).filter((t) => tests.byTier[t]).map((t) => `${tests.byTier[t]} ${t.toLowerCase()}`).join(', ')})`}
-          {' '}and do not change with the test code toggle.
-        </p>
-      )}
       {errors.length > 0 && (
         <details className="text-sm text-paper/80">
           <summary className="cursor-pointer">{errors.length} scan errors</summary>
@@ -81,7 +72,11 @@ export default function Overview() {
       )}
 
       {assets.length === 0 ? (
-        <p className="text-paper/60">This scan found no cryptographic assets. Scan a folder with code, cloud files or a capture.</p>
+        <p className="text-paper/60">
+          {testCode.present && !includeTests
+            ? 'Every finding in this scan is in test code. Switch on Include test code above to see it.'
+            : 'This scan found no cryptographic assets. Scan a folder with code, cloud files or a capture.'}
+        </p>
       ) : (
         <>
           <section className="grid gap-4 lg:grid-cols-2">
@@ -94,6 +89,16 @@ export default function Overview() {
             <div className="glass p-6">
               <h2 className={heading}>Assets by tier</h2>
               <TierDonut counts={summary.counts_by_tier} />
+              {testCode.present && !includeTests && (
+                <p className="mt-4 text-center text-sm text-paper/60">
+                  {`Test code is left out: ${testCode.hiddenFindings} findings in ${testCode.hiddenAssets} scored assets are not counted. Switch on Include test code above to count them.`}
+                </p>
+              )}
+              {includeTests && tests.count > 0 && (
+                <p className="mt-4 text-center text-sm text-paper/60">
+                  {`${tests.count} of these ${tests.count === 1 ? 'asset is' : 'assets are'} test-code-only (${(['CRITICAL', 'MEDIUM', 'UNKNOWN', 'SAFE'] as const).filter((t) => tests.byTier[t]).map((t) => `${tests.byTier[t]} ${t.toLowerCase()}`).join(', ')}).`}
+                </p>
+              )}
             </div>
           </section>
 
@@ -103,23 +108,8 @@ export default function Overview() {
           </section>
 
           <section className="glass p-6">
-            <h2 className={heading}>The {top.rows.length} biggest risks</h2>
-            <div className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-paper/70">
-              <label className="flex cursor-pointer items-center gap-2">
-                <input type="checkbox" checked={includeTests} onChange={(e) => setIncludeTests(e.target.checked)} />
-                Include test code
-              </label>
-              <span role="status">
-                {includeTests
-                  ? `Showing ${top.rows.length} of ${top.ranked} ranked assets, test code included.`
-                  : `Showing ${top.rows.length} of ${top.ranked - top.hidden} ranked assets. ${top.hidden} test-code-only ${top.hidden === 1 ? 'asset is' : 'assets are'} hidden.`}
-              </span>
-            </div>
-            {top.rows.length === 0 ? (
-              <p className="text-paper/60">Every ranked asset is in test code. Include test code to list them.</p>
-            ) : (
-              <SortableTable rows={top.rows} columns={columns} />
-            )}
+            <h2 className={heading}>The {top.length} biggest risks</h2>
+            <SortableTable rows={top} columns={columns} />
             <div className="pt-4"><Cta to="/roadmap">Open the full roadmap</Cta></div>
           </section>
         </>

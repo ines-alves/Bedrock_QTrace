@@ -15,10 +15,10 @@ import {
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
 export default function CodeConfig() {
-  const { data, error } = useScanResult()
+  const { data, error, includeTests, setIncludeTests, testCode } = useScanResult()
   const rows = useMemo(() => (data ? buildRows(data) : []), [data])
   const languages = useMemo(() => allLanguages(rows), [rows])
-  // undefined until the user touches a filter: everything but test code is shown by default.
+  // undefined until the user touches a filter. Test code follows the switch shared by every page.
   const [override, setOverride] = useState<Filters>()
 
   if (error) return <p>Failed to load scan: {error}</p>
@@ -27,16 +27,14 @@ export default function CodeConfig() {
     return <p className="text-paper/50">No code or config findings in this scan.</p>
   }
 
-  const filters: Filters = override ?? {
-    languages: new Set(languages),
-    tiers: new Set(TIERS),
-    includeTestCode: false,
-    includeNonCrypto: true,
+  const filters: Filters = {
+    ...(override ?? { languages: new Set(languages), tiers: new Set(TIERS), includeNonCrypto: true }),
+    includeTestCode: includeTests,
   }
   const visible = applyFilters(rows, filters)
   const groups = groupByFile(visible)
   const s = summarize(visible)
-  const testTotal = rows.filter((r) => r.finding.in_test_code).length
+  const testTotal = includeTests ? s.testCode : testCode.hiddenFindings
 
   return (
     <>
@@ -44,9 +42,16 @@ export default function CodeConfig() {
       <p className="mb-8 max-w-3xl text-xl leading-relaxed text-paper/75">
         {plural(s.findings, 'finding', 'findings')} in {plural(s.files, 'file', 'files')}
         {` · ${s.byTier.CRITICAL} critical, ${s.byTier.MEDIUM} medium, ${s.byTier.UNKNOWN} unknown, ${s.byTier.SAFE} safe`}
-        {` · ${plural(s.warnings, 'warning', 'warnings')}, ${plural(s.libraries, 'library', 'libraries')}, ${filters.includeTestCode ? `${s.testCode} in test code` : `${testTotal} test-code findings hidden`}`}
+        {` · ${plural(s.warnings, 'warning', 'warnings')}, ${plural(s.libraries, 'library', 'libraries')}, ${includeTests ? `${testTotal} in test code` : `${testTotal} test-code findings hidden`}`}
       </p>
-      <FilterBar languages={languages} filters={filters} onChange={setOverride} />
+      <FilterBar
+        languages={languages}
+        filters={filters}
+        onChange={(next) => {
+          setOverride(next)
+          if (next.includeTestCode !== includeTests) setIncludeTests(next.includeTestCode)
+        }}
+      />
       {groups.length === 0 ? (
         <p className="text-paper/50">No findings match the current filters.</p>
       ) : (

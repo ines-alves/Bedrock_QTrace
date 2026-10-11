@@ -209,3 +209,87 @@ def test_browse_follows_the_configured_scan_roots(monkeypatch: pytest.MonkeyPatc
     with pytest.raises(HTTPException) as error:
         browse("network-capture")
     assert error.value.status_code == 400
+
+
+def _recording_pipeline(monkeypatch: pytest.MonkeyPatch, sample: ScanResult) -> list[object]:
+    """A stub pipeline that records the scanner selection each run was given."""
+    seen: list[object] = []
+    module = types.ModuleType("quantumtrace.pipeline")
+
+    def run(inputs: list[Path], probes=None, options=None) -> ScanResult:
+        seen.append(None if options is None else options.scanner_names)
+        return sample
+
+    module.run = run  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "quantumtrace.pipeline", module)
+    return seen
+
+
+def test_types_select_the_scanners_for_the_kit_and_for_folders(
+    monkeypatch: pytest.MonkeyPatch, sample: ScanResult
+):
+    seen = _recording_pipeline(monkeypatch, sample)
+    scan(ScanRequest(paths=["sample-repos"]))
+    scan(ScanRequest(paths=["sample-repos"], types=["code", "cloud", "network"]))
+    assert seen == [None, None]  # nothing named, or everything named: every scanner runs
+    main.scan_starter_kit(main.StarterKitRequest(types=["cloud"]))
+    scan(ScanRequest(paths=["sample-repos"], types=["network", "cloud"]))
+    assert seen[2] == ["cloud.acm", "cloud.kms", "cloud.loadbalancer"]
+    assert seen[3] == ["cloud.acm", "cloud.kms", "cloud.loadbalancer", "pcap"]
+    assert sorted(main.SCAN_TYPES["code"]) == [
+        "code.manifest",
+        "code.regex",
+        "config.keyfile",
+        "config.webserver",
+    ]
+
+
+def test_unknown_or_empty_types_are_refused_before_running(
+    monkeypatch: pytest.MonkeyPatch, sample: ScanResult
+):
+    seen = _recording_pipeline(monkeypatch, sample)
+    for bad, text in (([], "at least one"), (["binary"], "unknown scan type: binary")):
+        with pytest.raises(HTTPException) as error:
+            scan(ScanRequest(paths=["sample-repos"], types=bad))
+        assert error.value.status_code == 400 and text in error.value.detail
+    assert seen == [] and not main.REPORT.exists()
+
+
+def _with_test_code(sample: ScanResult) -> ScanResult:
+    """The sample with its Python and Go findings marked as test code."""
+    marked = sample.model_copy(deep=True)
+    for finding in marked.findings:
+        if finding.language in {"python", "go"}:
+            finding.in_test_code = True
+    return marked
+
+
+def test_result_without_test_code_is_scored_again_by_the_engine(sample: ScanResult):
+    from datetime import datetime
+
+    from quantumtrace.engine import analyze
+
+    marked = _with_test_code(sample)
+    kept = [f for f in marked.findings if not f.in_test_code]
+    assert 0 < len(kept) < len(marked.findings)
+    main.REPORT.parent.mkdir(exist_ok=True)
+    main.REPORT.write_text(marked.model_dump_json())
+
+    assert result().findings == marked.findings  # the default is the full scan
+    assert result(include_tests=True) == result()
+    cut = result(include_tests=False)
+    assert cut.findings == kept and not any(f.in_test_code for f in cut.findings)
+    assets, summary = analyze(kept, scan_started_at=datetime.fromisoformat(marked.started_at))
+    assert cut.assets == assets and cut.summary == summary
+    assert cut.scan_id == marked.scan_id and cut.inputs == marked.inputs
+    assert {fid for a in cut.assets for fid in a.finding_ids} <= {f.id for f in kept}
+    assert result(include_tests=False).roadmap == cut.roadmap
+    # The stored scan is untouched by asking for the other view.
+    assert result() == result(include_tests=True)
+
+
+def test_result_without_test_code_is_the_scan_itself_when_it_has_none(sample: ScanResult):
+    assert not any(f.in_test_code for f in sample.findings)
+    main.REPORT.parent.mkdir(exist_ok=True)
+    main.REPORT.write_text(sample.model_dump_json())
+    assert result(include_tests=False) == result()
