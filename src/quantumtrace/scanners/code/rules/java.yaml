@@ -12,8 +12,8 @@
 # Scope today: the starter-kit scenarios and their SAFE decoys, plus KeyAgreement, KEM, EC curves,
 # DH and DSA sizes and ML-KEM/ML-DSA names (task 6, Java slice). Names checked against the Java SE 24
 # standard algorithm names page, 2026-10-10. # verify
-# Not covered: KeyFactory (key loading), SecretKeySpec with a constant algorithm, provider-specific
-# names. A factory wrapped in a helper method whose name cannot be resolved is reported "unresolved".
+# Not covered: SecretKeySpec with a constant algorithm, provider-specific names. KeyFactory (key
+# loading) is a reference only (JAVA_KEY_FACTORY). A factory wrapped in a helper method whose name cannot be resolved is reported "unresolved".
 
 # ---- hashes, MAC, KDF ---------------------------------------------------------------------------
 
@@ -587,6 +587,58 @@
   kind_hint: algorithm
   usage: signature
   library: java.security
+  reference: true
+
+# Key loading and RSA transformation names (outside validation, spring-security RsaKeyConverters,
+# KeyStoreKeyFactory, RsaAlgorithm). A KeyFactory names the algorithm of a key that already exists: it
+# carries no size and no usage, so it is a reference (confidence at most 0.6, dropped when a call of the
+# same file reports the same name, e.g. the KeyPairGenerator that made the key). Names from the Java SE
+# standard algorithm names (KeyFactory section). # verify. Ed25519, Ed448 and EdDSA are not listed:
+# JAVA_JCA_SIGNATURE_NAME already reports those literals wherever they are written.
+- id: JAVA_KEY_FACTORY
+  language: java
+  pattern: '\bKeyFactory\.getInstance\(\s*"(?P<algo>RSA|RSASSA-PSS|EC|DSA|DH|DiffieHellman|X25519|X448|XDH)"'
+  raw_name: '{algo}'
+  kind_hint: algorithm
+  usage: unknown
+  library: java.security
+  reference: true
+
+# A file-scope String constant that resolves to one of the same names. An identifier that does not
+# resolve is dropped, never reported as a name.
+- id: JAVA_KEY_FACTORY_REF
+  language: java
+  pattern: '\bKeyFactory\.getInstance\(\s*(?P<algo_ref>[A-Za-z_]\w*)\s*[,)]'
+  raw_name: '{algo}'
+  kind_hint: algorithm
+  usage: unknown
+  library: java.security
+  reference: true
+  values_must_match:
+    algo: '(?:RSA|RSASSA-PSS|EC|DSA|DH|DiffieHellman|X25519|X448|XDH)'
+
+# An RSA transformation held in a constant or an enum (RsaAlgorithm: OAEP("RSA/ECB/OAEPPadding", 86)).
+# Only the three-part form is matched: a bare "RSA" is also a JWK key-type label (jjwt
+# DefaultRsaPublicJwk TYPE_VALUE) and is not a use.
+- id: JAVA_RSA_TRANSFORM_NAME
+  language: java
+  pattern: '"(?P<name>RSA/[A-Za-z]+/[A-Za-z0-9-]+)"'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: encryption
+  library: javax.crypto
+  reference: true
+  absorbed_by: [JAVA_CIPHER_RSA]
+
+# An enum constant that pairs "RSA" with a number: DEFAULT("RSA", 117). The line must start with the
+# constant, so a field initialiser, a map entry or an argument list never matches.
+- id: JAVA_RSA_ENUM_NAME
+  language: java
+  pattern: '(?m)^[ \t]*[A-Z][A-Z0-9_]*\([ \t]*"(?P<name>RSA)"[ \t]*,[ \t]*\d+[ \t]*\)'
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: unknown
+  library: javax.crypto
   reference: true
 
 # JOSE names (RFC 7518): jjwt SignatureAlgorithm.RS256 / Jwts.SIG.RS256, Nimbus JWSAlgorithm.RS256, and

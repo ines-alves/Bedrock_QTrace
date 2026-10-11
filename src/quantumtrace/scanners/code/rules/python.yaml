@@ -363,6 +363,18 @@
   key_size_from_length: true
   inherit_key_size: AES
 
+# ChaCha20-Poly1305 AEAD (outside validation, authlib jose/drafts/_jwe_enc_cryptography.py): the
+# cryptography class (constructor or generate_key) and the PyCryptodome module (ChaCha20_Poly1305.new).
+# A class definition of the same name is not a use. The key is always 256 bits, so no size is read.
+- id: PY_CHACHA20POLY1305
+  language: python
+  pattern: '(?<!class )\bChaCha20Poly1305(?:\(|\.generate_key\()|\bChaCha20_Poly1305\.new\('
+  requires: ['\bcryptography\b|\bCrypto(?:dome)?\b']
+  raw_name: ChaCha20-Poly1305
+  kind_hint: algorithm
+  usage: encryption
+  library: cryptography
+
 # Hard-coded key (M1M3-02, M1M3-04): fires only when a literal reaches an AES key sink, inline, through a
 # file-scope constant, a parameter default or call-site arguments. The finding is at the literal's line.
 # HMAC keys are outside the rule because HMAC is not an AES sink.

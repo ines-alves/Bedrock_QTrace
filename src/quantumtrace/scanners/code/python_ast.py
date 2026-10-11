@@ -39,6 +39,7 @@ QUALIFIERS = frozenset(
         "ARC4",
         "BLAKE2b",
         "BLAKE2s",
+        "ChaCha20_Poly1305",
         "DES",
         "DES3",
         "DSA",
