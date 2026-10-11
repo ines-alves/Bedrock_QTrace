@@ -429,22 +429,18 @@ def test_inputs_outside_working_directory_stay_absolute(tmp_path, monkeypatch):
     ]
 
 
-def test_walked_documentation_is_skipped_but_named_and_key_files_are_reported(tmp_path, monkeypatch):
+def test_walked_files_are_reported_only_when_they_may_hold_key_material_or_tls_config(tmp_path, monkeypatch):
     kit = tmp_path / "kit"
-    (kit / "docs").mkdir(parents=True)
-    for name in ("README.md", "LICENSE", "docs/guide.rst", "docs/diagram.png", "CHANGELOG.txt"):
-        (kit / name).write_text("notes\n")
-    for name in ("server.key", "nginx.conf", "id_rsa", "notes.txt"):
+    (kit / "static").mkdir(parents=True)
+    skipped = ("README.md", "LICENSE", "notes.txt", "static/app.js", "setup.cfg", "data.json", "Makefile")
+    reported = ("server.key", "certs.pem", "nginx.conf", "id_rsa", "id_ed25519.pub", "keystore.p12")
+    for name in skipped + reported:
         (kit / name).write_text("unsupported\n")
     monkeypatch.chdir(tmp_path)
     walked = pipeline.run(["kit"])
-    assert [error.path for error in walked.errors] == [
-        "kit/id_rsa",
-        "kit/nginx.conf",
-        "kit/notes.txt",
-        "kit/server.key",
-    ]
-    named = pipeline.run(["kit/README.md"])
-    assert [(error.path, error.message) for error in named.errors] == [
-        ("kit/README.md", "no selected scanner supports input")
-    ]
+    assert sorted(error.path for error in walked.errors) == sorted(f"kit/{name}" for name in reported)
+    assert {error.message for error in walked.errors} == {"no selected scanner supports input"}
+    assert pipeline.skipped_files(["kit"]) == sorted(f"kit/{name}" for name in skipped)
+    named = pipeline.run(["kit/README.md", "kit/static/app.js"])
+    assert [error.path for error in named.errors] == ["kit/README.md", "kit/static/app.js"]
+    assert pipeline.skipped_files(["kit/README.md"]) == []

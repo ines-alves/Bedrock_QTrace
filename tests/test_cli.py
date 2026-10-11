@@ -49,6 +49,7 @@ def test_real_starter_scan_writes_all_requested_valid_reports(tmp_path):
     )
     # The kit's README files are walked documentation, not unsupported coverage.
     assert invocation.exit_code == 0 and "Coverage incomplete" not in invocation.output
+    assert "Skipped 3 walked file(s) that no scanner supports" in " ".join(invocation.output.split())
     result = ScanResult.model_validate_json((tmp_path / "report.json").read_text())
     assert (len(result.findings), len(result.assets), len(result.sessions)) == (1056, 658, 121)
     assert result.roadmap and result.summary.score == 60

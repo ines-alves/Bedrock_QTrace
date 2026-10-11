@@ -29,18 +29,47 @@ _ADAPTER_MODULES = (
     "quantumtrace.scanners.network.pcap_scanner",
 )
 
-# Documentation met while walking a folder is not cryptographic input; a file named explicitly still
-# errors, and key/config files stay reported until their scanners exist (AlltoAll, M3C-01).
-_DOC_NAMES = frozenset(
-    {"authors", "changelog", "contributing", "copying", "licence", "license", "notice", "readme"}
+# A walked file that no scanner claims is reported only when it may hold key material or TLS/SSH
+# configuration, whose scanners are M3's P2 (AlltoAll, M3C-01, M3D-12); other walked files are not
+# cryptographic input and are skipped. A file named explicitly is always reported.
+_MATERIAL_SUFFIXES = frozenset(
+    {
+        ".cer",
+        ".crt",
+        ".csr",
+        ".der",
+        ".jks",
+        ".key",
+        ".keystore",
+        ".p12",
+        ".p7b",
+        ".p8",
+        ".pem",
+        ".pfx",
+        ".pub",
+    }
 )
-_DOC_SUFFIXES = frozenset(
-    {".adoc", ".gif", ".ico", ".jpeg", ".jpg", ".markdown", ".md", ".png", ".rst", ".svg", ".webp"}
+_MATERIAL_NAMES = frozenset(
+    {
+        "authorized_keys",
+        "haproxy.cfg",
+        "httpd.conf",
+        "id_dsa",
+        "id_ecdsa",
+        "id_ed25519",
+        "id_rsa",
+        "java.security",
+        "nginx.conf",
+        "openssl.cnf",
+        "ssh_config",
+        "ssl.conf",
+        "sshd_config",
+    }
 )
 
 
-def _is_documentation(path: Path) -> bool:
-    return path.suffix.lower() in _DOC_SUFFIXES or path.name.lower().split(".")[0] in _DOC_NAMES
+def _reportable(path: Path) -> bool:
+    return path.suffix.lower() in _MATERIAL_SUFFIXES or path.name.lower() in _MATERIAL_NAMES
 
 
 def _load_adapters() -> list[ScanError]:
@@ -122,6 +151,42 @@ def _route(path: Path, scanners: list[Scanner], errors: list[ScanError]) -> Scan
     return None
 
 
+def _plan(
+    inputs: list[str | Path],
+    settings: ScanOptions,
+    scanners: list[Scanner],
+    errors: list[ScanError],
+    scan_root: Path | None = None,
+) -> tuple[list[tuple[Path, Path, Scanner]], list[Path]]:
+    """Route every input file; return routed files and the walked files skipped without a scanner."""
+    named = {Path(item).absolute() for item in inputs}
+    routed, skipped = [], []
+    for path, root in _files(inputs, settings, errors, scan_root):
+        scanner = _route(path, scanners, errors)
+        if scanner is not None:
+            routed.append((path, root, scanner))
+        elif path in named or _reportable(path):
+            errors.append(
+                ScanError(
+                    detector="pipeline", path=_display(path), message="no selected scanner supports input"
+                )
+            )
+        else:
+            skipped.append(path)
+    return routed, skipped
+
+
+def skipped_files(inputs: list[str | Path], options: ScanOptions | None = None) -> list[str]:
+    """Walked files that no selected scanner supports and that are not reported as coverage errors."""
+    settings = options if options is not None else ScanOptions()
+    _load_adapters()
+    try:
+        scanners = select_scanners(settings.scanner_names)
+    except ValueError:
+        scanners = []
+    return [_display(path) for path in _plan(inputs, settings, scanners, [])[1]]
+
+
 def run(
     inputs: list[str | Path], probes: list[str] | None = None, options: ScanOptions | None = None
 ) -> ScanResult:
@@ -146,18 +211,7 @@ def _run(
         errors.append(ScanError(detector="pipeline", message=str(exc)))
         scanners = []
     findings = []
-    named = {Path(item).absolute() for item in inputs}
-    for path, root in _files(inputs, settings, errors, scan_root):
-        scanner = _route(path, scanners, errors)
-        if scanner is None:
-            if path not in named and _is_documentation(path):
-                continue
-            errors.append(
-                ScanError(
-                    detector="pipeline", path=_display(path), message="no selected scanner supports input"
-                )
-            )
-            continue
+    for path, root, scanner in _plan(inputs, settings, scanners, errors, scan_root)[0]:
         try:
             for item in scanner.scan(path, root):
                 if isinstance(item, Finding):

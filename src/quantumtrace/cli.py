@@ -15,7 +15,7 @@ from rich.table import Table
 
 from quantumtrace.models import ScanResult, Tier
 from quantumtrace.output.report_json import render_json_document, write_json_document, write_report_json
-from quantumtrace.pipeline import run
+from quantumtrace.pipeline import run, skipped_files
 
 app = typer.Typer(no_args_is_help=True, help="Inventory cryptography and plan post-quantum migration.")
 console = Console()
@@ -115,6 +115,7 @@ def scan(
     try:
         inputs: list[str | Path] = list(paths)
         result = run(inputs, probes=probe)
+        skipped = skipped_files(inputs)
         cbom = None
         if "cbom" in names:
             cbom = writers["build_cbom"](result)
@@ -138,6 +139,10 @@ def scan(
         _fail(f"Scan or report generation failed: {exc}")
     # In stdout mode the JSON document is the only stdout content.
     _summary(result, errors if stdout else console)
+    if skipped:
+        (errors if stdout else console).print(
+            f"Skipped {len(skipped)} walked file(s) that no scanner supports (not cryptographic input)."
+        )
     if not stdout:
         console.print("Reports: " + escape(str(out)))
     breached = _threshold(result, fail_on)
