@@ -1,6 +1,7 @@
 """Thin HTTP layer: serves a ScanResult and its CBOM, report and scoring views, no business logic."""
 
 import os
+import shutil
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
@@ -126,6 +127,14 @@ def scan(request: ScanRequest) -> ScanResult:
 
 class GithubRequest(BaseModel):
     url: str
+
+
+@app.delete("/api/scan", response_model=ScanResult)
+def clear_scan() -> ScanResult:
+    """Forget the stored scan and its unpacked uploads; every endpoint serves the bundled sample again."""
+    REPORT.unlink(missing_ok=True)
+    shutil.rmtree(UPLOADS, ignore_errors=True)
+    return _current()
 
 
 @app.post("/api/scan/upload", response_model=ScanResult)
