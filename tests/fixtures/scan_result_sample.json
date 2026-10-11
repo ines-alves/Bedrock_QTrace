@@ -2,8 +2,8 @@
   "schema_version": "1.0",
   "tool_version": "0.1.0",
   "scan_id": "7681056a0f849a0f",
-  "started_at": "2026-10-10T22:26:27.447225+00:00",
-  "finished_at": "2026-10-10T22:26:28.234854+00:00",
+  "started_at": "2026-10-11T00:10:43.481685+00:00",
+  "finished_at": "2026-10-11T00:10:44.214941+00:00",
   "inputs": [
     "cloud-posture",
     "network-capture",
@@ -42331,7 +42331,13 @@
       "rationale": "QuantumTrace policy; SAFE is scoped to quantum classification, not a security audit. Signatures/authentication are not HNDL exposure for previously recorded confidentiality.",
       "recommendations": [
         {
-          "action": "Migrate signature to SHA-384.",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
+          "priority": 2
+        },
+        {
+          "action": "Use SHA-384 as the signature hash.",
           "target_algorithm": "SHA-384",
           "standard": "NIST FIPS 180-4",
           "priority": 2
@@ -44535,7 +44541,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -49115,7 +49121,7 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
+          "action": "Use SHA-384 as the signature hash.",
           "target_algorithm": "SHA-384",
           "standard": "NIST FIPS 180-4",
           "priority": 2
@@ -49288,7 +49294,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -49947,7 +49953,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -50394,7 +50400,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -51028,7 +51034,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -51154,7 +51160,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -51437,7 +51443,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -51569,7 +51575,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -52205,7 +52211,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -52275,7 +52281,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -52345,7 +52351,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -53375,7 +53381,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -53508,7 +53514,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -53642,7 +53648,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -53769,7 +53775,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -53847,7 +53853,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -53995,7 +54001,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -55185,7 +55191,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -55262,7 +55268,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -55496,9 +55502,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -55735,7 +55741,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -55806,7 +55812,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -56137,7 +56143,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -57855,7 +57861,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -57932,7 +57938,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -58709,7 +58715,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -58842,9 +58848,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -59206,9 +59212,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -59388,7 +59394,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -59459,7 +59465,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -59706,7 +59712,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -59805,7 +59811,7 @@
           "priority": 2
         },
         {
-          "action": "Migrate signature to SHA-384.",
+          "action": "Use SHA-384 as the signature hash.",
           "target_algorithm": "SHA-384",
           "standard": "NIST FIPS 180-4",
           "priority": 2
@@ -60239,7 +60245,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -60311,7 +60317,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -60506,7 +60512,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -60583,7 +60589,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -61373,7 +61379,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -61566,7 +61572,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -61976,7 +61982,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -62568,9 +62574,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -62645,7 +62651,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -62846,7 +62852,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -63457,9 +63463,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -63520,9 +63526,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -63821,7 +63827,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -64234,7 +64240,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -65336,7 +65342,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -65528,7 +65534,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -65653,7 +65659,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -67712,7 +67718,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -67923,7 +67929,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -67994,7 +68000,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -68070,7 +68076,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -68386,7 +68392,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -68449,9 +68455,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -68631,7 +68637,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -68947,7 +68953,7 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
+          "action": "Use SHA-384 as the signature hash.",
           "target_algorithm": "SHA-384",
           "standard": "NIST FIPS 180-4",
           "priority": 2
@@ -69133,7 +69139,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -69361,7 +69367,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -69545,7 +69551,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -70180,7 +70186,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -70307,7 +70313,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -70426,7 +70432,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -70984,7 +70990,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -71848,7 +71854,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -71925,7 +71931,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -72678,7 +72684,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -72810,7 +72816,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -73522,7 +73528,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -73592,7 +73598,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -73718,7 +73724,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -74035,7 +74041,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -74398,9 +74404,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -74695,7 +74701,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -74877,7 +74883,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -75002,7 +75008,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -75231,7 +75237,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -75367,7 +75373,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -75839,7 +75845,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -75964,7 +75970,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -76379,7 +76385,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -76468,7 +76474,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -76594,9 +76600,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -76848,7 +76854,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -77098,7 +77104,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -77175,7 +77181,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -77357,7 +77363,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -77699,7 +77705,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -77770,7 +77776,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -77856,7 +77862,7 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
+          "action": "Use SHA-384 as the signature hash.",
           "target_algorithm": "SHA-384",
           "standard": "NIST FIPS 180-4",
           "priority": 2
@@ -78154,7 +78160,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -78402,7 +78408,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -78793,7 +78799,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -78864,7 +78870,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -78942,7 +78948,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -79019,7 +79025,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -79370,7 +79376,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -79614,7 +79620,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -79690,7 +79696,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -80043,7 +80049,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -80344,7 +80350,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -80972,7 +80978,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -81161,7 +81167,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -81661,7 +81667,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -81897,7 +81903,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -82231,7 +82237,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -82655,7 +82661,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -82977,7 +82983,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -83159,7 +83165,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -83622,7 +83628,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -83698,7 +83704,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -83769,7 +83775,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -83943,9 +83949,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -84281,7 +84287,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -84357,7 +84363,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -84490,7 +84496,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -84553,9 +84559,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -84731,7 +84737,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -85695,7 +85701,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -85828,7 +85834,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -85996,9 +86002,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -86814,7 +86820,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -86885,7 +86891,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -87077,7 +87083,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -87358,7 +87364,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -87594,7 +87600,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -87791,7 +87797,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -87861,7 +87867,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -87987,7 +87993,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -88065,7 +88071,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -88136,7 +88142,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -88949,7 +88955,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -89132,7 +89138,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -90317,7 +90323,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -90493,7 +90499,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -90611,9 +90617,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -90738,7 +90744,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -90997,9 +91003,9 @@
           "priority": 1
         },
         {
-          "action": "Migrate signature to SHA-384.",
-          "target_algorithm": "SHA-384",
-          "standard": "NIST FIPS 180-4",
+          "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+          "target_algorithm": "rsa-sha2-512",
+          "standard": "IETF RFC 8332",
           "priority": 2
         }
       ],
@@ -91117,7 +91123,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -91187,7 +91193,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -91369,7 +91375,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -92258,7 +92264,7 @@
         {
           "action": "Use a maintained HMAC-SHA384 implementation.",
           "target_algorithm": "HMAC-SHA384",
-          "standard": null,
+          "standard": "NIST FIPS 198-1",
           "priority": 2
         }
       ],
@@ -96134,23 +96140,7 @@
       "asset-9d8e7a344e4cd8646ca4f28c"
     ]
   },
-  "errors": [
-    {
-      "detector": "pipeline",
-      "path": "cloud-posture/README.md",
-      "message": "no selected scanner supports input"
-    },
-    {
-      "detector": "pipeline",
-      "path": "network-capture/README.md",
-      "message": "no selected scanner supports input"
-    },
-    {
-      "detector": "pipeline",
-      "path": "sample-repos/README.md",
-      "message": "no selected scanner supports input"
-    }
-  ],
+  "errors": [],
   "roadmap": [
     {
       "phase": 0,
@@ -96187,15 +96177,6 @@
         "asset-a8e24298b3261f026e5bc3e8"
       ],
       "occurrence_count": 9
-    },
-    {
-      "phase": 0,
-      "action": "Migrate signature to SHA-384.",
-      "asset_ids": [
-        "asset-3b66643ca764a191d35ee4f4",
-        "asset-575e2008296deb209a5f327d"
-      ],
-      "occurrence_count": 17
     },
     {
       "phase": 0,
@@ -96236,6 +96217,14 @@
         "asset-82318d55383126ae98419180"
       ],
       "occurrence_count": 2
+    },
+    {
+      "phase": 0,
+      "action": "Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
+      "asset_ids": [
+        "asset-575e2008296deb209a5f327d"
+      ],
+      "occurrence_count": 14
     },
     {
       "phase": 0,
@@ -96288,7 +96277,7 @@
     },
     {
       "phase": 0,
-      "action": "Review offered-only capability: Migrate signature to SHA-384.",
+      "action": "Review offered-only capability: Replace ssh-rsa signatures with rsa-sha2-512 or rsa-sha2-256; the RSA key is reused.",
       "asset_ids": [
         "asset-575e2008296deb209a5f327d"
       ],
@@ -96301,6 +96290,15 @@
         "asset-2eb3886515b5d6705461e4c5"
       ],
       "occurrence_count": 2
+    },
+    {
+      "phase": 0,
+      "action": "Use SHA-384 as the signature hash.",
+      "asset_ids": [
+        "asset-3b66643ca764a191d35ee4f4",
+        "asset-575e2008296deb209a5f327d"
+      ],
+      "occurrence_count": 3
     },
     {
       "phase": 0,
