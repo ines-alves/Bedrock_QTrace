@@ -60,3 +60,30 @@ def test_missing_identifier_is_a_scan_error(tmp_path: Path) -> None:
     bad.write_text(json.dumps({"Keys": [{"KeySpec": "RSA_2048"}]}))
     out = list(KmsScanner().scan(bad, tmp_path))  # type: ignore[arg-type]
     assert len(out) == 1 and out[0].message.startswith("key without")
+
+
+def test_describe_key_records_with_arn_and_legacy_customer_master_key_spec(tmp_path):
+    """DescribeKey KeyMetadata names the ARN "Arn", and older responses carry only the deprecated
+    CustomerMasterKeySpec (AWS KMS API reference, KeyMetadata). One such key must not hide the file."""
+    import json
+
+    from quantumtrace import pipeline
+    from quantumtrace.models import Tier
+
+    arn = "arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"
+    keys = [
+        {"KeyId": "1234abcd", "Arn": arn, "KeySpec": "SYMMETRIC_DEFAULT", "KeyUsage": "ENCRYPT_DECRYPT"},
+        {
+            "KeyId": "5678efgh",
+            "Arn": arn.replace("1234abcd", "5678efgh"),
+            "CustomerMasterKeySpec": "RSA_2048",
+            "KeyUsage": "SIGN_VERIFY",
+        },
+    ]
+    path = tmp_path / "kms_key_inventory.json"
+    path.write_text(json.dumps({"Keys": keys}))
+    result = pipeline.run([path])
+    assert result.errors == []
+    tiers = {a.canonical_name: a.tier for a in result.assets}
+    # The symmetric key is the KMS-SYMMETRIC-DEFAULT container with its AES-256 component (aws partition).
+    assert tiers == {"KMS-SYMMETRIC-DEFAULT": Tier.SAFE, "AES": Tier.SAFE, "RSA": Tier.CRITICAL}

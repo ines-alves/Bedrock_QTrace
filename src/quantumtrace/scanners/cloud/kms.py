@@ -27,9 +27,16 @@ def _load_inventory(path: Path) -> dict | None:
     except (OSError, ValueError):
         return None
     keys = data.get("Keys") if isinstance(data, dict) else None
-    if isinstance(keys, list) and keys and all(isinstance(k, dict) and "KeySpec" in k for k in keys):
+    if isinstance(keys, list) and keys and all(isinstance(k, dict) and _spec(k) for k in keys):
         return data
     return None
+
+
+def _spec(key: dict) -> str | None:
+    """KeySpec, or the deprecated CustomerMasterKeySpec that older SDKs and DescribeKey responses still
+    return alone (AWS KMS API reference, KeyMetadata, checked 2026-10-11)."""
+    spec = key.get("KeySpec") or key.get("CustomerMasterKeySpec")
+    return spec if isinstance(spec, str) and spec else None
 
 
 @register
@@ -47,13 +54,14 @@ class KmsScanner:
             yield ScanError(detector=self.name, path=rel, message="not a KMS key inventory")
             return
         for key in data["Keys"]:
-            resource_id = key.get("KeyArn") or key.get("KeyId") or key.get("AliasName")
+            # ListKeys exports carry KeyArn; DescribeKey KeyMetadata names the same value Arn.
+            resource_id = key.get("KeyArn") or key.get("Arn") or key.get("KeyId") or key.get("AliasName")
             if not resource_id:
                 yield ScanError(
                     detector=self.name, path=rel, message="key without KeyArn, KeyId or AliasName"
                 )
                 continue
-            spec = key["KeySpec"]
+            spec = _spec(key) or ""
             rsa = re.fullmatch(r"RSA_(\d+)", spec)
             nist = re.fullmatch(r"ECC_NIST_P(\d+)", spec)
             flags = []
