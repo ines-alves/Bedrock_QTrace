@@ -39,8 +39,8 @@ export default function CodeConfig() {
 
   return (
     <>
-      <h1 className="mb-1 font-head text-2xl">Code &amp; Config</h1>
-      <p className="mb-6 font-sub italic text-paper/60">
+      <h1 className="mb-2 font-head text-4xl font-bold leading-tight">Code &amp; Config</h1>
+      <p className="mb-8 font-sub text-lg italic text-paper/70">
         {plural(s.findings, 'finding', 'findings')} in {plural(s.files, 'file', 'files')}
         {` · ${s.byTier.CRITICAL} critical, ${s.byTier.MEDIUM} medium, ${s.byTier.UNKNOWN} unknown, ${s.byTier.SAFE} safe`}
         {` · ${plural(s.warnings, 'warning', 'warnings')}, ${plural(s.libraries, 'library', 'libraries')}, ${s.testCode} in test code`}
