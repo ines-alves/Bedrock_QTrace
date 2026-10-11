@@ -4,6 +4,7 @@ httpx is not installed, so the route functions are called directly instead of th
 """
 
 import asyncio
+import os
 import sys
 import types
 from pathlib import Path
@@ -13,7 +14,19 @@ from fastapi import HTTPException
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import api.main as main
-from api.main import ScanRequest, SinglePageApp, app, cbom, report_md, result, scan, scoring, validate
+from api.main import (
+    ScanRequest,
+    SinglePageApp,
+    app,
+    browse,
+    cbom,
+    report_md,
+    result,
+    scan,
+    scoring,
+    source,
+    validate,
+)
 from quantumtrace.kb.loader import KnowledgeBaseError
 from quantumtrace.models import ScanResult
 from quantumtrace.output.cyclonedx import build_cbom
@@ -142,3 +155,37 @@ def test_single_page_app_falls_back_to_index_but_not_for_api_or_asset_paths(tmp_
         with pytest.raises(StarletteHTTPException) as error:
             _serve(tmp_path, missing)
         assert error.value.status_code == 404
+
+
+def test_source_tells_a_scan_from_the_bundled_sample(monkeypatch: pytest.MonkeyPatch, sample: ScanResult):
+    assert source() == {"source": "sample"}
+    calls = _stub_pipeline(monkeypatch, sample)
+    scan(ScanRequest(paths=["sample-repos"]))
+    assert calls and source() == {"source": "scan"}
+
+
+def test_browse_lists_folders_first_and_hides_tooling():
+    top = browse()
+    names = [entry.name for entry in top.entries]
+    assert top.path == "" and top.parent is None
+    assert {"sample-repos", "cloud-posture", "network-capture"} <= set(names)
+    assert not {".git", ".venv", "node_modules", "out"} & set(names)
+    dirs = [entry.is_dir for entry in top.entries]
+    assert dirs == sorted(dirs, reverse=True)
+    inside = browse("sample-repos")
+    assert inside.parent == "" and all(entry.path.startswith("sample-repos/") for entry in inside.entries)
+    assert not [entry.name for entry in inside.entries if entry.name.lower().startswith("readme")]
+    with pytest.raises(HTTPException) as error:
+        browse("sample-repos/README.md")
+    assert error.value.status_code == 400
+
+
+def test_browse_follows_the_configured_scan_roots(monkeypatch: pytest.MonkeyPatch):
+    roots = [main.ROOT / "sample-repos", main.ROOT / "cloud-posture"]
+    monkeypatch.setenv("QTRACE_SCAN_ROOTS", os.pathsep.join(str(root) for root in roots))
+    top = browse()
+    assert [entry.name for entry in top.entries] == ["cloud-posture", "sample-repos"] and top.parent is None
+    assert browse("sample-repos").parent == ""
+    with pytest.raises(HTTPException) as error:
+        browse("network-capture")
+    assert error.value.status_code == 400
