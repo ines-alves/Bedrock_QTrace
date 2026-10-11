@@ -251,10 +251,17 @@ def _hash_name(raw: str, kb: KnowledgeBase) -> str | None:
     return entry.id if entry and "hash" in entry.primitive_by_usage.values() else None
 
 
+# Signature OIDs that the certificate library leaves unnamed. 1.3.14.3.2.29 is the OIW
+# sha-1WithRSASignature; pyca/cryptography (hazmat/_oid.py, SignatureAlgorithmOID._RSA_WITH_SHA1)
+# maps it to SHA-1 with RSA PKCS#1 v1.5.
+_SIGNATURE_OIDS = {"1.3.14.3.2.29": "sha1WithRSA"}
+
+
 def _signature(name: str, kb: KnowledgeBase) -> _Recipe | None:
-    key = alias_key(name)
+    key = alias_key(_SIGNATURE_OIDS.get(name.strip(), name))
     match = re.fullmatch(
-        r"(?P<hash>md5|sha1|sha224|sha256|sha384|sha512|sha512256|sha512224|sha3256|sha3384|sha3512)with(?P<alg>rsa|ecdsa|dsa)(?P<pss>pss|encryption)?",
+        r"(?P<hash>md5|sha1|sha224|sha256|sha384|sha512|sha512256|sha512224|sha3224|sha3256|sha3384|sha3512)"
+        r"with(?P<alg>rsa|ecdsa|dsa)(?P<pss>pss|encryption|andmgf1)?",
         key,
     )
     if not match:
@@ -270,11 +277,15 @@ def _signature(name: str, kb: KnowledgeBase) -> _Recipe | None:
         # X.509 sha256WithRSAEncryption-style names (RFC 8017) denote RSA PKCS#1 v1.5 only.
         if match.groupdict().get("pss") == "encryption" and algorithm != "RSA":
             return None
+        # JCA <digest>with<encryption>and<mgf> names the PKCS #1 v2.2 scheme with MGF1, RSASSA-PSS
+        # (Java Security Standard Algorithm Names, Signature algorithms).
+        if match.groupdict().get("pss") == "andmgf1" and algorithm != "RSA":
+            return None
     digest = _hash_name(match["hash"], kb)
     if digest is None:
         return None
     pss = match.groupdict().get("pss")
-    padding = "pss" if pss == "pss" else "pkcs1v15" if algorithm == "RSA" else None
+    padding = "pss" if pss in {"pss", "andmgf1"} else "pkcs1v15" if algorithm == "RSA" else None
     return _Recipe(
         (
             ComponentSpec(algorithm, Usage.SIGNATURE, "signature", padding=padding, inherit_parameters=True),
@@ -322,7 +333,7 @@ def _transform(name: str, kb: KnowledgeBase) -> _Recipe | None:
         return None
     padding = match[3]
     if not re.fullmatch(
-        r"NoPadding|PKCS[157]Padding|OAEPPadding|OAEPWithSHA-?(?:1|224|256|384|512)AndMGF1Padding",
+        r"NoPadding|PKCS[157]Padding|ISO10126Padding|OAEPPadding|OAEPWithSHA-?(?:1|224|256|384|512)AndMGF1Padding",
         padding,
         re.I,
     ):
@@ -534,6 +545,13 @@ def _ssh(finding: Finding, name: str, kb: KnowledgeBase) -> _Recipe | None:
             (
                 ComponentSpec("X25519", Usage.KEY_EXCHANGE, "key_exchange", inherit_parameters=True),
                 ComponentSpec("SHA-256", Usage.HASH, "kex_hash"),
+            )
+        )
+    if name.casefold() == "curve448-sha512":  # RFC 8731
+        return _Recipe(
+            (
+                ComponentSpec("X448", Usage.KEY_EXCHANGE, "key_exchange", inherit_parameters=True),
+                ComponentSpec("SHA-512", Usage.HASH, "kex_hash"),
             )
         )
     return None
