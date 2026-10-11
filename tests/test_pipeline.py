@@ -1,5 +1,6 @@
 """Routing, error recovery, evidence preservation and available-adapter integration."""
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -142,6 +143,7 @@ def test_invalid_emissions_and_no_implicit_probe(fake, monkeypatch, tmp_path):
     monkeypatch.setattr(base, "REGISTRY", [Invalid()])
     path = tmp_path / "a.raw"
     path.write_text("fixture")
+    monkeypatch.setitem(sys.modules, "quantumtrace.scanners.network.probe", None)
     result = pipeline.run([path], probes=["example.invalid:443"])
     assert len(result.errors) == 2
     assert any("probe adapter is unavailable" in error.message for error in result.errors)

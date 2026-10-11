@@ -85,7 +85,9 @@ def _summary(result: ScanResult, console: Console) -> None:
 
 @app.command()
 def scan(
-    paths: Annotated[list[Path], typer.Argument(help="Files or directories to scan.")],
+    paths: Annotated[
+        list[Path] | None, typer.Argument(help="Files or directories to scan (optional with --probe).")
+    ] = None,
     out: Annotated[Path, typer.Option("--out", "-o", help="Output directory.")] = Path("out"),
     formats: Annotated[str, typer.Option("--format", "-f", help="Comma-separated json,cbom,md.")] = "json",
     probe: Annotated[
@@ -106,6 +108,8 @@ def scan(
     Exit codes: 2 for invocation, scan, export errors or partial coverage; otherwise 1 when
     the --fail-on threshold is reached; 0 on success.
     """
+    if not paths and not probe:
+        _fail("Give at least one file or directory to scan, or a --probe host:port target.")
     names, writers = _writers(formats)
     stdout = str(out) == "-"
     if stdout and names != ("json",):
@@ -113,7 +117,7 @@ def scan(
             "--out - writes only the native JSON report to stdout; use --format json or an output directory."
         )
     try:
-        inputs: list[str | Path] = list(paths)
+        inputs: list[str | Path] = list(paths or [])
         result = run(inputs, probes=probe)
         skipped = skipped_files(inputs)
         cbom = None
