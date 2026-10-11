@@ -8,6 +8,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Familjen+Grotesk:wght@400;500;600;700&family=Piazzolla:ital@1&display=swap" rel="stylesheet" />
     <title>QuantumTrace</title>
+    <script>
+      try {
+        const asked = new URLSearchParams(location.search).get('theme') ?? localStorage.getItem('qt-theme')
+        document.documentElement.dataset.theme = asked === 'light' ? 'light' : 'dark'
+      } catch {
+        document.documentElement.dataset.theme = 'dark'
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

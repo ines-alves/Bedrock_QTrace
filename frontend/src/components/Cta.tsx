@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 
 const base = 'inline-block rounded-full px-6 py-3 font-head text-sm font-semibold'
 const style = (primary: boolean) =>
-  `${base} ${primary ? 'bg-aqua text-ink hover:bg-paper' : 'border border-aqua text-aqua hover:bg-aqua hover:text-ink'}`
+  `${base} ${primary ? 'bg-aqua text-on-accent hover:bg-paper hover:text-ink' : 'border border-aqua text-aqua hover:bg-aqua hover:text-on-accent'}`
 
 type Props = { children: ReactNode; primary?: boolean } & (
   | { to: string }

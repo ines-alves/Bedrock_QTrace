@@ -52,7 +52,7 @@ export default function ScoringPanel({ grade }: { grade: string }) {
             <p className="mt-2 text-paper/70">From 0 (best) to 100 (worst). A live key exchange exposed to harvest now, decrypt later never scores below {policy.hndl_floor.score}.</p>
             <p className="mt-3 flex flex-wrap gap-2">
               {policy.grade_bands.map((b) => (
-                <span key={b.grade} className={`${pill} ${b.grade === grade ? 'border-aqua bg-aqua text-ink' : 'border-paper/25'}`}>
+                <span key={b.grade} className={`${pill} ${b.grade === grade ? 'border-aqua bg-aqua text-on-accent' : 'border-paper/25'}`}>
                   {b.grade} {b.minimum} to {b.maximum}
                 </span>
               ))}

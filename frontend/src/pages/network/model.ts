@@ -22,9 +22,9 @@ export function buildRows(result: ScanResult): Row[] {
 }
 
 const KEX = {
-  pq_hybrid: { label: 'Hybrid PQC', style: 'bg-jade text-ink' },
-  pq_pure: { label: 'Post-quantum', style: 'bg-jade text-ink' },
-  classical: { label: 'Classical', style: 'bg-critical text-ink' },
+  pq_hybrid: { label: 'Hybrid PQC', style: 'bg-jade text-on-accent' },
+  pq_pure: { label: 'Post-quantum', style: 'bg-jade text-on-accent' },
+  classical: { label: 'Classical', style: 'bg-critical text-on-accent' },
   unknown: { label: 'Unknown', style: 'border border-dashed border-paper/40 text-paper/60' },
 } as const
 

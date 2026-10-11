@@ -1,6 +1,8 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
 import { ScanProvider, useScan } from './api/useScanResult'
 import ScanBar from './components/ScanBar.tsx'
+import ThemeSwitcher from './components/ThemeSwitcher.tsx'
+import { useTheme } from './components/useTheme'
 import Cbom from './pages/Cbom.tsx'
 import Cloud from './pages/Cloud.tsx'
 import CodeConfig from './pages/CodeConfig.tsx'
@@ -24,6 +26,7 @@ function SourceChip() {
 }
 
 export default function App() {
+  const [theme, setTheme] = useTheme()
   return (
     <ScanProvider>
       <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-6 border-b border-paper/10 bg-ink/50 px-6 backdrop-blur-xl">
@@ -36,7 +39,10 @@ export default function App() {
           <NavLink to="/cbom" className={link}>CBOM</NavLink>
           <NavLink to="/roadmap" className={link}>Roadmap</NavLink>
         </nav>
-        <span className="ml-auto py-2"><SourceChip /></span>
+        <span className="ml-auto flex items-center gap-3 py-2">
+          <SourceChip />
+          <ThemeSwitcher value={theme} onChange={setTheme} />
+        </span>
       </header>
       <main className="p-6">
         <ScanBar />
