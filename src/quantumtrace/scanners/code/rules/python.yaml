@@ -726,6 +726,65 @@
   extra:
     source_constant: 'ssl.{const}'
 
+# ---- tool comparison follow-ups ------------------------------------------------------------------
+# EC key generation whose curve is a variable (authlib ec_key.py, paramiko ecdsakey.py): the curve is
+# unknown, the key is still EC. Raw name EC, confidence 0.5; a literal curve stays with PY_EC_CURVE, and an
+# UPPER_CASE module constant (CURVE = ec.SECP384R1()) is already reported where it is defined.
+- id: PY_EC_GENERATE_UNRESOLVED
+  language: python
+  pattern: '\bec\.generate_private_key\(\s*(?:curve\s*=\s*)?(?!ec\.|[A-Z][A-Z0-9_]*\s*[,)])(?P<argument>[A-Za-z_][\w.]*(?:\[[^\]\n]*\])?(?:\([^()]*\))?)\s*[,)]'
+  raw_name: EC
+  kind_hint: algorithm
+  usage: unknown
+  library: cryptography
+  only_unresolved: true
+
+# Edwards keys loaded from bytes (pyjwt algorithms.py from_private_bytes); X25519/X448 loading is in
+# PY_X25519/PY_X448.
+- id: PY_EDWARDS_KEY_LOAD
+  language: python
+  pattern: '\b(?P<name>Ed25519|Ed448)(?:Private|Public)Key[.]from_(?:private|public)_bytes\('
+  raw_name: '{name}'
+  kind_hint: algorithm
+  usage: signature
+  library: cryptography
+
+# RSA padding objects built without an RSA call on the same line (JOSE tables in authlib jwe_algs.py
+# and python-jose cryptography_backend.py). Only the asymmetric padding module qualifies, so symmetric
+# PKCS7 padding never matches. reference: the RSA call of the same file wins.
+- id: PY_RSA_OAEP_REFERENCE
+  language: python
+  pattern: '\bpadding\.OAEP\('
+  requires: ['asymmetric(?:[.]padding|\s+import\s+[^\n]*\bpadding\b)']
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: encryption
+  padding: OAEP
+  library: cryptography
+  reference: true
+
+- id: PY_RSA_PSS_REFERENCE
+  language: python
+  pattern: '\bpadding\.PSS\('
+  requires: ['asymmetric(?:[.]padding|\s+import\s+[^\n]*\bpadding\b)']
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: signature
+  padding: PSS
+  library: cryptography
+  reference: true
+
+- id: PY_RSA_PKCS1V15_REFERENCE
+  language: python
+  pattern: '\bpadding\.PKCS1v15\('
+  requires: ['asymmetric(?:[.]padding|\s+import\s+[^\n]*\bpadding\b)']
+  raw_name: RSA
+  kind_hint: algorithm
+  usage: unknown
+  padding: PKCS1v15
+  library: cryptography
+  reference: true
+
 # ---- references: names used, not called (outside validation F4, F5) ------------------------------
 # reference: true caps confidence at 0.6 and drops the hit when a call finding of the same file has the
 # same raw name (the call wins, as for import-only findings).

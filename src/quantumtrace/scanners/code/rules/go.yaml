@@ -203,7 +203,7 @@
 # Sign sites take the private key as second argument. The size comes only through a flow link.
 - id: GO_RSA_SIGN
   language: go
-  pattern: '\brsa\.Sign(?P<pad>PKCS1v15|PSS)\(\s*[^,()]+,\s*(?P<key_arg>[A-Za-z_]\w*)\s*,'
+  pattern: '\brsa\.Sign(?P<pad>PKCS1v15|PSS)\(\s*[^,()]+,\s*(?P<key_arg>[A-Za-z_]\w*)(?:\.\w+)*\s*,'
   raw_name: RSA
   kind_hint: algorithm
   usage: signature
@@ -737,3 +737,17 @@
   usage: signature
   library: jose
   reference: true
+
+# ---- HMAC with a hash chosen at run time (tool comparison, go-jose / golang-jwt) ------------------
+# hmac.New(ctx.hash, key) or hmac.New(m.Hash.New, key): the hash is not a crypto/<hash> constructor, so
+# GO_HMAC cannot name it. The MAC is still reported, raw name HMAC (unresolved hash), confidence 0.5.
+- id: GO_HMAC_UNRESOLVED
+  language: go
+  pattern: '\bhmac\.New\(\s*(?!(?:md5|sha1|sha256|sha512|sha3)\.)(?P<argument>[A-Za-z_][\w.]*(?:\([^()]*\))?)\s*,'
+  requires: ['"crypto/hmac"']
+  raw_name: HMAC
+  kind_hint: algorithm
+  usage: mac
+  library: crypto/hmac
+  only_unresolved: true
+
